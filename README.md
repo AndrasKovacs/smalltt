@@ -25,5 +25,6 @@ Missing things which I'll perhaps add:
 Non-goals
   - Noteworthy time/space optimizations for elaboration
   - Performant implementation & data structures
+  - Idiomatic Haskell
   - Universes
   - Modules
