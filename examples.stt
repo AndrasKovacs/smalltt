@@ -1,0 +1,93 @@
+
+-- Comments are as in Agda/Haskell
+-- Every source file is a single expression,
+-- usually containing a bunch of nested let-s
+-- ending with a "main" expression.
+
+-- Implicit args:
+let id : {a : *} → a → a
+    = λ x. x in
+
+-- We'll also use "id" as type annotation, like "the" in Idris
+
+-- Types of implicit args omitted (inferred):
+let const : {a b} → a → b → a = λ x y. x in
+
+-- By default, metas are inserted for implicits.
+-- Below, the right hand side is elaborated to λ {a}(x : a). id {a} x
+let id2 : {a} → a → a = λ x. id x in
+
+-- We can stop insertion of metas with "!".
+-- Below, we suppress insertion for the second "id",
+-- keeping it at a polymorphic type, so the elaborated
+-- right-hand side becomes "λ {a}. id {{a : *} → a → a} id {a}"
+let id3 : {a} → a → a = id (id !) in
+
+-- Another ! example, with type "{b : *} → * → b → *"
+let constStar : _ = const {*} ! in
+
+-- A fun thing is that "!" works on arbitrary terms, not just neutral appplications.
+-- Below, we suppress meta insertion for an implicit lambda.
+let bangTest : _ = (λ {x}. id {*} x) ! in
+
+-- Explicit Π types.
+let id4 : (a : *) → a → a = λ _ x. x in
+
+-- Arguments can be named in applications.
+let namedArgTest : _ = const {b = *} * in
+
+-- Like "!", this is also type-based and works on any expression.
+let namedArgTest2 : _ = id {{a b : *} → a → b → a} (λ x y. x) {b = *} * in
+
+-- Underscore in non-binder position marks an inferred term as in Agda
+let myStar : _ = id4 _ * in
+
+-- Of course, we have Church-coded ADT-s
+let Bool  : * = (b : *) → b → b → b in
+let true  : Bool = λ _ t f. t in
+let false : Bool = λ _ t f. f in
+
+let Nat   : * = (n : *) → (n → n) → n → n in
+let zero  : Nat = λ n s z. z in
+let suc   : Nat → Nat = λ a n s z. s (a n s z) in
+
+let List  : * → * = λ a. (l : *) → (a → l → l) → l → l in
+let nil   : {a} → List a = λ l c n. n in
+let cons  : {a} → a → List a → List a = λ a as l c n. c a (as l c n) in
+
+let mylist : List Bool
+    = cons true (cons false (cons true nil)) in
+
+let map : {a b} → (a → b) → List a → List b
+    = λ f as l c. as l (λ a. c (f a)) in
+
+-- And Church-coded GADTs as well
+let Vec : * → Nat → *
+    = λ a n. (V : Nat → *) → V zero → ({n} → a → V n → V (suc n)) → V n in
+
+let vnil : {a} → Vec a zero
+    = λ V n c. n in
+
+let vcons : {a n} → a → Vec a n → Vec a (suc n)
+    = λ a as V n c. c a (as V n c) in
+
+-- In particular, Leibniz equality corresponds to Church-coded
+-- Haskell-style GADT propositional equality:
+let Eq : {A} → A → A → *
+    = λ {A} x y. (P : A → *) → P x → P y in
+
+let refl : {A}{x : A} → Eq x x
+    = λ P px. px in
+
+let trans : {A}{x y z : A} → Eq x y → Eq y z → Eq x z
+    = λ {x = x} p q. q (Eq x) p in
+
+let sym : {A}{x y : A} → Eq x y → Eq y x
+    = λ {x = x}{y} p. p (λ y. Eq y x) refl in
+
+let ap : {A B}(f : A → B){x y : A} → Eq x y → Eq (f x) (f y)
+    = λ f {x}{y} p. p (λ y. Eq (f x) (f y)) refl in
+
+-- The "main" expression is the innermost one.
+-- We can print its normal form with :n and its normal type with :t
+suc (suc (suc (suc (suc zero))))
