@@ -18,13 +18,13 @@ Missing things which I'll perhaps add:
   - Type-annotated lambdas
   - Sigmas
   - More unification: pruning, intersections, eta-contractions, dependency erasure
-  - Acceptable pretty printing with at least toggleable implcit args
-  - Unreduced "glued" elaboration contexts, and what it enables: approximate conversion checks + better printed terms
+  - Acceptable pretty printing with at least toggleable implicit args
+  - Unreduced "glued" elaboration contexts, and what it enables: approximate conversion checks + nicer printed terms
   - Inductive-inductive types via eliminators
   
 Non-goals
   - Noteworthy time/space optimizations for elaboration
   - Performant implementation & data structures
   - Idiomatic Haskell
-  - Universes
+  - Proper universes
   - Modules
