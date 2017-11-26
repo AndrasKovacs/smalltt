@@ -12,6 +12,7 @@ Currently, we have
 Missing things which I'll perhaps add:
 
   - Acceptable number of examples
+  - Optionally non-unicode syntax (lol)
   - Acceptable docs
   - Acceptable error messages
   - Named holes which cause goal & assumption types to be displayed on file load
