@@ -28,3 +28,4 @@ Non-goals
   - Idiomatic Haskell
   - Proper universes
   - Modules
+  - Constraint postponing
