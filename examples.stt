@@ -4,6 +4,9 @@
 -- usually containing a bunch of nested let-s
 -- ending with a "main" expression.
 
+-- You can load this file by starting "smalltt" in this
+-- directory, then hitting ":l examples.stt"
+
 -- Implicit args:
 let id : {a : *} → a → a
     = λ x. x in
