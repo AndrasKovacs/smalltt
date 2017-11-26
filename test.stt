@@ -1,0 +1,26 @@
+
+let id : {a} → a → a = λ x. x in
+let const : {a b} → a → b → a = λ x y . x in
+let const2 : {a} → a → {b} → b → a = λ x y . x in
+let List : * → * = λ a. (l : *) → (a → l → l) → l → l in
+let nil : {a} → List a = λ l c n. n in
+let cons : {a} → a → List a → List a = λ a as l c n. c a (as l c n) in
+let map : {a b} → (a → b) → List a → List b
+    = λ f as l c. as l (λ a. c (f a)) in
+
+let Bool  : * = (b : *) → b → b → b in
+let true  : Bool = λ _ t f. t in
+let false : Bool = λ _ t f. f in
+let myList : List Bool = cons true (cons false nil) in
+
+let Eq : {A} → A → A → * = λ {A} x y. (P : A → *) → P x → P y in
+
+let refl : {A}{x : A} → Eq x x = λ P px. px in
+
+let trans : {A}{x y z : A} → Eq x y → Eq y z → Eq x z
+    = λ {x = x} p q. q (Eq x) p in
+
+let sym : {A}{x y : A} → Eq x y → Eq y x
+    = λ {x = x}{y} p. p (λ y. Eq y x) refl in
+
+refl {x = true}

@@ -1,0 +1,51 @@
+name:                smalltt
+version:             0.1.0.0
+-- synopsis:
+-- description:
+-- homepage:            https://github.com/githubuser/smalltt#readme
+license:             BSD3
+license-file:        LICENSE
+author:              András Kovács
+maintainer:          puttamalac@gmail.com
+copyright:           2017 András Kovács
+category:            Language
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  default-language:    Haskell2010
+  default-extensions:  UnicodeSyntax, Strict, LambdaCase, TupleSections,
+                       ScopedTypeVariables, BangPatterns
+  ghc-options:         -fwarn-incomplete-patterns
+  hs-source-dirs:      src
+  exposed-modules:     Elaboration, Presyntax, Syntax
+  build-depends:
+                  base >= 4.7 && < 5
+                , containers
+                , directory
+                , filepath
+                , hashable
+                , megaparsec == 6.2.0
+                , unordered-containers
+
+executable smalltt
+  default-language:    Haskell2010
+  default-extensions:  UnicodeSyntax, Strict, LambdaCase, TupleSections,
+                       ScopedTypeVariables, BangPatterns
+  ghc-options:         -fwarn-incomplete-patterns
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  other-modules:       Elaboration, Presyntax, Syntax
+  build-depends:
+                  base >= 4.7 && < 5
+                , containers
+                , directory
+                , filepath
+                , hashable
+                , megaparsec == 6.2.0
+                , smalltt
+                , unordered-containers
+
+-- source-repository head
+--   type:     git
+--   location: https://github.com/githubuser/smalltt
