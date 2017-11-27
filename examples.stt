@@ -91,6 +91,24 @@ let sym : {A}{x y : A} → Eq x y → Eq y x
 let ap : {A B}(f : A → B){x y : A} → Eq x y → Eq (f x) (f y)
     = λ f {x}{y} p. p (λ y. Eq (f x) (f y)) refl in
 
+-- Dependent function composition also (mostly) works thanks to
+-- higher-order unification:
+let comp :
+  {A}
+  {B : A → *}
+  {C : {a} → B a → *}
+  (f : {a}(b : B a) → C b)
+  (g : (a : A) → B a)
+  (a : A)
+  → C (g a)
+  = λ f g a. f (g a) in
+
+let compTest1 : Nat → Nat = comp suc suc in
+
+-- This doesn't yet work
+-- let compTest2 : {m A} → A → Vec A m → Vec A (suc (suc m))
+-- = λ a. comp (vcons a) (vcons a) in
+
 -- The "main" expression is the innermost one.
 -- We can print its normal form with :n and its normal type with :t
 suc (suc (suc (suc (suc zero))))

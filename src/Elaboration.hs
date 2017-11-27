@@ -161,7 +161,7 @@ check tys vs t want = case (t, refresh want) of
     Lam x i' <$> check ((x, Left a): tys) ((x, Nothing):vs) t (b (varᵛ x))
 
   (t, Piᵛ x Impl a b) → do
-    let x' = if freeInTmᴾ x t then x ++ show (length tys) else x
+    let x' = x ++ "_" ++ show (length tys)
     t <- check ((x', Left a): tys) ((x', Nothing):vs) t (b (varᵛ x'))
     pure $ Lam x' Impl t
 
