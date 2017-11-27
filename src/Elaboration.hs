@@ -22,6 +22,14 @@ import Syntax
 -- Global metacontext
 --------------------------------------------------------------------------------
 
+type Metas = IntMap Val
+
+data MetaInsertion
+  = MIYes
+  | MINo
+  | MIUntilName Name
+  deriving (Show)
+
 {-# noinline mcxt #-}
 mcxt :: IORef Metas
 mcxt = unsafeDupablePerformIO (newIORef mempty)

@@ -20,15 +20,8 @@ type Ty     = Val
 type Sub a  = [(Name, a)]
 type Vals   = Sub (Maybe Val)        -- Nothing: bound, Just: defined
 type Tys    = Sub (Either Ty Ty)     -- Left: bound, Right: defined
-type Metas  = IntMap Val
 type Ren    = HashMap (Either Name Gen) Name
 type Spine  = Sub (Val, Icit)
-
-data MetaInsertion
-  = MIYes
-  | MINo
-  | MIUntilName Name
-  deriving (Show)
 
 data Tm
   = Var Name
