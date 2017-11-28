@@ -15,17 +15,15 @@ import Presyntax
 --------------------------------------------------------------------------------
 
 type Meta   = Int
-type Gen    = Int
 type Ty     = Val
 type Sub a  = [(Name, a)]
 type Vals   = Sub (Maybe Val)        -- Nothing: bound, Just: defined
 type Tys    = Sub (Either Ty Ty)     -- Left: bound, Right: defined
-type Ren    = HashMap (Either Name Gen) Name
+type Ren    = HashMap Name Name
 type Spine  = Sub (Val, Icit)
 
 data Tm
   = Var Name
-  | Gen Gen
   | Let Name Tm Tm Tm
   | App Tm Tm Name Icit
   | Lam Name Icit Tm
@@ -36,7 +34,6 @@ data Tm
 data Head
   = Metaʰ Meta
   | Varʰ Name
-  | Genʰ Gen
 
 data Val
   = Neu Head Spine
@@ -52,9 +49,6 @@ lookup msg x _            = error msg
 
 lams ∷ Spine → Tm → Tm
 lams sp t = foldl' (\t (x, (u, i)) → Lam x i t) t sp
-
-genᵛ ∷ Gen → Val
-genᵛ g = Neu (Genʰ g) []
 
 varᵛ ∷ Name → Val
 varᵛ x = Neu (Varʰ x) []
@@ -82,7 +76,6 @@ freeInTm x = \case
   Lam x' i t     → if x == x' then False else freeInTm x t
   Pi x' i a b    → freeInTm x a || if x == x' then False else freeInTm x b
   Let x' a t u   → freeInTm x a || freeInTm x t || if x == x' then False else freeInTm x u
-  Gen _          → error "freeInTm: impossible Gen"
   Meta _         → False
   U              → False
 
@@ -130,6 +123,5 @@ prettyTm prec = go (prec /= 0) where
       go False u
     U      → ('*':)
     Meta m → (("?"++).(show m++))
-    Gen g  → showParen p (("gen " ++ show g)++)
 
 instance Show Tm where showsPrec = prettyTm

@@ -21,9 +21,9 @@ load (Just path) =
     Right file →
       case parseTmᴾ path file of
         Left e  → Nothing <$ (putStrLn $ parseErrorPretty e)
-        Right t → try (reset *> infer MINo [] [] t) >>= \case
+        Right t → try (reset *> infer MINo 0 [] [] t) >>= \case
           Left (e ∷ SomeException) → Nothing <$ (putStrLn $ displayException e)
-          Right (t, a) → pure (Just (zonk [] t, a))
+          Right (t, a) → pure (Just (zonk 0 [] t, a))
 
 loop ∷ Maybe FilePath → IO ()
 loop p = do
@@ -35,8 +35,8 @@ loop p = do
       _ ← load (Just path)
       loop (Just path)
     ':':'r':_ → load p >> loop p
-    ':':'t':_ → load p >>= maybe (pure ()) (\(t, a) → print (quote a)) >> loop p
-    ':':'n':_ → load p >>= maybe (pure ()) (\(t, a) → print (quote (eval [] t))) >> loop p
+    ':':'t':_ → load p >>= maybe (pure ()) (\(t, a) → print (quote 0 a)) >> loop p
+    ':':'n':_ → load p >>= maybe (pure ()) (\(t, a) → print (quote 0 (eval [] t))) >> loop p
     ':':'e':_ → load p >>= maybe (pure ()) (\(t, a) → print t) >> loop p
     ':':'q':_ → pure ()
     ':':'?':_ → do

@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 library
   default-language:    Haskell2010
   default-extensions:  UnicodeSyntax, Strict, LambdaCase, TupleSections,
-                       ScopedTypeVariables, BangPatterns
+                       ScopedTypeVariables, BangPatterns, ViewPatterns
   ghc-options:         -fwarn-incomplete-patterns
   hs-source-dirs:      src
   exposed-modules:     Elaboration, Presyntax, Syntax
@@ -31,7 +31,7 @@ library
 executable smalltt
   default-language:    Haskell2010
   default-extensions:  UnicodeSyntax, Strict, LambdaCase, TupleSections,
-                       ScopedTypeVariables, BangPatterns
+                       ScopedTypeVariables, BangPatterns, ViewPatterns
   ghc-options:         -fwarn-incomplete-patterns
   hs-source-dirs:      src
   main-is:             Main.hs

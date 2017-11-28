@@ -99,16 +99,15 @@ let comp :
   {C : {a} → B a → *}
   (f : {a}(b : B a) → C b)
   (g : (a : A) → B a)
-  (a : A)
-  → C (g a)
+  (x : A)
+  → C (g x)
   = λ f g a. f (g a) in
 
 let compTest1 : Nat → Nat = comp suc suc in
 
--- This doesn't yet work
--- let compTest2 : {m A} → A → Vec A m → Vec A (suc (suc m))
--- = λ a. comp (vcons a) (vcons a) in
+let compTest2 : {m A} → A → Vec A m → Vec A (suc (suc m))
+    = λ a. comp (vcons a) (vcons a) in
 
 -- The "main" expression is the innermost one.
 -- We can print its normal form with :n and its normal type with :t
-suc (suc (suc (suc (suc zero))))
+compTest2
