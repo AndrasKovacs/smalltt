@@ -5,7 +5,6 @@ module Presyntax (
   , Icit(..)
   , parseTmᴾ
   , icit
-  , freeInTmᴾ
   ) where
 
 {-| TODO: Add source position information to Tmᴾ -}
@@ -14,6 +13,7 @@ import Control.Applicative
 import Control.Monad
 import Data.List
 import Data.Void
+import Data.Char
 
 import qualified Data.HashSet               as HS
 
@@ -129,68 +129,55 @@ icit :: Icit → a → a → a
 icit Impl i e = i
 icit Expl i e = e
 
-freeInTmᴾ :: Name → Tmᴾ → Bool
-freeInTmᴾ x = \case
-  Varᴾ x'         → x == x'
-  Appᴾ f a i      → freeInTmᴾ x f || freeInTmᴾ x a
-  Lamᴾ x' i t     → if x == x' then False else freeInTmᴾ x t
-  Piᴾ x' i a b    → freeInTmᴾ x a || if x == x' then False else freeInTmᴾ x b
-  Letᴾ x' a t u   → freeInTmᴾ x a || freeInTmᴾ x t ||
-                     if x == x' then False else freeInTmᴾ x u
-  NoMIᴾ t         → freeInTmᴾ x t
-  Uᴾ              → False
-  Holeᴾ           → False
-
 -- Printing
 --------------------------------------------------------------------------------
 
-splitSpine ∷ Tmᴾ → (Tmᴾ, [(Tmᴾ, Either Name Icit)])
-splitSpine = \case
-  Appᴾ f a i → ((a,i):) <$> splitSpine f
-  t          → (t, [])
-
-prettyTmᴾ ∷ Int → Tmᴾ → ShowS
+prettyTmᴾ :: Int → Tmᴾ → ShowS
 prettyTmᴾ prec = go (prec /= 0) where
 
-  unwords' ∷ [ShowS] → ShowS
-  unwords' = foldr1 (\x acc → x . (' ':) . acc)
-
-  lams ∷ (Name, Either Name Icit) → Tmᴾ → ([(Name, Either Name Icit)], Tmᴾ)
-  lams xi t = go [xi] t where
-    go xs (Lamᴾ x i t) = go ((x,i):xs) t
-    go xs t            = (xs, t)
-
-  bracket ∷ ShowS → ShowS
+  bracket :: ShowS → ShowS
   bracket s = ('{':).s.('}':)
 
-  goArg ∷ (Tmᴾ, Either Name Icit) → ShowS
-  goArg (t, Left x)  = bracket ((x++) . (" = "++) . go False t)
-  goArg (t, Right i) = icit i (bracket (go False t)) (go True t)
+  goArg ∷ Tmᴾ → Either Name Icit → ShowS
+  goArg t (Left x)  = bracket ((x++) . (" = "++) . go False t)
+  goArg t (Right i) = icit i (bracket (go False t)) (go True t)
 
-  goBinder ∷ (Name, Either Name Icit) → ShowS
-  goBinder (x, Left x') = bracket ((x'++) . (" = "++) . (x++))
-  goBinder (x, Right i) = icit i bracket id (x++)
+  goPiBind ∷ Name → Icit → Tmᴾ → ShowS
+  goPiBind x i a =
+    icit i bracket (showParen True) ((x++) . (" : "++) . go False a)
 
-  -- TODO: printing is kinda slow (make tmSpine return in reverse, optimize App case)
+  goLamBind ∷ Name → Either Name Icit  → ShowS
+  goLamBind x (Left x') = bracket ((x'++) . (" = "++) . (x++))
+  goLamBind x (Right i) = icit i bracket id (x++)
+
+  goLam ∷ Tmᴾ → ShowS
+  goLam (Lamᴾ x i t) = (' ':) . goLamBind x i . goLam t
+  goLam t           = (". "++) . go False t
+
+  goPi ∷ Bool → Tmᴾ → ShowS
+  goPi p (Piᴾ x i a b)
+    | i == Impl || x /= "_" = goPiBind x i a . goPi True b
+    | otherwise =
+       (if p then (" → "++) else id) .
+       go (case a of Appᴾ{} → False; _ → True) a .
+       (" → "++) . go False b
+  goPi p t = (if p then (" → "++) else id) . go False t
+
   go ∷ Bool → Tmᴾ → ShowS
   go p = \case
     Varᴾ x → (x++)
-    t@Appᴾ{} → showParen p $ unwords' $ go True h : reverse (map goArg sp)
-      where (h, sp) = splitSpine t
-    Lamᴾ x i t → case lams (x, i) t of
-      (xis, t) → showParen p (("λ "++) . params . (". "++) . go False t)
-        where params = unwords' $ reverse $ map goBinder xis
-    Piᴾ x i a b → showParen p (arg . (" → "++) . go False b)
-      where
-        arg = if freeInTmᴾ x b
-                then (icit i bracket (showParen True)) ((x++) . (" : "++) . go False a)
-                else go True a
+    Appᴾ (Appᴾ t u i) u' i' →
+      showParen p (go False t . (' ':) . goArg u i . (' ':) . goArg u' i')
+    Appᴾ (NoMIᴾ t) u i →
+      showParen p (go False t . (" ! "++) . goArg u i)
+    Appᴾ t u i  → showParen p (go True t . (' ':) . goArg u i)
+    Lamᴾ x i t  → showParen p (("λ "++) . goLamBind x i . goLam t)
+    Piᴾ x i a b → showParen p (goPi False (Piᴾ x i a b))
     Letᴾ x a t u →
-      ("let "++) . (x++) . (" : "++) . go False a . ("\n"++) .
-      ("   "++) . (" = "++) . go False t  . ("\nin\n"++) .
-      go False u
+      ("let "++) . (x++) . (" : "++) . go False a . ("\n    = "++)
+      . go False t  . ("\nin\n"++) . go False  u
     Uᴾ      → ('*':)
     Holeᴾ   → ('?':)
-    NoMIᴾ t → go False t . (" !"++)
+    NoMIᴾ t → showParen p (go False t . (" !"++))
 
 instance Show Tmᴾ where showsPrec = prettyTmᴾ

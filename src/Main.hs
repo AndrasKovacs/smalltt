@@ -1,16 +1,17 @@
 
 module Main where
 
-import Data.Char
 import Control.Exception
-import Text.Megaparsec (parseErrorPretty)
+import Data.Char
+import Debug.Trace
 import System.IO
+import Text.Megaparsec (parseErrorPretty)
 
 import Presyntax
 import Syntax
 import Elaboration
 
-import Debug.Trace
+--------------------------------------------------------------------------------
 
 load ∷ Maybe FilePath → IO (Maybe (Tm , Ty))
 load Nothing = do
@@ -21,9 +22,9 @@ load (Just path) =
     Right file →
       case parseTmᴾ path file of
         Left e  → Nothing <$ (putStrLn $ parseErrorPretty e)
-        Right t → try (reset *> infer MINo 0 [] [] t) >>= \case
+        Right t → try (infer₀ t) >>= \case
           Left (e ∷ SomeException) → Nothing <$ (putStrLn $ displayException e)
-          Right (t, a) → pure (Just (zonk 0 [] t, a))
+          Right (t, a) → pure (Just (zonk₀ t, a))
 
 loop ∷ Maybe FilePath → IO ()
 loop p = do
@@ -35,9 +36,9 @@ loop p = do
       _ ← load (Just path)
       loop (Just path)
     ':':'r':_ → load p >> loop p
-    ':':'t':_ → load p >>= maybe (pure ()) (\(t, a) → print (quote 0 a)) >> loop p
-    ':':'n':_ → load p >>= maybe (pure ()) (\(t, a) → print (quote 0 (eval [] t))) >> loop p
-    ':':'e':_ → load p >>= maybe (pure ()) (\(t, a) → print t) >> loop p
+    ':':'t':_ → load p >>= maybe (pure ()) (\(t, a) → printTm₀ (quote₀ a)) >> loop p
+    ':':'n':_ → load p >>= maybe (pure ()) (\(t, a) → printTm₀ (nf₀ t)) >> loop p
+    ':':'e':_ → load p >>= maybe (pure ()) (\(t, a) → printTm₀ t) >> loop p
     ':':'q':_ → pure ()
     ':':'?':_ → do
       putStrLn ":l <file>    load file"

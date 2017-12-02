@@ -1,31 +1,24 @@
 
 module Syntax where
 
-import Prelude hiding (lookup)
-import Data.List hiding (lookup)
-
-import Data.Hashable
+import Data.List
+import Data.Maybe
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
-import Data.IntMap.Strict (IntMap)
-import qualified Data.HashSet as HS
 
 import Presyntax
 
 --------------------------------------------------------------------------------
 
-type Meta   = Int
-type Ty     = Val
-type Sub a  = [(Name, a)]
-type Vals   = Sub (Maybe Val)        -- Nothing: bound, Just: defined
-type Tys    = Sub (Either Ty Ty)     -- Left: bound, Right: defined
-type Ren    = HashMap Name Name
-type Spine  = Sub (Val, Icit)
+type Meta  = Int
+type Ty    = Val
+type Spine = [(Val, Icit)]
+type Var   = (Name, Int)
 
 data Tm
-  = Var Name
+  = Var {-# unpack #-} Var
   | Let Name Tm Tm Tm
-  | App Tm Tm Name Icit
+  | App Tm Tm Icit
   | Lam Name Icit Tm
   | Pi Name Icit Tm Tm
   | U
@@ -33,7 +26,7 @@ data Tm
 
 data Head
   = Metaʰ Meta
-  | Varʰ Name
+  | Varʰ {-# unpack #-} Var
 
 data Val
   = Neu Head Spine
@@ -41,87 +34,106 @@ data Val
   | Piᵛ Name Icit Val (Val → Val)
   | Uᵛ
 
---------------------------------------------------------------------------------
-
-lookup ∷ String → Name → Sub a → a
-lookup msg x ((x', a):as) = if x == x' then a else lookup msg x as
-lookup msg x _            = error msg
-
-lams ∷ Spine → Tm → Tm
-lams sp t = foldl' (\t (x, (u, i)) → Lam x i t) t sp
-
-varᵛ ∷ Name → Val
-varᵛ x = Neu (Varʰ x) []
-
-metaᵛ ∷ Meta → Val
-metaᵛ m = Neu (Metaʰ m) []
-
-hashNub ∷ (Eq a, Hashable a) => [a] → [a]
-hashNub = snd . foldr go (HS.empty, []) where
-  go a (!seen, !as) | HS.member a seen = (seen, as)
-  go a (seen, as) = (HS.insert a seen, a:as)
-
-splitSpine ∷ Tm → (Tm, Sub (Tm, Icit))
-splitSpine = \case
-  App f a x i → ((x, (a, i)):) <$> splitSpine f
-  t           → (t, [])
-
 -- Printing
 --------------------------------------------------------------------------------
 
-freeInTm :: Name → Tm → Bool
-freeInTm x = \case
-  Var x'         → x == x'
-  App f a _ i    → freeInTm x f || freeInTm x a
-  Lam x' i t     → if x == x' then False else freeInTm x t
-  Pi x' i a b    → freeInTm x a || if x == x' then False else freeInTm x b
-  Let x' a t u   → freeInTm x a || freeInTm x t || if x == x' then False else freeInTm x u
-  Meta _         → False
-  U              → False
+-- | Eliminate name shadowing, mark non-dependent Pi binders as such.
+--   TODO: faster occurrence check.
+elucidate ∷ Int → HashMap Name [Int] → Tm → Tm
+elucidate = go where
 
-prettyTm :: Int → Tm → ShowS
+  varOccurs ∷ Int → Tm → Bool
+  varOccurs x = go where
+    go = \case
+      Var (_, x') → x == x'
+      App f a _   → go f || go a
+      Lam _ i t   → go t
+      Pi _ _ a b  → go a || go b
+      Let _ a t u → go a || go t || go u
+      Meta _      → False
+      U           → False
+
+  renVar ∷ Name → Int → HashMap Name [Int] → Name
+  renVar x i m | Just is ← HM.lookup x m,
+                 j ← fromJust (elemIndex i is),
+                 j /= 0 = x ++ "_" ++ show j
+               | otherwise = x
+
+  renBind ∷ Int → HashMap Name [Int] → Name → (HashMap Name [Int], Name)
+  renBind i m x = case HM.lookup x m of
+    Just is → (HM.insert x (is ++ [i]) m, x ++ "_" ++ show (length is))
+    _       → (HM.insert x [i] m, x)
+
+  go ∷ Int → HashMap String [Int] → Tm → Tm
+  go g m = \case
+    Var (x, i)  → Var (renVar x i m, i)
+    Let x a t u →
+      let (m', x') = renBind g m x in
+      Let x' (go g m a) (go g m t) (go (g + 1) m' u)
+    App t u i   → App (go g m t) (go g m u) i
+    Lam x i t   →
+      let (m', x') = renBind g m x in
+      Lam x' i (go (g + 1) m' t)
+    Pi x i a b | x /= "_" && varOccurs g b →
+      let (m', x') = renBind g m x in
+      Pi x' i (go g m a) (go (g + 1) m' b)
+    Pi x i a b  → Pi "_" i (go g m a) (go (g + 1) m b)
+    U           → U
+    Meta i      → Meta i
+
+-- | This only prints names (no indices) as they are.
+--   Only works nicely on elucidated terms.
+prettyTm ∷ Int → Tm → ShowS
 prettyTm prec = go (prec /= 0) where
 
-  unwords' :: [ShowS] → ShowS
-  unwords' = foldr1 (\x acc → x . (' ':) . acc)
-
-  lams :: (Name, Icit) → Tm → ([(Name, Icit)], Tm)
-  lams xi t = go [xi] t where
-    go xs (Lam x i t) = go ((x,i):xs) t
-    go xs t           = (xs, t)
-
-  bracket :: ShowS → ShowS
+  bracket ∷ ShowS → ShowS
   bracket s = ('{':).s.('}':)
 
-  icit :: Icit → a → a → a
-  icit Impl i e = i
-  icit Expl i e = e
+  goArg ∷ Tm → Icit → ShowS
+  goArg t i = icit i (bracket (go False t)) (go True t)
 
-  -- TODO: printing is kinda slow (make tmSpine return in reverse, optimize App case)
-  go :: Bool → Tm → ShowS
+  goPiBind ∷ Name → Icit → Tm → ShowS
+  goPiBind x i a =
+    icit i bracket (showParen True) ((x++) . (" : "++) . go False a)
+
+  goLamBind ∷ Name → Icit  → ShowS
+  goLamBind x i = icit i bracket id (x++)
+
+  goLam ∷ Tm → ShowS
+  goLam (Lam x i t) = (' ':) . goLamBind x i . goLam t
+  goLam t           = (". "++) . go False t
+
+  goPi ∷ Bool → Tm → ShowS
+  goPi p (Pi x i a b)
+    | i == Impl || x /= "_" = goPiBind x i a . goPi True b
+    | otherwise =
+       (if p then (" → "++) else id) .
+       go (case a of App{} → False; _ → True) a .
+       (" → "++) . go False b
+  goPi p t = (if p then (" → "++) else id) . go False t
+
+  go ∷ Bool → Tm → ShowS
   go p = \case
-    Var x → (x++)
-    t@App{} → let (h, sp) = splitSpine t
-      in showParen p $
-         unwords' $
-         go True h :
-         reverse (map (\(_, (t, i)) → icit i (bracket (go False t)) (go True t)) sp)
+    Var (x, i) → (x++)
 
-    Lam x i t → case lams (x, i) t of
-      (xis, t) → showParen p (("λ "++) . params . (". "++) . go False t)
-        where params = unwords' $ reverse $ map (\(x, i) → icit i bracket id (x++)) xis
+    App (App t u i) u' i' →
+      showParen p (go False t . (' ':) . goArg u i . (' ':) . goArg u' i')
 
-    Pi x i a b → showParen p (arg . (" → "++) . go False b)
-      where
-        arg = if freeInTm x b
-                then (icit i bracket (showParen True)) ((x++) . (" : "++) . go False a)
-                else go True a
+    App t u i  → showParen p (go True t . (' ':) . goArg u i)
+    Lam x i t  → showParen p (("λ "++) . goLamBind x i . goLam t)
+    Pi x i a b → showParen p (goPi False (Pi x i a b))
 
     Let x a t u →
-      ("let "++).(x++) . (" : "++) . go False a . ("\n"++) .
-      ("   "++) . (" = "++) . go False t  . ("\nin\n"++) .
-      go False u
+      ("let "++) . (x++) . (" : "++) . go False a . ("\n    = "++)
+      . go False t  . ("\nin\n"++) . go False  u
+
     U      → ('*':)
     Meta m → (("?"++).(show m++))
 
 instance Show Tm where showsPrec = prettyTm
+
+elucidate₀ ∷ Tm → Tm
+elucidate₀ = elucidate 0 HM.empty
+
+printTm₀ ∷ Tm → IO ()
+printTm₀ t = putStrLn (prettyTm 0 (elucidate₀ t) [])

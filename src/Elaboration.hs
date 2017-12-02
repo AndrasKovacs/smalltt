@@ -1,12 +1,17 @@
 
-module Elaboration where
+module Elaboration (
+    infer₀
+  , zonk₀
+  , nf₀
+  , quote₀
+  , eval₀) where
 
-import Prelude hiding (lookup)
-import Data.List hiding (lookup)
+import Data.List hiding (lookup, insert)
 
 import Control.Applicative
 import Control.Monad
 import Data.IORef
+import Debug.Trace
 import System.IO.Unsafe
 
 import           Data.HashMap.Strict (HashMap)
@@ -18,6 +23,13 @@ import qualified Data.HashSet as HS
 
 import Presyntax
 import Syntax
+
+{-
+  Refactoring ideas:
+    - Elab context goes into a reader monad
+    - Types for binders in syntax
+    - Combinators to go unders binders
+-}
 
 -- Global metacontext
 --------------------------------------------------------------------------------
@@ -46,238 +58,319 @@ reset = do
 inst ∷ Meta -> Maybe Val
 inst m = unsafeDupablePerformIO (IM.lookup m <$> readIORef mcxt)
 
+--------------------------------------------------------------------------------
+
+lams ∷ [(Name, Icit)] → Tm → Tm
+lams sp t = foldl' (\t (x, i) → Lam x i t) t sp
+
+varᵛ ∷ Var → Val
+varᵛ x = Neu (Varʰ x) []
+
+metaᵛ ∷ Meta → Val
+metaᵛ m = Neu (Metaʰ m) []
+
+genᵛ' ∷ Int → Name → Val
+genᵛ' g x = Neu (Varʰ (x, g)) []
+
+genᵛ ∷ Con → Name → Val
+genᵛ (Con g _ _) = genᵛ' g
+
+-- Elaboration context
+--------------------------------------------------------------------------------
+
+type Vals = [Maybe Val] -- Nothing: bound, Just: defined
+
+-- First component:
+--     Left: name from source
+--     Right: inserted name
+-- Second component:
+--     Left: bound variable
+--     Right: defined variables
+type Tys  = [(Either Name Name, Either Ty Ty)]
+
+-- TODO: custom (suggestively named) data types for context entries
+data Con = Con {conSize ∷ Int, conTys ∷ Tys, conVals ∷ Vals}
+
+nil ∷ Con
+nil = Con 0 [] []
+
+-- | Add a bound variable.
+bind ∷ Con → Name → Ty → Con
+bind (Con g tys vs) x ~a = Con (g + 1) ((Left x, Left a):tys) (Nothing:vs)
+
+-- | Add a defined variable.
+define ∷ Con → Name → Ty → Val → Con
+define (Con g tys vs) x ~a ~t = Con (g + 1) ((Left x, Right a):tys) (Just t:vs)
+
+-- | Insert a new bound variable.
+insert ∷ Con → Name → Ty → Con
+insert (Con g tys vs) x ~a = Con (g + 1) ((Right x, Left a):tys) (Nothing:vs)
+
 -- Evaluation (modulo global metacontext)
 --------------------------------------------------------------------------------
 
-appᵛ ∷ Val → Val → Name → Icit → Val
-appᵛ t ~u x i = case t of
+appᵛ ∷ Val → Val → Icit → Val
+appᵛ t ~u i = case t of
   Lamᵛ _ _ t → t u
-  Neu h sp   → Neu h ((x, (u, i)) : sp)
+  Neu h sp   → Neu h ((u, i):sp)
   _          → error "vapp: IMPOSSIBLE"
 
-eval ∷ Vals → Tm → Val
-eval vs = \case
-  Var x         → maybe (varᵛ x) refresh (lookup "eval: IMPOSSIBLE" x vs)
-  Let x a t u   → eval ((x, Just (eval vs t)):vs) u
-  App t u x i   → appᵛ (eval vs t) (eval vs u) x i
-  Lam x i t     → Lamᵛ x i $ \a → eval ((x, Just a):vs) t
-  Pi x i a b    → Piᵛ x i (eval vs a) $ \a → eval ((x, Just a):vs) b
+eval ∷ Con → Tm → Val
+eval (Con g _ vs) = eval' g vs
+
+eval' ∷ Int → Vals → Tm → Val
+eval' g vs = \case
+  Var (xn, x)   → maybe (varᵛ (xn, x)) refresh (vs !! (g - x - 1))
+  Let x a t u   → eval' (g + 1) (Just (eval' g vs t):vs) u
+  App t u i     → appᵛ (eval' g vs t) (eval' g vs u) i
+  Lam x i t     → Lamᵛ x i $ \a → eval' (g + 1) (Just a:vs) t
+  Pi x i a b    → Piᵛ x i (eval' g vs a) $ \a → eval' (g + 1) (Just a:vs) b
   U             → Uᵛ
   Meta m        → maybe (metaᵛ m) refresh (inst m)
 
 refresh ∷ Val → Val
 refresh = \case
   Neu (Metaʰ i) sp
-    | Just t <- inst i →
-      refresh (foldr (\(x, (u, i)) t → appᵛ t u x i) t sp)
+    | Just t ← inst i →
+      refresh (foldr (\(u, i) t → appᵛ t u i) t sp)
   t → t
 
-fresh ∷ Int → Name → Name
-fresh g x = x ++ "_" ++ show g
-
 quote ∷ Int → Val → Tm
-quote = go where
+quote g = go g where
   goHead = \case
     Metaʰ m → Meta m
     Varʰ x  → Var x
   go g t = case refresh t of
-    Neu h sp                 → foldr (\(x, (a, i)) t → App t (go g a) x i) (goHead h) sp
-    Lamᵛ (fresh g → x) i t   → Lam x i (go (g + 1) (t (varᵛ x)))
-    Piᵛ  (fresh g → x) i a b → Pi x i (go g a) (go (g + 1) (b (varᵛ x)))
-    Uᵛ                       → U
+    Neu h sp     → foldr (\(a, i) t → App t (go g a) i) (goHead h) sp
+    Lamᵛ x i t   → Lam x i (go (g + 1) (t (genᵛ' g x)))
+    Piᵛ  x i a b → Pi x i (go g a) (go (g + 1) (b (genᵛ' g x)))
+    Uᵛ           → U
 
 -- Unification
 --------------------------------------------------------------------------------
 
-invert ∷ Spine → Ren
-invert = foldl' go HM.empty where
-  go r (x, (a, _)) =
-    let var = case a of
-          Neu (Varʰ x') [] → x'
-          _                → error "invert: meta substitution is not a renaming"
-    in HM.alter (maybe (Just x) (\_ → Nothing)) var r
+type Ren = IntMap Var -- renaming
 
-rename ∷ Meta → Ren → Tm → Tm
-rename occur = go where
-  go r = \case
-    Var x       → maybe (error "rename: scope error") Var (HM.lookup x r)
-    Let x a t u → Let x (go r a) (go r t) (go r u)
-    App t u x i → App (go r t) (go r u) x i
-    Lam x i t   → Lam x i (go (HM.insert x x r) t)
-    Pi x i a b  → Pi x i (go r a) (go (HM.insert x x r) b)
+-- Possible additions to inversion:
+--   - attempt eta contraction to variables
+--   - non-unique solutions:
+--     - ignore nonlinearity (pick a single nonlinear occurrence)
+--     - ignore non-variables (dependency erasure)
+
+invert ∷ Meta → Spine → (Int, [(Name, Icit)], Ren)
+invert m = foldr go (0, [], IM.empty) where
+  go (a, i) (!g, sp', r)  =
+    let (xn, x) = case a of
+          Neu (Varʰ xn) [] → xn
+          _                →
+            error ("invert: meta substitution for " ++ show m ++ " is not a renaming\n")
+
+    in (g + 1, (xn, i):sp', IM.alter (maybe (Just (xn, g)) (\_ → Nothing)) x r)
+
+rename ∷ Int → Int → Meta → Ren → Tm → Tm
+rename g spSize occur r t = go g r t where
+  shift = g - spSize
+  go g r = \case
+    Var (xn, x) →
+      maybe (error ("rename: scope error: " ++ show (xn, x, g, r, occur, t)))
+            Var
+            (IM.lookup x r)
+
+    Let x a t u → Let x (go g r a) (go g r t) (go (g + 1) (IM.insert g (x, g - shift) r) u)
+    App t u i   → App (go g r t) (go g r u) i
+    Lam x i t   → Lam x i (go (g + 1) (IM.insert g (x, g - shift) r) t)
+    Pi x i a b  → Pi x i (go g r a) (go (g + 1) (IM.insert g (x, g - shift) r) b)
     U           → U
     Meta i | i == occur → error "rename: occurs check"
            | otherwise  → Meta i
 
 solve ∷ Int → Meta → Spine → Val → IO ()
 solve g m sp t = do
-  let t' = lams sp (rename m (invert sp) (quote g t))
-  modifyIORef' mcxt $ IM.insert m (eval [] t')
+  let (spSize, sp', r) = invert m sp
+      t' = lams sp' (rename g spSize m r (quote g t))
+  modifyIORef' mcxt $ IM.insert m (eval nil t')
 
 matchIcit ∷ Icit → Icit → IO ()
 matchIcit i i' = if i == i'
   then pure ()
   else error "can't match explicit binder with implicit"
 
-unify ∷ Int → Val → Val → IO ()
-unify = go where
+unify ∷ Con → Val → Val → IO ()
+unify (Con g₀ _ _) t₀ t₀' = go g₀ t₀ t₀' where
 
   go ∷ Int → Val → Val → IO ()
   go g t t' = case (refresh t, refresh t') of
     (Uᵛ, Uᵛ) → pure ()
 
-    (Lamᵛ ((varᵛ . fresh g) → x) i t, Lamᵛ _ i' t') → go (g + 1) (t x) (t' x)
+    (Lamᵛ (genᵛ' g → x) i t, Lamᵛ (genᵛ' g → x') i' t') → go (g + 1) (t x) (t' x')
+    (Lamᵛ (genᵛ' g → x) i t,   t') → go (g + 1) (t x) (appᵛ t' x i)
+    (t, Lamᵛ (genᵛ' g → x') i' t') → go (g + 1) (appᵛ t x' i') (t' x')
 
-    (Lamᵛ x i t, t') → go (g + 1) (t (varᵛ x')) (appᵛ t' (varᵛ x') x' i)
-      where x' = fresh g x
-    (t, Lamᵛ x' i' t') → go (g + 1) (appᵛ t (varᵛ x'') x'' i') (t' (varᵛ x''))
-      where x'' = fresh g x'
-
-    (Piᵛ ((varᵛ . fresh g) → x) i a b, Piᵛ _ i' a' b') → do
+    (Piᵛ (genᵛ' g → x) i a b, Piᵛ (genᵛ' g → x') i' a' b') → do
       matchIcit i i'
       go g a a'
-      go (g + 1) (b x) (b' x)
+      go (g + 1) (b x) (b' x')
 
-    (Neu (Varʰ x ) sp, Neu (Varʰ x' ) sp') | x == x' → goSpine g sp sp'
-    (Neu (Metaʰ m) sp, Neu (Metaʰ m') sp') | m == m' → goSpine g sp sp'
+    (Neu (Varʰ x)  sp, Neu (Varʰ x')  sp') | snd x == snd x' → goSpine g sp sp'
+    (Neu (Metaʰ m) sp, Neu (Metaʰ m') sp') | m == m'         → goSpine g sp sp'
     (Neu (Metaʰ m) sp, t                 ) → solve g m sp t
     (t,                Neu (Metaʰ m) sp  ) → solve g m sp t
 
     (t, t') →
-      error $ "Can't unify\n" ++ show (quote g t) ++ "\nwith\n" ++ show (quote g t')
+      error $ "Can't unify\n" ++ show (quote g t) ++ "\nwith\n"
+                              ++ show (quote g t') ++ "\nwhen unifying\n" ++
+               show (quote g₀ (refresh t₀)) ++ "\nwith\n" ++ show (quote g₀ (refresh t₀'))
+
 
   goSpine ∷ Int → Spine → Spine → IO ()
   goSpine g sp sp' = case (sp, sp') of
-    ((_, (a, _)):as, (_, (b, _)):bs)  → goSpine g as bs >> go g a b
-    ([]            , []            )  → pure ()
-    _                                 → error "unify spine: IMPOSSIBLE"
+    ((a, _):as, (b, _):bs) → goSpine g as bs >> go g a b
+    ([]       , []       ) → pure ()
+    _                      → error "unify spine: IMPOSSIBLE"
 
 
 -- Elaboration
 --------------------------------------------------------------------------------
 
-newMeta ∷ Tys → IO Tm
-newMeta cxt = do
-  m <- readIORef freshMeta
+newMeta ∷ Con → IO Tm
+newMeta (Con g tys _) = do
+  m ← readIORef freshMeta
   writeIORef freshMeta (m + 1)
-  let bvars = hashNub [x | (x, Left{}) <- cxt]
-  pure $ foldr (\x t → App t (Var x) x Expl) (Meta m) bvars
+  let bvars = [(either id id x, g') | ((x, Left{}), g') ← zip tys [g-1,g-2 ..]]
+  pure $ foldr (\x t → App t (Var x) Expl) (Meta m) bvars
 
-check ∷ Int → Tys → Vals → Tmᴾ → Ty → IO Tm
-check g tys vs t want = case (t, refresh want) of
+check ∷ Con → Tmᴾ → Ty → IO Tm
+check con t want = case (t, refresh want) of
   (Lamᴾ x i t, Piᵛ x' i' a b) | either (==x') (==i') i →
-    Lam x i' <$> check (g + 1) ((x, Left a): tys) ((x, Nothing):vs) t (b (varᵛ x))
-
-  (t, Piᵛ x Impl a b) → do
-    let x' = x ++ "_" ++ show (length tys)
-    t <- check (g + 1) ((x', Left a): tys) ((x', Nothing):vs) t (b (varᵛ x'))
-    pure $ Lam x' Impl t
+    Lam x i' <$> check (bind con x a) t (b (genᵛ con x))
+  (t, Piᵛ x Impl a b) →
+    Lam x Impl <$> check (insert con x a) t (b (genᵛ con x))
 
   (Letᴾ x a' t' u', _) → do
-    a' <- check g tys vs a' Uᵛ
-    let ~va' = eval vs a'
-    t' <- check g tys vs t' va'
-    let ~vt' = eval vs t'
-    u' <- check (g + 1) ((x, Right va'): tys) ((x, Just vt'):vs) u' want
+    a' ← check con a' Uᵛ
+    let ~va' = eval con a'
+    t' ← check con t' va'
+    let ~vt' = eval con t'
+    u' ← check (define con x va' vt') u' want
     pure (Let x a' t' u')
 
   (Holeᴾ, _) →
-    newMeta tys
+    newMeta con
 
   (t, _) → do
-    (t, has) <- infer MIYes g tys vs t
-    t <$ unify g has want
+    (t, has) ← infer MIYes con t
+    t <$ unify con has want
 
-insertMetas ∷ MetaInsertion → Tys → Vals → IO (Tm, Ty) → IO (Tm, Ty)
-insertMetas ins tys vs inp = case ins of
+insertMetas ∷ MetaInsertion → Con → IO (Tm, Ty) → IO (Tm, Ty)
+insertMetas ins con inp = case ins of
   MINo  → inp
   MIYes → uncurry go =<< inp where
     go t (Piᵛ x Impl a b) = do
-      m <- newMeta tys
-      go (App t m x Impl) (b (eval vs m))
+      m ← newMeta con
+      go (App t m Impl) (b (eval con m))
     go t a = pure (t, a)
   MIUntilName x → uncurry go =<< inp where
     go t (Piᵛ x' Impl a b)
       | x == x'   = pure (t, Piᵛ x' Impl a b)
       | otherwise = do
-          m <- newMeta tys
-          go (App t m x Impl) (b (eval vs m))
-    go t a = error "inserMetas: expected named implicit argument"
+          m ← newMeta con
+          go (App t m Impl) (b (eval con m))
+    go t a = error "insertMetas: expected named implicit argument"
 
-infer ∷ MetaInsertion → Int → Tys → Vals → Tmᴾ → IO (Tm, Ty)
-infer ins g tys vs = \case
+inferVar ∷ Con → Name → (Tm, Ty)
+inferVar (Con g tys vs) x = go (g - 1) tys where
+  go g ((name, a):tys)
+    | Left x' ← name, x == x' = (Var (x, g), either id id a)
+    | otherwise = go (g - 1) tys
+  go g [] = error ("infer: " ++ show x ++ " not in scope")
+
+infer ∷ MetaInsertion → Con → Tmᴾ → IO (Tm, Ty)
+infer ins con = \case
   Uᴾ      → pure (U, Uᵛ)
-  NoMIᴾ t → infer MINo g tys vs t
-  Varᴾ x  → insertMetas ins tys vs $ do
-    let a = either id id $ lookup "infer: variable not in scope" x tys
-    pure (Var x, a)
+  NoMIᴾ t → infer MINo con t
+  Varᴾ x  → insertMetas ins con $ pure (inferVar con x)
 
-  Appᴾ t u i → insertMetas ins tys vs $ do
-    (t, a) <- infer
+  Appᴾ t u i → insertMetas ins con $ do
+    (t, a) ← infer
         (case i of Left x     → MIUntilName x;
                    Right Impl → MINo;
                    Right Expl → MIYes)
-        g tys vs t
-    case a of
+        con t
+    case refresh a of
       Piᵛ x i' a b → do
         traverse (matchIcit i') i
-        u <- check g tys vs u a
-        pure (App t u x i', b (eval vs u))
-      _ → error "infer: expected a function in application"
+        u ← check con u a
+        pure (App t u i', b (eval con u))
+      _ → error ("infer: expected a function in application, got "
+                  ++ show (quote (conSize con) a))
 
   Piᴾ x i a b → do
-    a <- check g tys vs a Uᵛ
-    b <- check (g + 1) ((x, Left (eval vs a)):tys) ((x, Nothing):vs) b Uᵛ
+    a ← check con a Uᵛ
+    b ← check (bind con x (eval con a)) b Uᵛ
     pure (Pi x i a b, Uᵛ)
 
   Letᴾ x a t u → do
-    a <- check g tys vs a Uᵛ
-    let ~va = eval vs a
-    t <- check g tys vs t va
-    let ~vt = eval vs t
-    (u, tu) <- infer ins (g + 1) ((x, Right va): tys) ((x, Just vt):vs) u
+    a ← check con a Uᵛ
+    let ~va = eval con a
+    t ← check con t va
+    let ~vt = eval con t
+    (u, tu) ← infer ins (define con x va vt) u
     pure (Let x a t u, tu)
 
-  Lamᴾ x i t → insertMetas ins tys vs $ do
-    i <- case i of
-      Left  x →
-        error "infer: can't use named argument for lambda expression with inferred type"
+  Lamᴾ x i t → insertMetas ins con $ do
+    i ← case i of
+      Left x  → error "infer: can't use name binder for inferred lambda"
       Right i → pure i
-    a <- eval vs <$> newMeta tys
-    let xa = x ++ "_" ++ show (length tys)
-    b <- newMeta ((xa, Left a):tys)
-    let ty = Piᵛ xa i a (\v → eval ((xa, Just v):vs) b)
-    t <- check g tys vs (Lamᴾ x (Right i) t) ty
-    pure (t, ty)
+    ~a ← eval con <$> newMeta con
+    (t, ty) ← infer MIYes (bind con x a) t
+    let g   = conSize con
+    let ty' = quote (g + 1) ty
+    pure (Lam x i t, Piᵛ x i a $ \v → eval' (g + 1) (Just v:conVals con) ty')
 
   Holeᴾ → do
-    m1 <- newMeta tys
-    m2 <- newMeta tys
-    pure (m1, eval vs m2)
+    m₁ ← newMeta con
+    m₂ ← newMeta con
+    pure (m₁, eval con m₂)
 
--- Replace metas by their solutions in normal forms.
+-- Replace metas by their normal solutions
 --------------------------------------------------------------------------------
 
-zonkSp ∷ Int → Vals → Val → Sub (Tm, Icit) → Tm
-zonkSp g vs v sp = either id (quote g) $
-  foldr
-    (\(x, (a, i)) → either
-      (\t → Left (App t a x i))
-      (\case Lamᵛ _ _ t → Right (t (eval vs a))
-             v          → Left (App (quote g v) a x i)))
-    (Right v) sp
+zonkSp ∷ Int → Vals → Tm → Either Val Tm
+zonkSp g vs = go where
+  go (Meta m) | Just v ← inst m = Left v
+  go (App t u i) =
+    case go t of
+      Left (Lamᵛ _ _ t) → Left (t (eval' g vs u))
+      Left t            → Right (App (quote g t) (zonk g vs u) i)
+      Right t           → Right (App t (zonk g vs u) i)
+  go t = Right (zonk g vs t)
 
 zonk ∷ Int → Vals → Tm → Tm
 zonk g vs = \case
   Var x        → Var x
   Meta m       → maybe (Meta m) (quote g) (inst m)
   U            → U
-  Pi x i a b   → Pi x i (zonk g vs a) (zonk (g + 1) ((x, Nothing):vs) b)
-  App f a x i  → let (h, sp) = splitSpine (App f a x i)
-                  in case h of
-                       Meta m | Just v <- inst m →
-                         zonkSp g vs v sp
-                       _ → foldr (\(x, (t, i)) f → App f (zonk g vs t) x i) h sp
-  Lam x i t    → Lam x i (zonk (g + 1) ((x, Nothing): vs) t)
+  Pi x i a b   → Pi x i (zonk g vs a) (zonk (g + 1) (Nothing:vs) b)
+  App t u i    → either (\t → quote g (appᵛ t (eval' g vs u) i))
+                        (\t → App t (zonk g vs u) i)
+                        (zonkSp g vs t)
+  Lam x i t    → Lam x i (zonk (g + 1) (Nothing: vs) t)
   Let x a t u  → Let x (zonk g vs a) (zonk g vs t)
-                       (zonk (g + 1) ((x, Just (eval vs t)) : vs) u)
+                       (zonk (g + 1) (Just (eval' g vs t) : vs) u)
+
+--------------------------------------------------------------------------------
+
+infer₀ ∷ Tmᴾ → IO (Tm, Ty)
+infer₀ t = reset >> infer MINo nil t
+
+zonk₀ ∷ Tm → Tm
+zonk₀ = zonk 0 []
+
+quote₀ ∷ Val → Tm
+quote₀ = quote 0
+
+eval₀ ∷ Tm → Val
+eval₀ = eval nil
+
+nf₀ ∷ Tm → Tm
+nf₀ = quote 0 . eval₀
