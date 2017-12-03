@@ -9,8 +9,6 @@ module Presyntax (
   , Posed
   ) where
 
-{-| TODO: Add source position information to Tmᴾ -}
-
 import Control.Applicative
 import Control.Monad
 import Data.List

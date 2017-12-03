@@ -214,7 +214,6 @@ type Ren = IntMap Var -- renaming
 -- Possible additions to inversion:
 --   - attempt eta contraction to variables
 --   - non-unique solutions:
---     - ignore nonlinearity (pick a single nonlinear occurrence)
 --     - ignore non-variables (dependency erasure)
 
 invert ∷ Meta → Spine → (Int, [(Name, Icit)], Ren)
@@ -225,7 +224,8 @@ invert m = foldr go (0, [], IM.empty) where
           _                →
             reportError ("Substitution for metavariable " ++ show m ++ " is not a renaming")
 
-    in (g + 1, (xn, i):sp', IM.alter (maybe (Just (xn, g)) (\_ → Nothing)) x r)
+    -- note: nonlinearity ignored (we pick most recent var)
+    in (g + 1, (xn, i):sp', IM.alter (maybe (Just (xn, g)) (\_ → Just (xn, g))) x r)
 
 rename ∷ Int → Int → Meta → Ren → Tm → Tm
 rename g spSize occur r t = go g r t where

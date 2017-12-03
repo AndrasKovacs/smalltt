@@ -83,7 +83,7 @@ let refl : {A}{x : A} → Eq x x
     = λ P px. px in
 
 let trans : {A}{x y z : A} → Eq x y → Eq y z → Eq x z
-    = λ {x = x} p q. q (Eq x) p in
+    = λ {x = x} p q. q _ p in
 
 let sym : {A}{x y : A} → Eq x y → Eq y x
     = λ {x = x}{y} p. p (λ y. Eq y x) refl in
@@ -110,4 +110,4 @@ let compTest2 : {m A} → A → Vec A m → Vec A (suc (suc m))
 
 -- The "main" expression is the innermost one.
 -- We can print its normal form with :n and its normal type with :t
-compTest2
+ap
