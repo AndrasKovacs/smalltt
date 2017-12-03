@@ -1,6 +1,7 @@
 # smalltt
 
-Small type theory implementation. You can take a look at "examples.stt" for examples.
+Small type theory implementation. You can take a look at "examples.stt" for examples and description 
+of syntax & features.
 
 Currently, we have
   - Type-in-type
@@ -8,13 +9,11 @@ Currently, we have
   - Bidirectional elaboration
   - Positional & named implicit arguments
   - Some control over metavariable insertion
+  - Error messages with source positions
 
-Missing things which I'll perhaps add:
+Missing things which I'll perhaps add
 
-  - Acceptable number of examples
   - Optionally non-unicode syntax (lol)
-  - Acceptable docs
-  - Acceptable error messages
   - Named holes which cause goal & assumption types to be displayed on file load
   - Type-annotated lambdas
   - Sigmas
