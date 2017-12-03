@@ -21,6 +21,8 @@ import qualified Data.IntMap.Strict as IM
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HS
 
+import Text.Megaparsec.Pos
+
 import Presyntax
 import Syntax
 
@@ -29,7 +31,66 @@ import Syntax
     - Elab context goes into a reader monad
     - Types for binders in syntax
     - Combinators to go unders binders
+
+  Stuff:
+    1. Gluing: unreduced terms remembered. Necessary condition for many systems.
+
+    2. Debugging/logging: verbosity, configurable at build time, configurable by source
+       pragma/annotation.
+
+    3. Better elaboration context:
+       - Persistent vector for metacontext
+       - Persistent vector with list tail (for fast snoc) for value context.
+       - Include a name context which allows us to properly pretty print ("elucidate")
+         terms in any context.
+       - Maybe hashmap for typing context? The only place where we look up types
+         is inferVar, and there we look up based on names, not dB indices.
+
+    4. Printing:
+       - Source locations for presyntax remembered, maybe along with preterms.
+       - Source locations for metas remembered.
+       - Proposal for error reporting:
+         - Use IO exceptions.
+         - Build error traces. For example:
+           - First, throw error in unification. Remember failing equation.
+           - Catch exception at point of unification call, add info about
+             whole unified terms, then rethrow.
+           - Catch exception at check/infer, add more info.
+         - We can stop rethrowing at first check/infer,
+           return a guarded error term, and continue elaborating.
+           This way we can collect most errors before stopping.
+         - Try to implement guarded error preterms for parse errors as well.
+       - Better term formatting with linebreaks
+       - Display options/pragmas.
+
+    + 5. Pruning:
+       - Need to know type dependencies of metas.
+       - Should be computed lazily since most metas are never pruned.
+       - Bound var type entries annotated with lazy dependency information
+         - A set of previous bound vars occurring in each type
+       - Metas annotated with lazy dependency info of their return types
+         - What to do about "overapplied" metas, i. e. metas of function type
+           applied to additional arguments?
+
+    BUT anyway, we'd like to elaborate of metas to let bindings with
+    exact positions, which requires lots of changes and thinking.
+
 -}
+
+lams ∷ [(Name, Icit)] → Tm → Tm
+lams sp t = foldl' (\t (x, i) → Lam x i t) t sp
+
+varᵛ ∷ Var → Val
+varᵛ x = Neu (Varʰ x) []
+
+metaᵛ ∷ Meta → Val
+metaᵛ m = Neu (Metaʰ m) []
+
+genᵛ' ∷ Int → Name → Val
+genᵛ' g x = Neu (Varʰ (x, g)) []
+
+genᵛ ∷ Con → Name → Val
+genᵛ = genᵛ' . conSize
 
 -- Global metacontext
 --------------------------------------------------------------------------------
@@ -52,28 +113,27 @@ freshMeta = unsafeDupablePerformIO (newIORef 0)
 
 reset ∷ IO ()
 reset = do
+  writeIORef currPos (initialPos "")
   writeIORef mcxt mempty
   writeIORef freshMeta 0
 
 inst ∷ Meta -> Maybe Val
 inst m = unsafeDupablePerformIO (IM.lookup m <$> readIORef mcxt)
 
+-- Errors
 --------------------------------------------------------------------------------
 
-lams ∷ [(Name, Icit)] → Tm → Tm
-lams sp t = foldl' (\t (x, i) → Lam x i t) t sp
+{-# noinline currPos #-}
+currPos ∷ IORef SourcePos
+currPos = unsafeDupablePerformIO (newIORef (initialPos ""))
 
-varᵛ ∷ Var → Val
-varᵛ x = Neu (Varʰ x) []
+reportError ∷ String → a
+reportError msg =
+  let pos = unsafeDupablePerformIO (readIORef currPos)
+  in error (sourcePosPretty pos ++ ":\n\n" ++ msg ++ "\n")
 
-metaᵛ ∷ Meta → Val
-metaᵛ m = Neu (Metaʰ m) []
-
-genᵛ' ∷ Int → Name → Val
-genᵛ' g x = Neu (Varʰ (x, g)) []
-
-genᵛ ∷ Con → Name → Val
-genᵛ (Con g _ _) = genᵛ' g
+updPos ∷ Posed a → Posed a
+updPos (p, a) = seq (unsafeDupablePerformIO (writeIORef currPos p)) (p, a)
 
 -- Elaboration context
 --------------------------------------------------------------------------------
@@ -100,11 +160,11 @@ bind (Con g tys vs) x ~a = Con (g + 1) ((Left x, Left a):tys) (Nothing:vs)
 
 -- | Add a defined variable.
 define ∷ Con → Name → Ty → Val → Con
-define (Con g tys vs) x ~a ~t = Con (g + 1) ((Left x, Right a):tys) (Just t:vs)
+define (Con  g tys vs) x ~a ~t = Con  (g + 1) ((Left x, Right a):tys) (Just t:vs)
 
 -- | Insert a new bound variable.
 insert ∷ Con → Name → Ty → Con
-insert (Con g tys vs) x ~a = Con (g + 1) ((Right x, Left a):tys) (Nothing:vs)
+insert (Con  g tys vs) x ~a = Con  (g + 1) ((Right x, Left a):tys) (Nothing:vs)
 
 -- Evaluation (modulo global metacontext)
 --------------------------------------------------------------------------------
@@ -113,7 +173,7 @@ appᵛ ∷ Val → Val → Icit → Val
 appᵛ t ~u i = case t of
   Lamᵛ _ _ t → t u
   Neu h sp   → Neu h ((u, i):sp)
-  _          → error "vapp: IMPOSSIBLE"
+  _          → reportError "appᵛ: IMPOSSIBLE"
 
 eval ∷ Con → Tm → Val
 eval (Con g _ vs) = eval' g vs
@@ -163,7 +223,7 @@ invert m = foldr go (0, [], IM.empty) where
     let (xn, x) = case a of
           Neu (Varʰ xn) [] → xn
           _                →
-            error ("invert: meta substitution for " ++ show m ++ " is not a renaming\n")
+            reportError ("Substitution for metavariable " ++ show m ++ " is not a renaming")
 
     in (g + 1, (xn, i):sp', IM.alter (maybe (Just (xn, g)) (\_ → Nothing)) x r)
 
@@ -172,7 +232,10 @@ rename g spSize occur r t = go g r t where
   shift = g - spSize
   go g r = \case
     Var (xn, x) →
-      maybe (error ("rename: scope error: " ++ show (xn, x, g, r, occur, t)))
+      maybe (reportError ("Solution scope error: variable " ++ show (xn, x)
+                          ++ " is not in " ++ show r
+                          ++ "\nwhen solving meta " ++ show  g ++ " for\n"
+                          ++ show t))
             Var
             (IM.lookup x r)
 
@@ -181,7 +244,10 @@ rename g spSize occur r t = go g r t where
     Lam x i t   → Lam x i (go (g + 1) (IM.insert g (x, g - shift) r) t)
     Pi x i a b  → Pi x i (go g r a) (go (g + 1) (IM.insert g (x, g - shift) r) b)
     U           → U
-    Meta i | i == occur → error "rename: occurs check"
+    Meta i | i == occur →
+             reportError ("Infinite solution error: meta " ++ show occur
+                          ++ " occurs in solution candidate\n"
+                          ++ show t)
            | otherwise  → Meta i
 
 solve ∷ Int → Meta → Spine → Val → IO ()
@@ -193,10 +259,11 @@ solve g m sp t = do
 matchIcit ∷ Icit → Icit → IO ()
 matchIcit i i' = if i == i'
   then pure ()
-  else error "can't match explicit binder with implicit"
+  else reportError (
+    "Can't match " ++ show i' ++ " binder with " ++ show i)
 
 unify ∷ Con → Val → Val → IO ()
-unify (Con g₀ _ _) t₀ t₀' = go g₀ t₀ t₀' where
+unify (Con  g₀ _ _) t₀ t₀' = go g₀ t₀ t₀' where
 
   go ∷ Int → Val → Val → IO ()
   go g t t' = case (refresh t, refresh t') of
@@ -217,16 +284,15 @@ unify (Con g₀ _ _) t₀ t₀' = go g₀ t₀ t₀' where
     (t,                Neu (Metaʰ m) sp  ) → solve g m sp t
 
     (t, t') →
-      error $ "Can't unify\n" ++ show (quote g t) ++ "\nwith\n"
-                              ++ show (quote g t') ++ "\nwhen unifying\n" ++
-               show (quote g₀ (refresh t₀)) ++ "\nwith\n" ++ show (quote g₀ (refresh t₀'))
-
+      reportError (
+           "Can't unify\n\n" ++ show (quote g t)
+        ++ "\n\nwith\n\n"        ++ show (quote g t'))
 
   goSpine ∷ Int → Spine → Spine → IO ()
   goSpine g sp sp' = case (sp, sp') of
     ((a, _):as, (b, _):bs) → goSpine g as bs >> go g a b
     ([]       , []       ) → pure ()
-    _                      → error "unify spine: IMPOSSIBLE"
+    _                      → reportError "unify.goSpine: IMPOSSIBLE"
 
 
 -- Elaboration
@@ -240,11 +306,11 @@ newMeta (Con g tys _) = do
   pure $ foldr (\x t → App t (Var x) Expl) (Meta m) bvars
 
 check ∷ Con → Tmᴾ → Ty → IO Tm
-check con t want = case (t, refresh want) of
+check con (updPos → (pos, t)) want = case (t, refresh want) of
   (Lamᴾ x i t, Piᵛ x' i' a b) | either (==x') (==i') i →
     Lam x i' <$> check (bind con x a) t (b (genᵛ con x))
   (t, Piᵛ x Impl a b) →
-    Lam x Impl <$> check (insert con x a) t (b (genᵛ con x))
+    Lam x Impl <$> check (insert con x a) (pos, t) (b (genᵛ con x))
 
   (Letᴾ x a' t' u', _) → do
     a' ← check con a' Uᵛ
@@ -258,7 +324,7 @@ check con t want = case (t, refresh want) of
     newMeta con
 
   (t, _) → do
-    (t, has) ← infer MIYes con t
+    (t, has) ← infer MIYes con (pos, t)
     t <$ unify con has want
 
 insertMetas ∷ MetaInsertion → Con → IO (Tm, Ty) → IO (Tm, Ty)
@@ -275,17 +341,17 @@ insertMetas ins con inp = case ins of
       | otherwise = do
           m ← newMeta con
           go (App t m Impl) (b (eval con m))
-    go t a = error "insertMetas: expected named implicit argument"
+    go t a = reportError ("No named implicit argument with name " ++ show x)
 
 inferVar ∷ Con → Name → (Tm, Ty)
-inferVar (Con g tys vs) x = go (g - 1) tys where
+inferVar (Con  g tys vs) x = go (g - 1) tys where
   go g ((name, a):tys)
     | Left x' ← name, x == x' = (Var (x, g), either id id a)
     | otherwise = go (g - 1) tys
-  go g [] = error ("infer: " ++ show x ++ " not in scope")
+  go g [] = reportError ("Name " ++ show x ++ " not in scope")
 
 infer ∷ MetaInsertion → Con → Tmᴾ → IO (Tm, Ty)
-infer ins con = \case
+infer ins con (updPos → (pos, t)) = case t of
   Uᴾ      → pure (U, Uᵛ)
   NoMIᴾ t → infer MINo con t
   Varᴾ x  → insertMetas ins con $ pure (inferVar con x)
@@ -301,8 +367,8 @@ infer ins con = \case
         traverse (matchIcit i') i
         u ← check con u a
         pure (App t u i', b (eval con u))
-      _ → error ("infer: expected a function in application, got "
-                  ++ show (quote (conSize con) a))
+      a → reportError
+           ("Expected a function type in application, got\n" ++ show (quote (conSize con) a))
 
   Piᴾ x i a b → do
     a ← check con a Uᵛ
@@ -319,7 +385,7 @@ infer ins con = \case
 
   Lamᴾ x i t → insertMetas ins con $ do
     i ← case i of
-      Left x  → error "infer: can't use name binder for inferred lambda"
+      Left x  → reportError ("Can't infer type for lambda with named arguments")
       Right i → pure i
     ~a ← eval con <$> newMeta con
     (t, ty) ← infer MIYes (bind con x a) t

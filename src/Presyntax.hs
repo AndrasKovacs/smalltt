@@ -1,10 +1,12 @@
 
 module Presyntax (
     Name
-  , Tmᴾ(..)
+  , Tmᴾ
+  , Tmᴾ'(..)
   , Icit(..)
   , parseTmᴾ
   , icit
+  , Posed
   ) where
 
 {-| TODO: Add source position information to Tmᴾ -}
@@ -25,9 +27,15 @@ import qualified Text.Megaparsec.Char.Lexer as L
 --------------------------------------------------------------------------------
 
 type Name = String
-data Icit = Expl | Impl deriving (Eq, Show)
+data Icit = Expl | Impl deriving (Eq)
 
-data Tmᴾ
+instance Show Icit where
+  show Expl = "explicit"
+  show Impl = "implicit"
+
+type Tmᴾ = (SourcePos, Tmᴾ')
+
+data Tmᴾ'
   = Varᴾ Name
   | Letᴾ Name Tmᴾ Tmᴾ Tmᴾ
   | Appᴾ Tmᴾ Tmᴾ (Either Name Icit)
@@ -58,61 +66,68 @@ pIdent = try $ lexeme $ do
     then empty
     else pure w
 
-pBind    = pIdent <|> symbol "_"
-pVar     = Varᴾ <$> pIdent
-pU       = Uᴾ <$ char '*'
-pHole    = Holeᴾ <$ char '_'
+type Posed a = (SourcePos, a)
 
-pLamBinder ∷ Parser (Name, Either Name Icit)
+withPos ∷ Parser a → Parser (Posed a)
+withPos p = (,) <$> getPosition <*> p
+
+pBind    = pIdent <|> symbol "_"
+pVar     = withPos (Varᴾ <$> pIdent)
+pU       = withPos (Uᴾ <$ char '*')
+pHole    = withPos (Holeᴾ <$ char '_')
+
+pLamBinder ∷ Parser (Posed (Name, Either Name Icit))
 pLamBinder =
+  withPos (
       ((,Right Expl) <$> pBind)
   <|> try ((,Right Impl) <$> brackets pBind)
-  <|> brackets ((\x y → (y, Left x)) <$> (pIdent <* char '=') <*> pBind)
+  <|> brackets ((\x y → (y, Left x)) <$> (pIdent <* char '=') <*> pBind))
 
 pLam ∷ Parser Tmᴾ
-pLam = do
+pLam = withPos $ do
   char 'λ'
   binders ← some pLamBinder
   char '.'
   t ← pTm
-  pure (foldr (\(x, i) u → Lamᴾ x i u) t binders)
+  pure $ snd $ foldr (\(p, (x, i)) u → (p, Lamᴾ x i u)) t binders
 
-pArg ∷ Parser (Maybe (Tmᴾ, Either Name Icit))
-pArg =
+pArg ∷ Parser (Posed (Maybe (Tmᴾ, Either Name Icit)))
+pArg = withPos (
       (Just <$>
         (    try ((,Right Impl) <$> brackets pTm)
          <|> brackets ((\x t → (t, Left x)) <$> (pIdent <* char '=') <*> pTm)
          <|> ((,Right Expl) <$> pAtom)))
-  <|> (Nothing <$ char '!')
+  <|> (Nothing <$ char '!'))
 
 pSpine ∷ Parser Tmᴾ
-pSpine = do
+pSpine = withPos $ do
   head  ← pAtom
   spine ← many pArg
-  pure (foldl' (\t → maybe (NoMIᴾ t) (\(u, i) → Appᴾ t u i)) head spine)
+  pure $ snd $
+    foldl' (\t (p, u) → (p, maybe (NoMIᴾ t) (\(u, i) → Appᴾ t u i) u)) head spine
 
-pPiBinder ∷ Parser ([Name], Tmᴾ, Icit)
-pPiBinder =
-      brackets ((,,Impl) <$> some pBind <*> ((char ':' *> pTm) <|> pure Holeᴾ))
-  <|> parens ((,,Expl) <$> some pBind <*> (char ':' *> pTm))
+pPiBinder ∷ Parser (Posed ([Posed Name], Tmᴾ, Icit))
+pPiBinder = withPos (
+      brackets ((,,Impl) <$> some (withPos pBind) <*> ((char ':' *> pTm) <|> withPos (pure Holeᴾ)))
+  <|> parens ((,,Expl) <$> some (withPos pBind) <*> (char ':' *> pTm)))
 
 pPi ∷ Parser Tmᴾ
-pPi = do
+pPi = withPos $ do
   dom ← try (Right <$> some pPiBinder) <|> (Left <$> pSpine)
   symbol "→"
   b ← pTm
   case dom of
-    Right binders →
-      pure (foldr (\(xs, a, i) b → foldr (\x → Piᴾ x i a) b xs) b binders)
-    Left dom →
+    Right binders → do
+      pure $ snd $ foldr (\(p, (xs, a, i)) b → foldr (\(p, x) b → (p, Piᴾ x i a b)) b xs) b binders
+    Left dom → do
       pure (Piᴾ "_" Expl dom b)
 
 pLet ∷ Parser Tmᴾ
-pLet = Letᴾ
-      <$> (symbol "let" *> pIdent)
-      <*> (char ':' *> pTm)
-      <*> (char '=' *> pTm)
-      <*> (symbol "in" *> pTm)
+pLet = withPos (Letᴾ
+  <$> (symbol "let" *> pIdent)
+  <*> (char ':' *> pTm)
+  <*> (char '=' *> pTm)
+  <*> (symbol "in" *> pTm))
 
 pAtom ∷ Parser Tmᴾ
 pAtom = pU <|> pVar <|> pHole <|> parens pTm
@@ -132,17 +147,19 @@ icit Expl i e = e
 -- Printing
 --------------------------------------------------------------------------------
 
-prettyTmᴾ :: Int → Tmᴾ → ShowS
-prettyTmᴾ prec = go (prec /= 0) where
+-- TODO: make Tmᴾ Cofree comonad or somemthing like that
+
+prettyTmᴾ' :: Int → Tmᴾ' → ShowS
+prettyTmᴾ' prec = go (prec /= 0) where
 
   bracket :: ShowS → ShowS
   bracket s = ('{':).s.('}':)
 
-  goArg ∷ Tmᴾ → Either Name Icit → ShowS
+  goArg ∷ Tmᴾ' → Either Name Icit → ShowS
   goArg t (Left x)  = bracket ((x++) . (" = "++) . go False t)
   goArg t (Right i) = icit i (bracket (go False t)) (go True t)
 
-  goPiBind ∷ Name → Icit → Tmᴾ → ShowS
+  goPiBind ∷ Name → Icit → Tmᴾ' → ShowS
   goPiBind x i a =
     icit i bracket (showParen True) ((x++) . (" : "++) . go False a)
 
@@ -150,12 +167,12 @@ prettyTmᴾ prec = go (prec /= 0) where
   goLamBind x (Left x') = bracket ((x'++) . (" = "++) . (x++))
   goLamBind x (Right i) = icit i bracket id (x++)
 
-  goLam ∷ Tmᴾ → ShowS
-  goLam (Lamᴾ x i t) = (' ':) . goLamBind x i . goLam t
-  goLam t           = (". "++) . go False t
+  goLam ∷ Tmᴾ' → ShowS
+  goLam (Lamᴾ x i (snd → t)) = (' ':) . goLamBind x i . goLam t
+  goLam t                    = (". "++) . go False t
 
-  goPi ∷ Bool → Tmᴾ → ShowS
-  goPi p (Piᴾ x i a b)
+  goPi ∷ Bool → Tmᴾ' → ShowS
+  goPi p (Piᴾ x i (snd → a) (snd → b))
     | i == Impl || x /= "_" = goPiBind x i a . goPi True b
     | otherwise =
        (if p then (" → "++) else id) .
@@ -163,21 +180,21 @@ prettyTmᴾ prec = go (prec /= 0) where
        (" → "++) . go False b
   goPi p t = (if p then (" → "++) else id) . go False t
 
-  go ∷ Bool → Tmᴾ → ShowS
+  go ∷ Bool → Tmᴾ' → ShowS
   go p = \case
     Varᴾ x → (x++)
-    Appᴾ (Appᴾ t u i) u' i' →
+    Appᴾ (snd → Appᴾ (snd → t) (snd → u) i) (snd → u') i' →
       showParen p (go False t . (' ':) . goArg u i . (' ':) . goArg u' i')
-    Appᴾ (NoMIᴾ t) u i →
+    Appᴾ (snd → NoMIᴾ (snd → t)) (snd → u) i →
       showParen p (go False t . (" ! "++) . goArg u i)
-    Appᴾ t u i  → showParen p (go True t . (' ':) . goArg u i)
-    Lamᴾ x i t  → showParen p (("λ "++) . goLamBind x i . goLam t)
+    Appᴾ (snd → t) (snd → u) i  → showParen p (go True t . (' ':) . goArg u i)
+    Lamᴾ x i (snd → t)  → showParen p (("λ "++) . goLamBind x i . goLam t)
     Piᴾ x i a b → showParen p (goPi False (Piᴾ x i a b))
-    Letᴾ x a t u →
+    Letᴾ x (snd → a) (snd → t) (snd → u) →
       ("let "++) . (x++) . (" : "++) . go False a . ("\n    = "++)
       . go False t  . ("\nin\n"++) . go False  u
     Uᴾ      → ('*':)
     Holeᴾ   → ('?':)
-    NoMIᴾ t → showParen p (go False t . (" !"++))
+    NoMIᴾ (snd → t) → showParen p (go False t . (" !"++))
 
-instance Show Tmᴾ where showsPrec = prettyTmᴾ
+instance Show Tmᴾ' where showsPrec = prettyTmᴾ'
