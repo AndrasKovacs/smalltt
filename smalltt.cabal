@@ -1,8 +1,7 @@
 name:                smalltt
 version:             0.1.0.0
--- synopsis:
--- description:
--- homepage:            https://github.com/githubuser/smalltt#readme
+synopsis:            Small type theory implementation
+homepage:            https://github.com/AndrasKovacs/smalltt
 license:             BSD3
 license-file:        LICENSE
 author:              András Kovács
@@ -46,6 +45,6 @@ executable smalltt
                 , smalltt
                 , unordered-containers
 
--- source-repository head
---   type:     git
---   location: https://github.com/githubuser/smalltt
+source-repository head
+  type:     git
+  location: https://github.com/AndrasKovacs/smalltt.git

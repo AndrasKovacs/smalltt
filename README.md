@@ -3,6 +3,8 @@
 Small type theory implementation. You can take a look at "examples.stt" for examples and description
 of syntax & features.
 
+You can install with `stack install`, then hit `smalltt` in a directory which contains `.stt` files.
+
 Currently, we have
   - Type-in-type
   - Higher-order unification
