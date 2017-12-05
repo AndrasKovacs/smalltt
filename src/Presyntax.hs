@@ -83,7 +83,7 @@ pLamBinder =
 
 pLam ∷ Parser Tmᴾ
 pLam = withPos $ do
-  char 'λ'
+  char 'λ' <|> char '\\'
   binders ← some pLamBinder
   char '.'
   t ← pTm
@@ -112,7 +112,7 @@ pPiBinder = withPos (
 pPi ∷ Parser Tmᴾ
 pPi = withPos $ do
   dom ← try (Right <$> some pPiBinder) <|> (Left <$> pSpine)
-  symbol "→"
+  symbol "→" <|> symbol "->"
   b ← pTm
   case dom of
     Right binders → do

@@ -11,6 +11,9 @@
 let id : {a : *} → a → a
     = λ x. x in
 
+-- You can use non-unicode arrow and lambda as well:
+let nonUnicode : {a : *} -> a -> a = \x. x in
+
 -- We'll also use "id" as type annotation, like "the" in Idris
 
 -- Types of implicit args omitted (inferred):
