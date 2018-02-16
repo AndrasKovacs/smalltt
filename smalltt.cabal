@@ -24,7 +24,7 @@ library
                 , directory
                 , filepath
                 , hashable
-                , megaparsec == 6.2.0
+                , megaparsec
                 , unordered-containers
 
 executable smalltt
@@ -41,7 +41,7 @@ executable smalltt
                 , directory
                 , filepath
                 , hashable
-                , megaparsec == 6.2.0
+                , megaparsec
                 , smalltt
                 , unordered-containers
 
