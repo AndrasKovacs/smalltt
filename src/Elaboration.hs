@@ -225,7 +225,7 @@ invert m = foldr go (0, [], IM.empty) where
             reportError ("Substitution for metavariable " ++ show m ++ " is not a renaming")
 
     -- note: nonlinearity ignored (we pick most recent var)
-    in (g + 1, (xn, i):sp', IM.alter (maybe (Just (xn, g)) (\_ → Just (xn, g))) x r)
+    in (g + 1, (xn, i):sp', IM.insert x (xn, g) r)
 
 rename ∷ Int → Int → Meta → Ren → Tm → Tm
 rename g spSize occur r t = go g r t where
