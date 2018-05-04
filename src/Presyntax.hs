@@ -9,7 +9,7 @@ module Presyntax (
   , Posed
   ) where
 
-import Control.Applicative
+import Control.Applicative hiding (many, some)
 import Control.Monad
 import Data.List
 import Data.Void
