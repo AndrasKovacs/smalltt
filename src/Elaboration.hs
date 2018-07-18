@@ -26,57 +26,6 @@ import Text.Megaparsec.Pos
 import Presyntax
 import Syntax
 
-{-
-  Refactoring ideas:
-    - Elab context goes into a reader monad
-    - Types for binders in syntax
-    - Combinators to go unders binders
-
-  Stuff:
-    1. Gluing: unreduced terms remembered. Necessary condition for many systems.
-
-    2. Debugging/logging: verbosity, configurable at build time, configurable by source
-       pragma/annotation.
-
-    3. Better elaboration context:
-       - Persistent vector for metacontext
-       - Persistent vector with list tail (for fast snoc) for value context.
-       - Include a name context which allows us to properly pretty print ("elucidate")
-         terms in any context.
-       - Maybe hashmap for typing context? The only place where we look up types
-         is inferVar, and there we look up based on names, not dB indices.
-
-    4. Printing:
-       - Source locations for presyntax remembered, maybe along with preterms.
-       - Source locations for metas remembered.
-       - Proposal for error reporting:
-         - Use IO exceptions.
-         - Build error traces. For example:
-           - First, throw error in unification. Remember failing equation.
-           - Catch exception at point of unification call, add info about
-             whole unified terms, then rethrow.
-           - Catch exception at check/infer, add more info.
-         - We can stop rethrowing at first check/infer,
-           return a guarded error term, and continue elaborating.
-           This way we can collect most errors before stopping.
-         - Try to implement guarded error preterms for parse errors as well.
-       - Better term formatting with linebreaks
-       - Display options/pragmas.
-
-    + 5. Pruning:
-       - Need to know type dependencies of metas.
-       - Should be computed lazily since most metas are never pruned.
-       - Bound var type entries annotated with lazy dependency information
-         - A set of previous bound vars occurring in each type
-       - Metas annotated with lazy dependency info of their return types
-         - What to do about "overapplied" metas, i. e. metas of function type
-           applied to additional arguments?
-
-    BUT anyway, we'd like to elaborate of metas to let bindings with
-    exact positions, which requires lots of changes and thinking.
-
--}
-
 lams ∷ [(Name, Icit)] → Tm → Tm
 lams sp t = foldl' (\t (x, i) → Lam x i t) t sp
 
