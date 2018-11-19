@@ -168,7 +168,7 @@ type Ren = IntMap Var -- renaming
 invert ∷ Meta → Spine → (Int, [(Name, Icit)], Ren)
 invert m = foldr go (0, [], IM.empty) where
   go (a, i) (!g, sp', r)  =
-    let (xn, x) = case a of
+    let (xn, x) = case refresh a of
           Neu (Varʰ xn) [] → xn
           _                →
             reportError ("Substitution for metavariable " ++ show m ++ " is not a renaming")
