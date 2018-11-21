@@ -1,0 +1,94 @@
+name:                smalltt
+version:             0.1.0.0
+github:              "AndrasKovacs/smalltt"
+license:             BSD3
+author:              "András Kovács"
+maintainer:          "puttamalac@gmail.com"
+copyright:           "2018 András Kovács"
+
+extra-source-files:
+- README.md
+
+synopsis:  Small type theory implementation
+category:  Language
+description: In README
+
+dependencies:
+- base >= 4.7 && < 5
+default-extensions:
+- AllowAmbiguousTypes
+- ConstraintKinds
+- BangPatterns
+- DeriveFoldable
+- DeriveFunctor
+- DeriveTraversable
+- EmptyCase
+- ExplicitNamespaces
+- FlexibleContexts
+- FlexibleInstances
+- FunctionalDependencies
+- GADTs
+- GeneralizedNewtypeDeriving
+- LambdaCase
+- MagicHash
+- MultiParamTypeClasses
+- NoMonomorphismRestriction
+- OverloadedStrings
+- PartialTypeSignatures
+- PatternGuards
+- PatternSynonyms
+- RankNTypes
+- RoleAnnotations
+- ScopedTypeVariables
+- StandaloneDeriving
+- Strict
+- TemplateHaskell
+- TupleSections
+- TypeApplications
+- TypeFamilies
+- TypeInType
+- UnboxedTuples
+- UnicodeSyntax
+- ViewPatterns
+
+library:
+  source-dirs:
+      src
+  dependencies:
+    - containers
+    - dynamic-array
+    - ghc-prim
+    - megaparsec
+    - microlens-platform
+    - mtl
+    - nullable
+    - text
+    - text-short
+    - unordered-containers
+  ghc-options:
+    - -rtsopts
+    - -Wall
+    - -Wno-missing-signatures
+    - -Wno-name-shadowing
+    - -Wno-unused-do-bind
+    - -Wno-unused-matches
+    - -Wno-partial-type-signatures
+    - -O2
+
+executables:
+  smalltt-exe:
+    main:  Main.hs
+    ghc-options:
+    - -rtsopts -O2
+    dependencies:
+    - smalltt
+    - megaparsec
+
+# tests:
+#   smalltt-test:
+#     main:                Spec.hs
+#     source-dirs:         test
+#     ghc-options:
+#     - -rtsopts
+#     dependencies:
+#     - smalltt

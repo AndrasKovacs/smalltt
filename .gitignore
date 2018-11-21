@@ -1,8 +1,8 @@
 *~
 *.hi
 *.o
-/dist
+./dist
 *#
 TAGS
-/.stack-work
-
+.stack-work/
+*.cabal

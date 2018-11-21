@@ -1,0 +1,49 @@
+name:                nullable
+version:             0.1.0.0
+license:             BSD3
+author:              "András Kovács"
+maintainer:          "puttamalac@gmail.com"
+copyright:           "2018 András Kovács"
+
+dependencies:
+- base >= 4.7 && < 5
+default-extensions:
+- AllowAmbiguousTypes
+- ConstraintKinds
+- BangPatterns
+- DeriveFoldable
+- DeriveFunctor
+- DeriveTraversable
+- EmptyCase
+- ExplicitNamespaces
+- FlexibleContexts
+- FlexibleInstances
+- FunctionalDependencies
+- GADTs
+- GeneralizedNewtypeDeriving
+- LambdaCase
+- MagicHash
+- MultiParamTypeClasses
+- NoMonomorphismRestriction
+- OverloadedStrings
+- PartialTypeSignatures
+- PatternGuards
+- PatternSynonyms
+- RankNTypes
+- RoleAnnotations
+- ScopedTypeVariables
+- StandaloneDeriving
+- Strict
+- TemplateHaskell
+- TupleSections
+- TypeApplications
+- TypeFamilies
+- TypeInType
+- UnboxedTuples
+- UnicodeSyntax
+- ViewPatterns
+
+library:
+  source-dirs:  .
+  dependencies:
+    - ghc-prim
