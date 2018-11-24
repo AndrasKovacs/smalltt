@@ -34,7 +34,7 @@ type Ix = Int
 
 -- | Indices for metavariables. Consists of two 32-bit numbers, one is an index
 --   for the top context, the other indexes the meta context at that entry.
-newtype MetaIx = MkMetaIx Int deriving (Eq)
+newtype MetaIx = MkMetaIx Int deriving (Eq, Ord)
 
 unpack :: MetaIx -> (Int, Int)
 unpack (MkMetaIx n) = (unsafeShiftR n 32, n .&. 0xFFFFFFFF)
@@ -56,3 +56,5 @@ instance Show Icit where
 runIO :: IO a -> a
 runIO (IO f) = runRW# (\s -> case f s of (# _, a #) -> a)
 {-# inline runIO #-}
+
+data NameIcit = NI Name Icit

@@ -1,6 +1,7 @@
 
 module ElabState where
 
+import           Data.HashMap.Strict (HashMap)
 import           Data.Array.Dynamic (Array)
 import qualified Data.Array.Dynamic as A
 import Data.Nullable
@@ -20,23 +21,23 @@ data EntryDef
   = EDPostulate
   | EDDefinition Tm {-# unpack #-} GV
 
+data MetaEntry = MEntry Tm {-# unpack #-} GV
+
 data TopEntry = TEntry {
   _entryName  :: {-# unpack #-} (Posed Name),
   _entryDef   :: EntryDef,
   _entryTy    :: {-# unpack #-} GV,
-  _entryMetas :: Array (Nullable GV)
+  _entryMetas :: Array (Nullable MetaEntry)
   }
-
 makeLenses ''TopEntry
-type TopState = Array TopEntry
 
-topState :: TopState
-topState = runIO A.empty
-{-# noinline topState #-}
+top :: Array TopEntry
+top = runIO A.empty
+{-# noinline top #-}
 
-lookupMeta :: MetaIx -> Nullable GV
+lookupMeta :: MetaIx -> Nullable MetaEntry
 lookupMeta (MetaIx i j) = runIO $ do
-  entry <- A.read topState i
+  entry <- A.read top i
   A.read (entry^.entryMetas) j
 {-# inline lookupMeta #-}
 
@@ -55,9 +56,27 @@ reportError msg =
 updPos :: Posed a -> Posed a
 updPos (T2 p a) = seq (runIO (writeIORef currPos p)) (T2 p a)
 
+
+-- Naming state
+--------------------------------------------------------------------------------
+
+-- | Inserted names come from inserting implicit binders during elaboration.
+--   Other names come from user input.
+data NameOrigin = NOInserted | NOSource
+
+-- | Reverse map from names to all de Bruijn levels with the keyed name.
+--   Indices are sorted, the lowest in scope is the first element.
+--   We also keep track of source positions of binders.
+type NameVars = HashMap Name [T3 NameOrigin SourcePos Ix]
+
+nameVars :: IORef NameVars
+nameVars = runIO (newIORef mempty)
+{-# noinline nameVars #-}
+
 --------------------------------------------------------------------------------
 
 reset :: IO ()
 reset = do
-  A.clear topState
+  A.clear top
   writeIORef currPos (initialPos "")
+  writeIORef nameVars mempty

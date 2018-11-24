@@ -1,0 +1,7 @@
+resolver: nightly-2018-11-20
+
+packages:
+  - .
+
+extra-deps:
+  - ../nullable

@@ -5,11 +5,11 @@ module Data.Array.Dynamic (
   , clear
   , push
   , Data.Array.Dynamic.read
-  , read'
   , showArray
   , size
   , unsafeRead
-  , unsafeRead'
+  , unsafeWrite
+  , write
   ) where
 
 import qualified Data.Primitive.PrimArray     as PA
@@ -18,7 +18,6 @@ import qualified Data.Primitive.UnliftedArray as UA
 
 import GHC.Types
 import GHC.Prim
-import Data.Functor.Identity
 
 type role Array representational
 data Array (a :: *) = Array (UA.MutableUnliftedArray RealWorld
@@ -45,26 +44,12 @@ empty = do
   UA.writeUnliftedArray struct 1 elems
   pure (Array struct)
 
-unsafeRead' :: Array a -> Int -> IO (Identity a)
-unsafeRead' (Array arr) (I# i) = do
+unsafeRead :: Array a -> Int -> IO a
+unsafeRead (Array arr) (I# i) = do
   A.MutableArray elems <- UA.readUnliftedArray arr 1
   IO $ \s -> case readArray# elems i s of
-    (# s, a #) -> (# s, Identity a #)
-{-# inline unsafeRead' #-}
-
-unsafeRead :: Array a -> Int -> IO a
-unsafeRead arr i = do
-  Identity a <- unsafeRead' arr i
-  pure a
+    (# s, a #) -> (# s, a #)
 {-# inline unsafeRead #-}
-
-read' :: Array a -> Int -> IO (Identity a)
-read' arr i = do
-  s <- size arr
-  if i < s
-    then unsafeRead' arr i
-    else error "Data.Array.Dynamic.read': out of bounds"
-{-# inline read' #-}
 
 read :: Array a -> Int -> IO a
 read arr i = do
@@ -73,6 +58,21 @@ read arr i = do
     then unsafeRead arr i
     else error "Data.Array.Dynamic.read: out of bounds"
 {-# inline read #-}
+
+unsafeWrite :: Array a -> Int -> a -> IO ()
+unsafeWrite (Array arr) (I# i) ~a = do
+  A.MutableArray elems <- UA.readUnliftedArray arr 1
+  IO $ \s -> case writeArray# elems i a s of
+    s -> (# s, () #)
+{-# inline unsafeWrite #-}
+
+write :: Array a -> Int -> a -> IO ()
+write arr i ~a = do
+  s <- size arr
+  if i < s
+    then unsafeWrite arr i a
+    else error "Data.Array.Dynamic.write: out of bounds"
+{-#  inline write #-}
 
 getSizeRef :: UA.MutableUnliftedArray RealWorld (A.MutableArray RealWorld a)
        -> IO (PA.MutablePrimArray RealWorld Int)

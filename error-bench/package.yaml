@@ -1,0 +1,59 @@
+name:                error-bench
+version:             0.1.0.0
+license:             BSD3
+author:              "András Kovács"
+maintainer:          "puttamalac@gmail.com"
+copyright:           "2018 András Kovács"
+
+executables:
+  error-bench:
+    main: ErrorBench.hs
+    dependencies:
+      - base
+      - ghc-prim
+      - gauge
+      - nullable
+    default-extensions:
+      - AllowAmbiguousTypes
+      - ConstraintKinds
+      - BangPatterns
+      - DeriveFoldable
+      - DeriveFunctor
+      - DeriveTraversable
+      - EmptyCase
+      - ExplicitNamespaces
+      - FlexibleContexts
+      - FlexibleInstances
+      - FunctionalDependencies
+      - GADTs
+      - GeneralizedNewtypeDeriving
+      - LambdaCase
+      - MagicHash
+      - MultiParamTypeClasses
+      - NoMonomorphismRestriction
+      - OverloadedStrings
+      - PartialTypeSignatures
+      - PatternGuards
+      - PatternSynonyms
+      - RankNTypes
+      - RoleAnnotations
+      - ScopedTypeVariables
+      - StandaloneDeriving
+      - Strict
+      - TemplateHaskell
+      - TupleSections
+      - TypeApplications
+      - TypeFamilies
+      - TypeInType
+      - UnboxedTuples
+      - UnicodeSyntax
+      - ViewPatterns
+    ghc-options:
+      - -rtsopts
+      - -Wall
+      - -Wno-missing-signatures
+      - -Wno-name-shadowing
+      - -Wno-unused-do-bind
+      - -Wno-unused-matches
+      - -Wno-partial-type-signatures
+      - -O2

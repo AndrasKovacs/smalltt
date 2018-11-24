@@ -66,7 +66,6 @@ library:
     - text-short
     - unordered-containers
   ghc-options:
-    - -rtsopts
     - -Wall
     - -Wno-missing-signatures
     - -Wno-name-shadowing
@@ -83,12 +82,3 @@ executables:
     dependencies:
     - smalltt
     - megaparsec
-
-# tests:
-#   smalltt-test:
-#     main:                Spec.hs
-#     source-dirs:         test
-#     ghc-options:
-#     - -rtsopts
-#     dependencies:
-#     - smalltt

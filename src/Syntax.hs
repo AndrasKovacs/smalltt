@@ -8,9 +8,10 @@ type Ty = Tm
 data Tm
   = LocalVar Ix
   | TopVar Ix
+  | MetaVar MetaIx
   | Let Name Ty Tm Tm
   | App Tm Tm Icit
-  | Lam {-# unpack #-} (T2 Name Icit) Tm
-  | Pi {-# unpack #-} (T2 Name Icit) Ty Tm
+  | Lam NameIcit Tm
+  | Pi NameIcit Ty Tm
   | Irrelevant
   | U
