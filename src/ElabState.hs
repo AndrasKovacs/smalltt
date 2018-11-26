@@ -63,13 +63,17 @@ updPos (T2 p a) = seq (runIO (writeIORef currPos p)) (T2 p a)
 -- | Inserted names come from inserting implicit binders during elaboration.
 --   Other names come from user input.
 data NameOrigin = NOInserted | NOSource
+data Scope = Top | Local
+type NameInfo = T4 Scope SourcePos NameOrigin Ix
+
 
 -- | Reverse map from names to all de Bruijn levels with the keyed name.
---   Indices are sorted, the lowest in scope is the first element.
---   We also keep track of source positions of binders.
-type NameVars = HashMap Name [T3 NameOrigin SourcePos Ix]
+--   Indices are sorted, the lowest in scope is the first element.  We also keep
+--   track of source positions of binders. We only use this structure for name
+--   lookup during elaboration.
+type NameTable = HashMap Name (Env' NameInfo)
 
-nameVars :: IORef NameVars
+nameVars :: IORef NameTable
 nameVars = runIO (newIORef mempty)
 {-# noinline nameVars #-}
 
