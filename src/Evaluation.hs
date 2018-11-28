@@ -8,11 +8,10 @@ TODO:
   - known call optimization for syntax
   - environment trimming
   - meta solution lowering, inlining and arg trimming
-    - (general optimization?)
+    - (general optimization, after top-level group elaboration)
 -}
 
 import Data.Nullable
-import Lens.Micro.Platform
 import qualified Data.Array.Dynamic as A
 
 import Common
@@ -31,7 +30,7 @@ gLocal d gs x = go x (d - x - 1) gs where
 gTop :: Ix -> Glued
 gTop x = runIO $ do
   entry <- A.read top x
-  case entry^.entryDef of
+  case _entryDef entry of
     EDPostulate             -> pure (GTop x)
     EDDefinition _ (GV g _) -> pure g
 {-# inline gTop #-}
@@ -120,4 +119,20 @@ gvApp (GNe x gsp vsp) (GV g v) i = let vsp' = SApp vsp v i
                                    in GV (GNe x (SApp gsp g i) vsp') (VNe x vsp')
 gvApp _ _ _ = error "gvApp: impossible"
 
+
+-- Quoting
 --------------------------------------------------------------------------------
+
+vQuote :: Int -> Val -> Tm
+vQuote = go where
+  go d = \case
+    VNe h vsp   -> goSp vsp where
+                     goSp SNil = case h of
+                       HMeta x  -> MetaVar x
+                       HLocal x -> LocalVar x
+                       HTop x   -> TopVar x
+                     goSp (SApp vsp t i) = App (goSp vsp) (go d t) i
+    VLam ni t   -> Lam ni (go (d + 1) (vInst t (VLocal d)))
+    VPi ni a b  -> Pi ni (go d a) (go (d + 1) (vInst b (VLocal d)))
+    VU          -> U
+    VIrrelevant -> Irrelevant

@@ -8,6 +8,13 @@ data Env   a = ENil  | ESnoc (Env a) ~a       deriving (Functor, Foldable, Trave
 data Env'  a = ENil' | ESnoc' (Env' a) a      deriving (Functor, Foldable, Traversable)
 data Spine a = SNil  | SApp (Spine a) ~a Icit deriving (Functor, Foldable, Traversable)
 
+lookupEnv :: Env a -> Ix -> Box a
+lookupEnv = go where
+  go ENil         _ = error "lookupEnv: impossible"
+  go (ESnoc as a) 0 = Box a
+  go (ESnoc as a) n = go as (n - 1)
+{-# inlinable lookupEnv #-}
+
 type GEnv   = Env' (Maybe Glued)
 type VEnv   = Env' (Maybe Val)
 type GSpine = Spine Glued
@@ -61,3 +68,6 @@ pattern VMeta x = VNe (HMeta x) SNil
 
 pattern GMeta :: MetaIx -> Glued
 pattern GMeta x = GNe (HMeta x) SNil SNil
+
+gvU :: GVTy
+gvU = GV GU VU

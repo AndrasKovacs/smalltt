@@ -2,10 +2,9 @@
 module ElabState where
 
 import           Data.HashMap.Strict (HashMap)
-import           Data.Array.Dynamic (Array)
 import qualified Data.Array.Dynamic as A
+import qualified Data.Array.Dynamic.Unlifted as UA
 import Data.Nullable
-import Lens.Micro.Platform
 import Text.Megaparsec.Pos
 import Data.IORef
 
@@ -21,24 +20,32 @@ data EntryDef
   = EDPostulate
   | EDDefinition Tm {-# unpack #-} GV
 
-data MetaEntry = MEntry Tm {-# unpack #-} GV
-
 data TopEntry = TEntry {
   _entryName  :: {-# unpack #-} (Posed Name),
   _entryDef   :: EntryDef,
-  _entryTy    :: {-# unpack #-} GV,
-  _entryMetas :: Array (Nullable MetaEntry)
+  _entryTy    :: {-# unpack #-} GV
   }
-makeLenses ''TopEntry
 
-top :: Array TopEntry
+top :: A.Array TopEntry
 top = runIO A.empty
 {-# noinline top #-}
 
+-- Meta state
+--------------------------------------------------------------------------------
+
+data MetaEntry = MEntry Tm {-# unpack #-} GV
+
+metas :: UA.Array (A.Array (Nullable MetaEntry))
+metas = runIO $ do
+  ms <- UA.empty
+  UA.push ms =<< A.empty
+  pure ms
+{-# noinline metas #-}
+
 lookupMeta :: MetaIx -> Nullable MetaEntry
 lookupMeta (MetaIx i j) = runIO $ do
-  entry <- A.read top i
-  A.read (entry^.entryMetas) j
+  arr <- UA.read metas i
+  A.read arr j
 {-# inline lookupMeta #-}
 
 -- Source position state
@@ -55,7 +62,7 @@ reportError msg =
 
 updPos :: Posed a -> Posed a
 updPos (T2 p a) = seq (runIO (writeIORef currPos p)) (T2 p a)
-
+{-# inline updPos #-}
 
 -- Naming state
 --------------------------------------------------------------------------------
@@ -63,9 +70,7 @@ updPos (T2 p a) = seq (runIO (writeIORef currPos p)) (T2 p a)
 -- | Inserted names come from inserting implicit binders during elaboration.
 --   Other names come from user input.
 data NameOrigin = NOInserted | NOSource
-data Scope = Top | Local
-type NameInfo = T4 Scope SourcePos NameOrigin Ix
-
+data NameInfo = NITop SourcePos Ix | NILocal SourcePos NameOrigin Ix
 
 -- | Reverse map from names to all de Bruijn levels with the keyed name.
 --   Indices are sorted, the lowest in scope is the first element.  We also keep
@@ -73,14 +78,16 @@ type NameInfo = T4 Scope SourcePos NameOrigin Ix
 --   lookup during elaboration.
 type NameTable = HashMap Name (Env' NameInfo)
 
-nameVars :: IORef NameTable
-nameVars = runIO (newIORef mempty)
-{-# noinline nameVars #-}
+nameTable :: IORef NameTable
+nameTable = runIO (newIORef mempty)
+{-# noinline nameTable #-}
 
 --------------------------------------------------------------------------------
 
 reset :: IO ()
 reset = do
   A.clear top
+  UA.clear metas
+  UA.push metas =<< A.empty
   writeIORef currPos (initialPos "")
-  writeIORef nameVars mempty
+  writeIORef nameTable mempty

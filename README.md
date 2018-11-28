@@ -30,6 +30,8 @@
 	illegal variables in local meta solutions (since now illegal vars can
 	only be local bound vars, otherwise top-level names could be illegal as well).
   + There's no shadowing on top level, but there can be in local scope.
+  + We throw error if there are unsolved metas after a top-level entry elab. Hence,
+    unsolved frozen metas are not possible and we don't check for them.
 
 
 ### TODO Supporting libraries

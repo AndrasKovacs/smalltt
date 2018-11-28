@@ -10,6 +10,9 @@ module Data.Array.Dynamic (
   , unsafeRead
   , unsafeWrite
   , write
+  , unsafeLast
+  , Data.Array.Dynamic.last
+  , isEmpty
   ) where
 
 import qualified Data.Primitive.PrimArray     as PA
@@ -23,13 +26,15 @@ type role Array representational
 data Array (a :: *) = Array (UA.MutableUnliftedArray RealWorld
                             (A.MutableArray RealWorld a))
 
+instance UA.PrimUnlifted (Array a) where
+  toArrayArray# (Array arr) = unsafeCoerce# arr
+  {-# inline toArrayArray# #-}
+  fromArrayArray# arr = Array (unsafeCoerce# arr)
+  {-# inline fromArrayArray# #-}
+
 defaultCapacity :: Int
 defaultCapacity = 5
 {-# inline defaultCapacity #-}
-
--- outOfBounds :: a
--- outOfBounds = error "Data.Array.Dynamic: out-of bounds access"
--- {-# noinline outOfBounds #-}
 
 undefinedElement :: a
 undefinedElement = error "Data.Array.Dynamic: undefined element"
@@ -115,6 +120,24 @@ size (Array arr) = do
   sizeRef <- getSizeRef arr
   PA.readPrimArray sizeRef 0
 {-# inline size #-}
+
+unsafeLast :: Array a -> IO a
+unsafeLast arr = do
+  i <- size arr
+  Data.Array.Dynamic.unsafeRead arr (i - 1)
+{-# inline unsafeLast #-}
+
+isEmpty :: Array a -> IO Bool
+isEmpty arr = (==0) <$> size arr
+{-# inline isEmpty #-}
+
+last :: Array a -> IO a
+last arr = do
+  i <- size arr
+  isEmpty arr >>= \case
+    True -> error "Data.Array.Dynamic.last: empty array"
+    _    -> Data.Array.Dynamic.unsafeRead arr (i - 1)
+{-# inline last #-}
 
 showArray :: Show a => Array a -> IO String
 showArray (Array arr) = do

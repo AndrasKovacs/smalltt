@@ -5,6 +5,7 @@ import Control.Applicative hiding (many, some)
 import Control.Monad.Reader
 import Data.Char
 import Data.Void
+import Data.Nullable
 
 import qualified Data.Set as Set
 
@@ -140,17 +141,17 @@ pLam = withPos $ do
                     (char '.' *> pTm)
 
 -- | Parse a spine argument or meta insertion stopping.
-pArg :: Parser (Posed (Maybe (T2 Tm (Sum Name Icit))))
+pArg :: Parser (Posed (Nullable (T2 Tm (Sum Name Icit))))
 pArg = withPos (
-      (Just <$> (
+      (Some <$> (
             try (flip T2 (Inr Impl) <$> brackets pTm)
         <|> brackets ((\x t -> T2 t (Inl x)) <$> (pIdent <* char '=') <*> pTm)
         <|> (flip T2 (Inr Expl) <$> pAtom)))
-  <|> (Nothing <$ char '!'))
+  <|> (Null <$ char '!'))
 
 pSpine :: Parser Tm
 pSpine = chainl
-  (\t (T2 p u) -> T2 p (maybe (StopMetaIns t) (\(T2 u ni) -> App t u ni) u))
+  (\t (T2 p u) -> T2 p (nullable (StopMetaIns t) (\(T2 u ni) -> App t u ni) u))
   pArg
   pAtom
 
@@ -169,10 +170,10 @@ pArrow = symbol "->" <|> symbol "→"
 pPi :: Parser Tm
 pPi = try (chainr1
              (\(T2 p (T3 xs a i)) b ->
-                 T2 p (proj2 $ foldr (\(T2 p x) b -> T2 p (Pi (T2 x i) a b)) b xs))
+                 T2 p (proj2 $ foldr (\(T2 p x) b -> T2 p (Pi (NI x i) a b)) b xs))
              pPiBinder
              (pArrow *> pTm))
-  <|> (withPos (Pi (T2 mempty Expl) <$> pSpine <*> (pArrow *> pTm)))
+  <|> (withPos (Pi (NI mempty Expl) <$> pSpine <*> (pArrow *> pTm)))
 
 pLet :: Parser Tm
 pLet = withPos $ do
@@ -219,5 +220,5 @@ parseFile = parse (runReaderT pFile (mkPos 1))
 
 -- test = T.unlines [
 --    "f : (x y z : U) -> U",
---    "f = \\ x y z. U"
+--    "f = \\ x y z. g !"
 --    ]

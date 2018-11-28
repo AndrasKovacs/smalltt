@@ -19,7 +19,7 @@ data Tm'
   | Let Name {-# unpack #-} Ty {-# unpack #-} Tm {-# unpack #-} Tm
   | App {-# unpack #-} Tm {-# unpack #-} Tm (Sum Name Icit)
   | Lam Name (Sum Name Icit) {-# unpack #-} Tm
-  | Pi {-# unpack #-} (T2 Name Icit) {-# unpack #-} Ty {-# unpack #-} Ty
+  | Pi {-# unpack #-} NameIcit {-# unpack #-} Ty {-# unpack #-} Ty
   | U
   | StopMetaIns {-# unpack #-} Tm
   | Hole

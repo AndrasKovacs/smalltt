@@ -62,6 +62,7 @@ library:
     - microlens-platform
     - mtl
     - nullable
+    - prettyprinter
     - text
     - text-short
     - unordered-containers
