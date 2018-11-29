@@ -12,6 +12,8 @@ module Data.Nullable (
   , pattern Null
   , pattern Some
   , nullable
+  , isSome
+  , isNull
   ) where
 
 import Control.Applicative
@@ -54,6 +56,16 @@ nullable :: b -> (a -> b) -> Nullable a -> b
 nullable b f (Some a) = f a
 nullable b f _        = b
 {-# inline nullable #-}
+
+isSome :: Nullable a -> Bool
+isSome Some{} = True
+isSome _      = False
+{-# inline isSome #-}
+
+isNull :: Nullable a -> Bool
+isNull Null = True
+isNull _    = False
+{-# inline isNull #-}
 
 instance Functor Nullable where
   fmap f (Some a) = Some (f a)

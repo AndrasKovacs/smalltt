@@ -1,3 +1,5 @@
+{-# options_ghc -Wno-unused-imports -Wno-type-defaults #-}
+
 {- |
 
 Roadmap:
@@ -25,16 +27,16 @@ Things to later benchmark:
     vs. passing local context length but not storing them in closures
     vs. not passing and not storing context length, instead recomputing it on each lookup.
   - Reader monads vs param passing.
-  - Use non-dynamic array for top scope (because its size is statically known).
 -}
 
 module Elaboration where
 
--- import           Data.HashMap.Strict (HashMap)
+import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Array.Dynamic as A
 import qualified Data.Array.Dynamic.Unlifted as UA
 import Data.Nullable
+import Text.Megaparsec.Pos
 
 import Control.Exception
 import Control.Monad
@@ -47,37 +49,61 @@ import Syntax
 import Values
 import qualified Presyntax as P
 
+import Debug.Trace
+import Text.Printf
+import Pretty
+
 -- Local elaboration context
 --------------------------------------------------------------------------------
 
-data NameEnv = NENil | NESnoc NameEnv {-# unpack #-} Name
+-- Naming state
+--------------------------------------------------------------------------------
+
+-- | Inserted names come from inserting implicit binders during elaboration.
+--   Other names come from user input.
+data NameOrigin = NOInserted | NOSource deriving Show
+data NameInfo = NITop SourcePos Ix | NILocal SourcePos NameOrigin Ix
+
+instance Show NameInfo where
+  show (NITop _ i)     = "NITop " ++ show i
+  show (NILocal _ o i) = printf "NILocal %s %d" (show o) i
+
+-- | Reverse map from names to all de Bruijn levels with the keyed name.
+--   Indices are sorted, the lowest in scope is the first element.  We also keep
+--   track of source positions of binders. We only use this structure for name
+--   lookup during elaboration.
+type NameTable = HashMap Name (Env' NameInfo)
+
+
 data BoundIndices = BINil | BISnoc BoundIndices Ix
 
 -- | Local elaboration context.
 data Cxt = Cxt {
-  _size       :: Int,
-  _gVals      :: GEnv,
-  _vVals      :: VEnv,
-  _gTypes     :: Env GTy,
-  _vTypes     :: Env VTy,
+  _size       :: Int, -- ^ Number of local entries.
+  _gVals      :: GEnv, -- ^ Glued values of definitions.
+  _vVals      :: VEnv, -- ^ Local values of definitions.
+  _gTypes     :: Env GTy, -- ^ Glued types of entries.
+  _vTypes     :: Env VTy, -- ^ Local types of entries.
 
-  _nameTable  :: NameTable,  -- ^ Structure for getting indices for names during elaboration.
+  -- | Structure for getting indices for names during elaboration.
+  _nameTable  :: NameTable,
 
-  _nameEnv    :: NameEnv,    -- ^ Structure for getting names for local indices during unification. Only
-                             --   used for getting informative (source-originating) names for binders
-                             --   in meta solutions.
-
-  _boundIndices :: BoundIndices -- ^ List of local bound indices. Used for making spines for fresh metas.
+  -- | Structure for getting names for local indices during unification. Only
+  --   used for getting informative (source-originating) names for binders in
+  --   meta solutions.
+  _nameEnv    :: NameEnv,
+  -- | List of local bound indices. Used for making spines for fresh metas.
+  _boundIndices :: BoundIndices
   }
 
+addName :: Name -> NameInfo -> NameTable -> NameTable
+addName "" _ ntbl = ntbl
+addName x ni ntbl = HM.alter (Just . maybe (ESnoc' ENil' ni) (flip ESnoc' ni)) x ntbl
+{-# inline addName #-}
 
-recordName :: Name -> NameInfo -> NameTable -> NameTable
-recordName x ni ntbl = HM.alter (Just . maybe (ESnoc' ENil' ni) (flip ESnoc' ni)) x ntbl
-{-# inline recordName #-}
-
--- | Empty local context.
-cnil :: Cxt
-cnil = Cxt 0 ENil' ENil' ENil ENil mempty NENil BINil
+-- | Initial local context.
+initCxt :: NameTable -> Cxt
+initCxt ntbl = Cxt 0 ENil' ENil' ENil ENil ntbl NENil BINil
 
 -- | Add a bound variable to local context.
 localBind :: Posed Name -> NameOrigin -> GVTy -> Cxt -> Cxt
@@ -87,7 +113,7 @@ localBind x origin (GV gty vty) (Cxt d gs vs gtys vtys ninf ns bis) =
       (ESnoc' vs Nothing)
       (ESnoc gtys gty)
       (ESnoc vtys vty)
-      (recordName (proj2 x) (NILocal (proj1 x) origin d) ninf)
+      (addName (proj2 x) (NILocal (proj1 x) origin d) ninf)
       (NESnoc ns (proj2 x))
       (BISnoc bis d)
 
@@ -99,13 +125,25 @@ localDefine x (GV g v) (GV gty vty) (Cxt d gs vs gtys vtys ninf ns bis) =
       (ESnoc' vs (Just v))
       (ESnoc gtys gty)
       (ESnoc vtys vty)
-      (recordName (proj2 x) (NILocal (proj1 x) NOSource d) ninf)
+      (addName (proj2 x) (NILocal (proj1 x) NOSource d) ninf)
       (NESnoc ns (proj2 x))
       bis
 
 localBindSrc, localBindIns :: Posed Name -> GVTy -> Cxt -> Cxt
 localBindSrc x = localBind x NOSource
 localBindIns x = localBind x NOInserted
+
+--------------------------------------------------------------------------------
+
+lams :: NameEnv -> Renaming -> Tm -> Tm
+lams ns = go where
+  go RNil            t = t
+  go (RCons x y ren) t = go ren (Lam (NI (lookupNameEnv ns x) Expl) t)
+
+registerSolution :: MetaIx -> Tm -> IO ()
+registerSolution (MetaIx i j) t = do
+  arr <- UA.read metas i
+  A.write arr j (Some (MEntry t (gvEval 0 ENil' ENil' t)))
 
 
 -- Unification
@@ -137,41 +175,20 @@ Scope check:
 
 -}
 
---------------------------------------------------------------------------------
-
-data Renaming = RNil | RCons Ix Ix Renaming
-
-lookupRen :: Renaming -> Ix -> Nullable Ix
-lookupRen (RCons k v ren) x
-  | x == k    = Some v
-  | otherwise = lookupRen ren x
-lookupRen RNil _ = Null
-
-lookupNameEnv :: NameEnv -> Ix -> Name
-lookupNameEnv = go where
-  go NENil         _ = error "lookupNameEnv: impossible"
-  go (NESnoc ns n) 0 = n
-  go (NESnoc ns n) x = go ns (x - 1)
-
-lams :: NameEnv -> Renaming -> Tm -> Tm
-lams ns = go where
-  go RNil            t = t
-  go (RCons x y ren) t = go ren (Lam (NI (lookupNameEnv ns x) Expl) t)
-
-registerSolution :: MetaIx -> Tm -> IO ()
-registerSolution (MetaIx i j) t = do
-  arr <- UA.read metas i
-  A.write arr j (Some (MEntry t (gvEval 0 ENil' ENil' t)))
-
--- Unification
---------------------------------------------------------------------------------
-
 data Rigidity = Rigid | Flex deriving Show
-instance Exception Rigidity
+data ElabError = EEFlex String | EERigid String deriving Show
+instance Exception ElabError
 
--- we need a verrsion of vRename which throws and aborts, and a version which
+mkError :: Rigidity -> String -> ElabError
+mkError Flex msg = let pos = runIO (readIORef currPos) in
+                   EEFlex (sourcePosPretty pos ++ ":\n\n" ++ msg ++ "\n")
+mkError _    msg = let pos = runIO (readIORef currPos)
+                   in EERigid (sourcePosPretty pos ++ ":\n\n" ++ msg ++ "\n")
+{-# inline mkError #-}
+
+-- we need a version of vRename which throws and aborts, and a version which
 -- always returns a Tm, possibly together with a flex or rigid error.
-vRename :: (Rigidity -> IO ()) -> Ix -> MetaIx -> T2 Int Renaming -> Val -> IO Tm
+vRename :: (ElabError -> IO ()) -> Ix -> MetaIx -> T2 Int Renaming -> Val -> IO Tm
 vRename throwAction = \d occurs (T2 renl ren) ->
   let
     shift = d - renl
@@ -181,10 +198,14 @@ vRename throwAction = \d occurs (T2 renl ren) ->
       VNe h vsp -> do
         h' <- case h of
               HLocal x -> case lookupRen ren x of
-                Null   -> Irrelevant <$ throwAction r
+                Null   -> do
+                            throwAction $ mkError r (printf "Out of scope variable: %d" x)
+                            pure Irrelevant
                 Some y -> pure (LocalVar y)
               HTop   x -> pure (TopVar x)
-              HMeta  x | x == occurs -> Irrelevant <$ throwAction r
+              HMeta  x | x == occurs -> do
+                           throwAction $ mkError r (printf "Occurs check")
+                           pure Irrelevant
                        | otherwise   -> pure (MetaVar x)
         goSp d h' ren vsp
       VLam x t    -> Lam x <$> go (d + 1) r (RCons d (d - shift) ren) (vInst t (VLocal d))
@@ -203,7 +224,7 @@ vRenameShortCut :: Ix -> MetaIx -> T2 Int Renaming -> Val -> IO Tm
 vRenameShortCut = vRename throw
 {-# inline vRenameShortCut #-}
 
-vRenameRefError :: IORef (Nullable Rigidity) -> Ix -> MetaIx -> T2 Int Renaming -> Val -> IO Tm
+vRenameRefError :: IORef (Nullable ElabError) -> Ix -> MetaIx -> T2 Int Renaming -> Val -> IO Tm
 vRenameRefError ref = vRename (writeIORef ref . Some)
 {-# inline vRenameRefError #-}
 
@@ -229,7 +250,7 @@ vUnify cxt v v' = go (_size cxt) (_nameEnv cxt) Rigid v v' where
       go (d + 1) (NESnoc ns n') r (vApp t d' i') (vInst t' d')
 
     (VPi (NI n i) a b, VPi (NI _ i') a' b') -> do
-      unless (i == i') $ throw r
+      unless (i == i') $ throw $ mkError r "Pi implicitness mismatch"
       go d ns r a a'
       let d' = VLocal d
       go (d + 1) (NESnoc ns n) r (vInst b d') (vInst b' d')
@@ -241,10 +262,13 @@ vUnify cxt v v' = go (_size cxt) (_nameEnv cxt) Rigid v v' where
       GT -> solve d ns r x vsp (VNe (HMeta x') vsp')
       EQ -> goSp d ns vsp vsp'
 
-    (VNe (HMeta x) vsp, t') -> solve d ns r x vsp t'
+    (VNe (HMeta x) vsp, t')  -> solve d ns r x vsp t'
     (t, VNe (HMeta x') vsp') -> solve d ns r x' vsp' t
 
-    (t, t') -> throw r
+    (t, t') ->
+      throw $ mkError r $
+        printf "Can't (locally) unify\n\n%s\n\nwith\n\n%s"
+          (showTm ns (vQuote d t)) (showTm ns (vQuote d t'))
 
   goSp :: Ix -> NameEnv -> VSpine -> VSpine -> IO ()
   goSp d ns (SApp vsp v _) (SApp vsp' v' _) = goSp d ns vsp vsp' >> go d ns Flex v v'
@@ -256,13 +280,13 @@ vUnify cxt v v' = go (_size cxt) (_nameEnv cxt) Rigid v v' where
     go (SApp vsp v i) = case v of
       VLocal x -> case go vsp of
         T2 d ren -> T2 (d + 1) (RCons x d ren)
-      _          -> throw Flex
+      _          -> throw $ mkError Flex "non-variable in meta spine"
     go SNil = T2 0 RNil
 
   solve :: Ix -> NameEnv -> Rigidity -> MetaIx -> VSpine -> Val -> IO ()
-  solve d ns Flex  x vsp ~v = throw Flex
+  solve d ns Flex  x vsp ~v = throw $ mkError Flex "can't locally solve meta in flex context"
   solve d ns Rigid x vsp ~v = case lookupMeta x of
-    Some{} -> throw Flex
+    Some{} -> throw $ mkError Flex "can't locally unfold solved meta"
     _      -> do
       let ren = checkSpine vsp
       rhs <- lams ns (proj2 ren) <$> vRenameShortCut d x ren v
@@ -270,13 +294,13 @@ vUnify cxt v v' = go (_size cxt) (_nameEnv cxt) Rigid v v' where
 
 gvRename :: Ix -> MetaIx -> T2 Int Renaming -> GV -> IO Tm
 gvRename d occurs (T2 renl ren) (GV g v) = do
-  err <- newIORef (Null @Rigidity)
+  err <- newIORef (Null @ElabError)
   rhs <- vRenameRefError err d occurs (T2 renl ren) v
   let shift = d - renl
   readIORef err >>= \case
-    Null       -> pure rhs
-    Some Rigid -> error "gvRename: solution scope error"
-    Some Flex  -> go d ren g >> pure rhs where
+    Null               -> pure rhs
+    Some (EERigid msg) -> error msg
+    Some (EEFlex msg)  -> go d ren g >> pure rhs where
 
       go :: Ix -> Renaming -> Glued -> IO ()
       go d ren g = case gForce g of
@@ -299,11 +323,23 @@ gvRename d occurs (T2 renl ren) (GV g v) = do
       goSp d ren (SApp gsp g _) = goSp d ren gsp >> go d ren g
 
 
+--------------------------------------------------------------------------------
+vShowTm :: Cxt -> Val -> String
+vShowTm cxt v = showTm (_nameEnv cxt) (vQuote (_size cxt) v)
+
+gShowTm :: Cxt -> Glued -> String
+gShowTm cxt v = showTm (_nameEnv cxt) (gQuote (_size cxt) v)
+--------------------------------------------------------------------------------
+
 gvUnify :: Cxt -> GV -> GV -> IO ()
 gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
   catch (vUnify cxt v v') $ \case
-    Rigid -> error "gvUnify: can't unify"
-    Flex  -> go (_size cxt) (_nameEnv cxt) gv gv'
+    EERigid msg -> error msg
+    EEFlex  msg -> do
+      -- traceM msg
+      traceShowM ("failed local unify: ", vShowTm cxt v, vShowTm cxt v')
+      traceShowM ("trying global unify: ", gShowTm cxt g, gShowTm cxt g')
+      go (_size cxt) (_nameEnv cxt) gv gv'
   where
     go :: Ix -> NameEnv -> GV -> GV -> IO ()
     go d ns (GV g v) (GV g' v') = case (gForce g, gForce g') of
@@ -337,7 +373,10 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
       (GNe (HMeta x) gsp vsp, g') -> solve d ns x gsp (GV g' v')
       (g, GNe (HMeta x') gsp' vsp') -> solve d ns x' gsp' (GV g v)
 
-      (g, g') -> error "gvUnify: can't unify"
+      (g, g') ->
+        reportError $
+          printf "Can't (globally) unify\n\n%s\n\nwith\n\n%s"
+            (showTm ns (gQuote d g)) (showTm ns (gQuote d g'))
 
     goSp :: Ix -> NameEnv -> GSpine -> GSpine -> VSpine -> VSpine -> IO ()
     goSp d ns (SApp gsp g _) (SApp gsp' g' _)
@@ -404,43 +443,44 @@ check cxt (updPos -> T2 pos t) (GV gwant vwant) = case (t, gForce gwant) of
     newMeta cxt
   (t, gwant) -> do
     T2 t gvhas <- infer MIYes cxt (T2 pos t)
-    t <$ gvUnify cxt gvhas (GV gwant vwant)
+    gvUnify cxt gvhas (GV gwant vwant)
+    pure t
 
 insertMetas :: MetaInsertion -> Cxt -> IO (T2 Tm GVTy) -> IO (T2 Tm GVTy)
 insertMetas ins cxt inp = case ins of
   MINo  -> inp
   MIYes -> do
-    T2 t gva <- inp
+    T2 t (GV ga va) <- inp
     let go t (GV (GPi (NI x Impl) a b) va) = do
           m <- newMeta cxt
           go (App t m Impl) (gvInst b (gvEval' cxt m))
         go t gva = pure (T2 t gva)
-    go t gva
+    go t (GV (gForce ga) va)
   MIUntilName x -> do
-    T2 t gva <- inp
+    T2 t (GV ga va) <- inp
     let go t gva@(GV (GPi (NI x' Impl) a b) va)
           | x  == x'  = pure (T2 t gva)
           | otherwise = do
               m <- newMeta cxt
               go (App t m Impl) (gvInst b (gvEval' cxt m))
         go t a = error ("No named implicit argument with name " ++ show x)
-    go t gva
+    go t (GV (gForce ga) va)
 {-# inline insertMetas #-}
 
 inferVar :: Cxt -> Name -> IO (T2 Tm GVTy)
 inferVar cxt n = do
   case HM.lookup n (_nameTable cxt) of
-    Nothing -> error "name not in scope"
+    Nothing -> reportError (printf "name not in scope: %s" n)
     Just es -> go es where
       go ENil'                              = error "name not in scope"
       go (ESnoc' es (NITop pos x))          = do
-        gvty <- _entryTy <$> A.read top x
+        EntryTy _ gvty <- _entryTy <$> A.read top x
         pure (T2 (TopVar x) gvty)
       go (ESnoc' es (NILocal pos origin x)) = case origin of
         NOInserted -> go es
         NOSource   ->
-          let Box ga = lookupEnv (_gTypes cxt) x
-              Box va = lookupEnv (_vTypes cxt) x
+          let Box ga = lookupEnv (_size cxt) (_gTypes cxt) x
+              Box va = lookupEnv (_size cxt) (_vTypes cxt) x
           in pure (T2 (LocalVar x) (GV ga va))
 {-# inline inferVar #-}
 
@@ -497,9 +537,37 @@ infer ins cxt (updPos -> T2 pos t) = case t of
     m2 <- newMeta cxt
     pure (T2 m1 (gvEval' cxt m2))
 
+checkUnsolvedMetas :: IO ()
+checkUnsolvedMetas = do
+  arr <- UA.last metas
+  i   <- subtract 1 <$> UA.size metas
+  A.anyIx (\j -> \case Null -> error (printf "unsolved meta: ?%d.%d" i j); _ -> False)
+          arr
+  pure ()
 
---------------------------------------------------------------------------------
+checkTopEntry :: NameTable -> P.TopEntry -> IO NameTable
+checkTopEntry ntbl e = do
+  UA.push metas =<< A.empty
+  let cxt = initCxt ntbl
+  x <- A.size top
+  case e of
+    P.TEPostulate (T2 pos n) a -> do
+      a <- check cxt a gvU
+      checkUnsolvedMetas
+      A.push top (TopEntry (T2 pos n) EDPostulate (EntryTy a (gvEval' cxt a)))
+      pure (addName n (NITop pos x) ntbl)
+    P.TEDefinition (T2 pos n) a t -> do
+      a <- check cxt a gvU
+      let gva = gvEval' cxt a
+      t <- check cxt t gva
+      checkUnsolvedMetas
+      let gvt = gvEval' cxt t
+      A.push top (TopEntry (T2 pos n) (EDDefinition t gvt) (EntryTy a gva))
+      pure (addName n (NITop pos x) ntbl)
 
--- checkTopEntry :: P.TopEntry -> IO ()
--- checkTopEntry = \case
---   P.TEPostulate (T2 pos n) a -> _
+
+checkProgram :: P.Program -> IO ()
+checkProgram es = reset >> go mempty es where
+  go ntbl = \case
+    []   -> pure ()
+    e:es -> do {ntbl <- checkTopEntry ntbl e; go ntbl es}

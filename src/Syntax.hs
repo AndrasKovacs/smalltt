@@ -15,3 +15,4 @@ data Tm
   | Pi NameIcit Ty Tm
   | Irrelevant
   | U
+  deriving Show

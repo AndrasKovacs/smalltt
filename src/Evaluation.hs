@@ -136,3 +136,17 @@ vQuote = go where
     VPi ni a b  -> Pi ni (go d a) (go (d + 1) (vInst b (VLocal d)))
     VU          -> U
     VIrrelevant -> Irrelevant
+
+gQuote :: Int -> Glued -> Tm
+gQuote = go where
+  go d g = case gForce g of
+    GNe h gsp vsp      -> goSp gsp where
+                            goSp SNil = case h of
+                              HMeta x  -> MetaVar x
+                              HLocal x -> LocalVar x
+                              HTop x   -> TopVar x
+                            goSp (SApp vsp t i) = App (goSp vsp) (go d t) i
+    GLam ni t          -> Lam ni (go (d + 1) (gInst t (gvLocal d)))
+    GPi ni (GV a _) b  -> Pi ni (go d a) (go (d + 1) (gInst b (gvLocal d)))
+    GU                 -> U
+    GIrrelevant        -> Irrelevant

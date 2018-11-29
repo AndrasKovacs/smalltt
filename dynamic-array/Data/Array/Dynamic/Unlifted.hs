@@ -13,6 +13,12 @@ module Data.Array.Dynamic.Unlifted (
   , unsafeLast
   , Data.Array.Dynamic.Unlifted.last
   , isEmpty
+  , foldl'
+  , Data.Array.Dynamic.Unlifted.any
+  , Data.Array.Dynamic.Unlifted.all
+  , foldlIx'
+  , anyIx
+  , allIx
   ) where
 
 import qualified Data.Primitive.PrimArray     as PA
@@ -35,10 +41,6 @@ instance PrimUnlifted (Array a) where
 defaultCapacity :: Int
 defaultCapacity = 5
 {-# inline defaultCapacity #-}
-
-undefinedElement :: a
-undefinedElement = error "Data.Array.Dynamic.Unlifted: undefined element"
-{-# noinline undefinedElement #-}
 
 empty :: forall a. PrimUnlifted a => IO (Array a)
 empty = do
@@ -101,7 +103,7 @@ push (Array arr) ~a = do
   PA.writePrimArray sizeRef 0 (size + 1)
   if (size == cap) then do
     let cap' = 2 * cap
-    elems' <- UA.newUnliftedArray cap' (undefinedElement :: a)
+    elems' <- UA.unsafeNewUnliftedArray cap'
     UA.copyMutableUnliftedArray elems' 0 elems 0 size
     UA.writeUnliftedArray elems' size a
     UA.writeUnliftedArray arr 1 elems'
@@ -113,7 +115,7 @@ clear :: PrimUnlifted a => Array a -> IO ()
 clear (Array arr) = do
   (sizeRef :: PA.MutablePrimArray _ Int) <- PA.newPrimArray 1
   PA.writePrimArray sizeRef 0 0
-  elems <- UA.newUnliftedArray defaultCapacity (undefinedElement :: a)
+  elems <- UA.unsafeNewUnliftedArray defaultCapacity
   UA.writeUnliftedArray arr 0 (unsafeCoerce# sizeRef)
   UA.writeUnliftedArray arr 1 elems
 {-# inlinable clear #-}
@@ -150,3 +152,39 @@ showArray (Array arr) = do
   elems'  <- UA.freezeUnliftedArray elems 0 size
   pure (show elems')
 {-# inlinable showArray #-}
+
+foldl' :: PrimUnlifted a => (b -> a -> b) -> b -> Array a -> IO b
+foldl' f b = \arr -> do
+  s <- size arr
+  let go i b | i == s    = pure b
+             | otherwise = do
+                 a <- unsafeRead arr i
+                 go (i + 1) (f b a)
+  go 0 b
+{-# inline foldl' #-}
+
+any :: PrimUnlifted a => (a -> Bool) -> Array a -> IO Bool
+any f = foldl' (\b a -> f a || b) False
+{-# inline any #-}
+
+all :: PrimUnlifted a => (a -> Bool) -> Array a -> IO Bool
+all f = foldl' (\b a -> f a && b) True
+{-# inline all #-}
+
+foldlIx' :: PrimUnlifted a => (b -> Int -> a -> b) -> b -> Array a -> IO b
+foldlIx' f b = \arr -> do
+  s <- size arr
+  let go i b | i == s    = pure b
+             | otherwise = do
+                 a <- unsafeRead arr i
+                 go (i + 1) (f b i a)
+  go 0 b
+{-# inline foldlIx' #-}
+
+anyIx :: PrimUnlifted a => (Int -> a -> Bool) -> Array a -> IO Bool
+anyIx f = foldlIx' (\b i a -> f i a || b) False
+{-# inline anyIx #-}
+
+allIx :: PrimUnlifted a => (Int -> a -> Bool) -> Array a -> IO Bool
+allIx f = foldlIx' (\b i a -> f i a && b) True
+{-# inline allIx #-}

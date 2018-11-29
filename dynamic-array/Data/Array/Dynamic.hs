@@ -13,6 +13,12 @@ module Data.Array.Dynamic (
   , unsafeLast
   , Data.Array.Dynamic.last
   , isEmpty
+  , foldl'
+  , foldlIx'
+  , Data.Array.Dynamic.any
+  , Data.Array.Dynamic.all
+  , allIx
+  , anyIx
   ) where
 
 import qualified Data.Primitive.PrimArray     as PA
@@ -146,3 +152,39 @@ showArray (Array arr) = do
   size    <- PA.readPrimArray sizeRef 0
   elems'  <- A.freezeArray elems 0 size
   pure (show elems')
+
+foldl' :: (b -> a -> b) -> b -> Array a -> IO b
+foldl' f b = \arr -> do
+  s <- size arr
+  let go i b | i == s    = pure b
+             | otherwise = do
+                 a <- unsafeRead arr i
+                 go (i + 1) (f b a)
+  go 0 b
+{-# inline foldl' #-}
+
+foldlIx' :: (b -> Int -> a -> b) -> b -> Array a -> IO b
+foldlIx' f b = \arr -> do
+  s <- size arr
+  let go i b | i == s    = pure b
+             | otherwise = do
+                 a <- unsafeRead arr i
+                 go (i + 1) (f b i a)
+  go 0 b
+{-# inline foldlIx' #-}
+
+any :: (a -> Bool) -> Array a -> IO Bool
+any f = foldl' (\b a -> f a || b) False
+{-# inline any #-}
+
+all :: (a -> Bool) -> Array a -> IO Bool
+all f = foldl' (\b a -> f a && b) True
+{-# inline all #-}
+
+anyIx :: (Int -> a -> Bool) -> Array a -> IO Bool
+anyIx f = foldlIx' (\b i a -> f i a || b) False
+{-# inline anyIx #-}
+
+allIx :: (Int -> a -> Bool) -> Array a -> IO Bool
+allIx f = foldlIx' (\b i a -> f i a && b) True
+{-# inline allIx #-}

@@ -4,6 +4,7 @@ module Common where
 import Data.Bits
 import Data.Text.Short (ShortText)
 import Text.Megaparsec.Pos (SourcePos)
+import Data.Nullable
 
 import GHC.Types (IO(..))
 import GHC.Magic (runRW#)
@@ -29,6 +30,9 @@ data Sum a b = Inl a | Inr b deriving (Eq, Show, Functor, Foldable, Traversable)
 -- | Values annotation with source position.
 type Posed a = T2 SourcePos a
 
+instance {-# OVERLAPS #-} Show a => Show (Posed a) where
+  showsPrec d (T2 _ b) = showsPrec d b
+
 -- | Names used for definitions and binders.
 type Name = ShortText
 
@@ -52,6 +56,11 @@ instance Show MetaIx where show = show . unpackMetaIx
 
 data Icit = Expl | Impl deriving (Eq)
 
+icit :: Icit → a → a → a
+icit Impl i e = i
+icit Expl i e = e
+{-# inline icit #-}
+
 instance Show Icit where
   show Expl = "explicit"
   show Impl = "implicit"
@@ -61,3 +70,25 @@ runIO (IO f) = runRW# (\s -> case f s of (# _, a #) -> a)
 {-# inline runIO #-}
 
 data NameIcit = NI Name Icit deriving Show
+
+data NameEnv = NENil | NESnoc NameEnv {-# unpack #-} Name deriving Show
+
+-- TODO: Renaming can be simpler and probably faster.
+data Renaming = RNil | RCons Ix Ix Renaming
+
+lookupRen :: Renaming -> Ix -> Nullable Ix
+lookupRen (RCons k v ren) x
+  | x == k    = Some v
+  | otherwise = lookupRen ren x
+lookupRen RNil _ = Null
+
+-- | TODO: length is pretty ugly.
+lookupNameEnv :: NameEnv -> Ix -> Name
+lookupNameEnv ns i = go ns (len ns - i - 1) where
+  go NENil         _ = error "lookupNameEnv: impossible"
+  go (NESnoc ns n) 0 = n
+  go (NESnoc ns n) x = go ns (x - 1)
+
+  len = go 0 where
+    go l NENil         = l
+    go l (NESnoc ns _) = go (l + 1) ns

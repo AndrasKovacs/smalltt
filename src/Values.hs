@@ -5,11 +5,11 @@ import Common
 import Syntax
 
 data Env   a = ENil  | ESnoc (Env a) ~a       deriving (Functor, Foldable, Traversable)
-data Env'  a = ENil' | ESnoc' (Env' a) a      deriving (Functor, Foldable, Traversable)
+data Env'  a = ENil' | ESnoc' (Env' a) a      deriving (Show, Functor, Foldable, Traversable)
 data Spine a = SNil  | SApp (Spine a) ~a Icit deriving (Functor, Foldable, Traversable)
 
-lookupEnv :: Env a -> Ix -> Box a
-lookupEnv = go where
+lookupEnv :: Ix -> Env a -> Ix -> Box a
+lookupEnv d e i = go e (d - i - 1) where
   go ENil         _ = error "lookupEnv: impossible"
   go (ESnoc as a) 0 = Box a
   go (ESnoc as a) n = go as (n - 1)
