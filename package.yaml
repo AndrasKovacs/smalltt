@@ -72,13 +72,17 @@ library:
     - -Wno-unused-matches
     - -Wno-partial-type-signatures
     - -O2
+    - -ddump-simpl -dsuppress-all -dno-suppress-type-signatures
 
 executables:
-  smalltt-exe:
+  smalltt:
     main:  app/Main.hs
     ghc-options:
-    - -rtsopts -O2
+    - -rtsopts -O2 -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -static
     dependencies:
     - smalltt
     - megaparsec
     - nullable
+    - text
+    - text-short
+    - time

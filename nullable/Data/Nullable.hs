@@ -25,144 +25,154 @@ import GHC.Show
 import Text.ParserCombinators.ReadPrec
 import qualified Text.Read.Lex as L
 
-type role Nullable nominal
-newtype Nullable (a :: *) = Nullable Any
-
-data Null# = Null#
-
-null# :: Null#
-null# = Null#
-{-# noinline null# #-}
-
-isNull# :: Nullable a -> Int#
-isNull# (Nullable !any) = reallyUnsafePtrEquality# (unsafeCoerce# any) null#
-{-# inline isNull# #-}
-
-isSome# :: Nullable a -> (# Int#, a #)
-isSome# (Nullable !any) =
-  (# reallyUnsafePtrEquality# (unsafeCoerce# any) null#, unsafeCoerce# any #)
-{-# inline isSome# #-}
-
-pattern Null :: Nullable a
-pattern Null <- (isNull# -> 1#) where
-  Null = (unsafeCoerce# null# :: Nullable a)
-
-pattern Some :: a -> Nullable a
-pattern Some a <- (isSome# -> (# 0#, a #)) where
-  Some (a :: a) = (unsafeCoerce# a :: Nullable a)
+import Data.Maybe
+type Nullable = Maybe
+pattern Null :: forall a. Nullable a
+pattern Null = Nothing
+pattern Some :: forall a. a -> Nullable a
+pattern Some a = Just a
 {-# complete Null, Some #-}
-
-nullable :: b -> (a -> b) -> Nullable a -> b
-nullable b f (Some a) = f a
-nullable b f _        = b
+nullable = maybe
 {-# inline nullable #-}
-
-isSome :: Nullable a -> Bool
-isSome Some{} = True
-isSome _      = False
+isSome = isJust
 {-# inline isSome #-}
-
-isNull :: Nullable a -> Bool
-isNull Null = True
-isNull _    = False
+isNull = isNothing
 {-# inline isNull #-}
 
-instance Functor Nullable where
-  fmap f (Some a) = Some (f a)
-  fmap f x        = unsafeCoerce# x
-  {-# inline fmap #-}
+-- type role Nullable nominal
+-- newtype Nullable (a :: *) = Nullable Any
 
-instance Foldable Nullable where
-  foldr f z (Some a) = f a z
-  foldr f z _        = z
-  {-# inline foldr #-}
+-- data Null# = Null#
 
-  foldl f = foldr (flip f)
+-- isNull# :: Nullable a -> Int#
+-- isNull# (Nullable !any) = reallyUnsafePtrEquality# (unsafeCoerce# any) Null#
+-- {-# inline isNull# #-}
 
-  foldMap f (Some a) = f a
-  foldMap f _        = mempty
-  {-# inline foldMap #-}
+-- isSome# :: Nullable a -> (# Int#, a #)
+-- isSome# (Nullable !any) =
+--   (# reallyUnsafePtrEquality# (unsafeCoerce# any) Null#, unsafeCoerce# any #)
+-- {-# inline isSome# #-}
 
-instance Traversable Nullable where
-  traverse f (Some a) = Some <$> f a
-  traverse f x        = pure (unsafeCoerce# x)
-  {-# inline traverse #-}
+-- pattern Null :: forall a. Nullable a
+-- pattern Null <- (isNull# -> 1#) where
+--   Null = (unsafeCoerce# Null# :: Nullable a)
 
-instance Eq a => Eq (Nullable a) where
-  Some a == Some b = a == b
-  _      == _      = False
-  {-# inline (==) #-}
+-- pattern Some :: forall a. a -> Nullable a
+-- pattern Some a <- (isSome# -> (# 0#, a #)) where
+--   Some (a :: a) = (unsafeCoerce# a :: Nullable a)
+-- {-# complete Null, Some #-}
 
-instance Semigroup a => Semigroup (Nullable a) where
-  Some a <> Some b = Some (a <> b)
-  Null   <> b      = b
-  a      <> _      = a
-  {-# inline (<>) #-}
+-- nullable :: b -> (a -> b) -> Nullable a -> b
+-- nullable b f (Some a) = f a
+-- nullable b f _        = b
+-- {-# inline nullable #-}
 
-instance Semigroup a => Monoid (Nullable a) where
-  mempty = Null
-  Some m1 `mappend` Some m2 = Some (m1 <> m2)
-  Null    `mappend` m       = m
-  m       `mappend` _       = m
-  {-# inline mempty #-}
-  {-# inline mappend #-}
+-- isSome :: Nullable a -> Bool
+-- isSome Some{} = True
+-- isSome _      = False
+-- {-# inline isSome #-}
 
-instance Ord a => Ord (Nullable a) where
-  compare (Some a) (Some b) = compare a b
-  compare Null  (Some _) = LT
-  compare (Some _) Null  = GT
-  compare _        _     = EQ
-  {-# inline compare #-}
+-- isNull :: Nullable a -> Bool
+-- isNull Null = True
+-- isNull _    = False
+-- {-# inline isNull #-}
 
-instance Show a => Show (Nullable a) where
-    showsPrec p (Some a) s =
-      (showParen (p > appPrec) $
-        showString "Some " .
-        showsPrec appPrec1 a) s
-    showsPrec _ _ s = showString "Null" s
+-- instance Functor Nullable where
+--   fmap f (Some a) = Some (f a)
+--   fmap f x        = unsafeCoerce# x
+--   {-# inline fmap #-}
+
+-- instance Foldable Nullable where
+--   foldr f z (Some a) = f a z
+--   foldr f z _        = z
+--   {-# inline foldr #-}
+
+--   foldl f = foldr (flip f)
+
+--   foldMap f (Some a) = f a
+--   foldMap f _        = mempty
+--   {-# inline foldMap #-}
+
+-- instance Traversable Nullable where
+--   traverse f (Some a) = Some <$> f a
+--   traverse f x        = pure (unsafeCoerce# x)
+--   {-# inline traverse #-}
+
+-- instance Eq a => Eq (Nullable a) where
+--   Some a == Some b = a == b
+--   _      == _      = False
+--   {-# inline (==) #-}
+
+-- instance Semigroup a => Semigroup (Nullable a) where
+--   Some a <> Some b = Some (a <> b)
+--   Null   <> b      = b
+--   a      <> _      = a
+--   {-# inline (<>) #-}
+
+-- instance Semigroup a => Monoid (Nullable a) where
+--   mempty = Null
+--   Some m1 `mappend` Some m2 = Some (m1 <> m2)
+--   Null    `mappend` m       = m
+--   m       `mappend` _       = m
+--   {-# inline mempty #-}
+--   {-# inline mappend #-}
+
+-- instance Ord a => Ord (Nullable a) where
+--   compare (Some a) (Some b) = compare a b
+--   compare Null  (Some _) = LT
+--   compare (Some _) Null  = GT
+--   compare _        _     = EQ
+--   {-# inline compare #-}
+
+-- instance Show a => Show (Nullable a) where
+--     showsPrec p (Some a) s =
+--       (showParen (p > appPrec) $
+--         showString "Some " .
+--         showsPrec appPrec1 a) s
+--     showsPrec _ _ s = showString "Null" s
 
 
-instance Read a => Read (Nullable a) where
-  readPrec =
-    parens
-    (do expectP (L.Ident "Null")
-        return Null
-     +++
-     prec appPrec (
-        do expectP (L.Ident "Some")
-           x <- step readPrec
-           return (Some x))
-    )
+-- instance Read a => Read (Nullable a) where
+--   readPrec =
+--     parens
+--     (do expectP (L.Ident "Null")
+--         return Null
+--      +++
+--      prec appPrec (
+--         do expectP (L.Ident "Some")
+--            x <- step readPrec
+--            return (Some x))
+--     )
 
-instance Applicative Nullable where
-    pure = Some
+-- instance Applicative Nullable where
+--     pure = Some
 
-    Some f  <*> m       = fmap f m
-    x       <*> _m      = unsafeCoerce# x
+--     Some f  <*> m       = fmap f m
+--     x       <*> _m      = unsafeCoerce# x
 
-    Some _m1 *> m2      = m2
-    x        *> _m2     = unsafeCoerce# x
-    {-# inline pure #-}
-    {-# inline (<*>) #-}
-    {-# inline (*>) #-}
+--     Some _m1 *> m2      = m2
+--     x        *> _m2     = unsafeCoerce# x
+--     {-# inline pure #-}
+--     {-# inline (<*>) #-}
+--     {-# inline (*>) #-}
 
-instance  Monad Nullable  where
-    (Some x) >>= k      = k x
-    x        >>= _      = unsafeCoerce# x
+-- instance  Monad Nullable  where
+--     (Some x) >>= k      = k x
+--     x        >>= _      = unsafeCoerce# x
 
-    (>>) = (*>)
+--     (>>) = (*>)
 
-    return              = Some
-    fail _              = Null
-    {-# inline (>>=) #-}
-    {-# inline (>>) #-}
-    {-# inline return #-}
+--     return              = Some
+--     fail _              = Null
+--     {-# inline (>>=) #-}
+--     {-# inline (>>) #-}
+--     {-# inline return #-}
 
-instance Alternative Nullable where
-    empty = Null
-    Null <|> r = r
-    l    <|> _ = l
-    {-# inline empty #-}
-    {-# inline (<|>) #-}
+-- instance Alternative Nullable where
+--     empty = Null
+--     Null <|> r = r
+--     l    <|> _ = l
+--     {-# inline empty #-}
+--     {-# inline (<|>) #-}
 
-instance MonadPlus Nullable
+-- instance MonadPlus Nullable

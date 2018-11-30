@@ -49,7 +49,7 @@ import Syntax
 import Values
 import qualified Presyntax as P
 
-import Debug.Trace
+-- import Debug.Trace
 import Text.Printf
 import Pretty
 
@@ -310,7 +310,7 @@ vUnify cxt v v' = go (_size cxt) (_nameEnv cxt) Rigid v v' where
 
 gvRename :: Ix -> MetaIx -> T2 Int Renaming -> GV -> IO Tm
 gvRename d occurs (T2 renl ren) (GV g v) = do
-  err <- newIORef (Null @ElabError)
+  err <- newIORef Null
   rhs <- vRenameRefError err d occurs (T2 renl ren) v
   let shift = d - renl
   readIORef err >>= \case
@@ -353,14 +353,15 @@ showTm' cxt t = showTm (_nameEnv cxt) t
 gvUnify :: Cxt -> GV -> GV -> IO ()
 gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
   catch (do
-    let t1 = vShowTm cxt v
-        t2 = vShowTm cxt v'
-    vUnify cxt v v' <* traceM (printf "locally unified: %s %s" t1 t2))
+    -- let t1 = vShowTm cxt v
+    --     t2 = vShowTm cxt v'
+    vUnify cxt v v' -- <* traceM (printf "locally unified: %s   %s" t1 t2))
+    )
   $ \case
     EERigid msg -> error msg
     EEFlex  msg -> do
-      traceM (printf "failed local unify: %s   %s" (vShowTm cxt v) (vShowTm cxt v'))
-      traceM (printf "trying global unify: %s   %s" (gShowTm cxt g) (gShowTm cxt g'))
+      -- traceM (printf "failed local unify: %s   %s" (vShowTm cxt v) (vShowTm cxt v'))
+      -- traceM (printf "trying global unify: %s   %s" (gShowTm cxt g) (gShowTm cxt g'))
       go (_size cxt) (_nameEnv cxt) gv gv'
   where
     go :: Ix -> NameEnv -> GV -> GV -> IO ()
@@ -500,10 +501,10 @@ inferVar cxt n = do
         pure (T2 (TopVar x) gvty)
       go (ESnoc' es (NILocal pos origin x)) = case origin of
         NOInserted -> go es
-        NOSource   ->
+        NOSource   -> do
           let Box ga = lookupEnv (_size cxt) (_gTypes cxt) x
               Box va = lookupEnv (_size cxt) (_vTypes cxt) x
-          in pure (T2 (LocalVar x) (GV ga va))
+          pure (T2 (LocalVar x) (GV ga va))
 {-# inline inferVar #-}
 
 infer :: MetaInsertion -> Cxt -> P.Tm -> IO (T2 Tm GVTy)
@@ -589,10 +590,10 @@ checkTopEntry ntbl e = do
       A.push top (TopEntry (T2 pos n) (EDDefinition t gvt) (EntryTy a gva))
       pure (addName n (NITop pos x) ntbl)
 
-checkProgram :: P.Program -> IO ()
+checkProgram :: P.Program -> IO NameTable
 checkProgram es = reset >> go mempty es where
   go ntbl = \case
-    []   -> pure ()
+    []   -> pure ntbl
     e:es -> do {ntbl <- checkTopEntry ntbl e; go ntbl es}
 
 --------------------------------------------------------------------------------

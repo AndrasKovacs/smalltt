@@ -48,7 +48,8 @@ metas = runIO UA.empty
 lookupMeta :: MetaIx -> Nullable MetaEntry
 lookupMeta (MetaIx i j) = runIO $ do
   arr <- UA.read metas i
-  A.read arr j
+  res <- A.read arr j
+  pure res
 {-# inline lookupMeta #-}
 
 -- Source position state

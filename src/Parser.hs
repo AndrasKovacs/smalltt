@@ -1,5 +1,5 @@
 
-module Parser (parseFile) where
+module Parser (parseFile, parseTm) where
 
 import Control.Applicative hiding (many, some)
 import Control.Monad.Reader
@@ -205,6 +205,9 @@ pProgram = many (pPostulate <|> pDefinition)
 
 pFile :: Parser Program
 pFile = ws *> pProgram <* eof
+
+parseTm :: Text -> Either (ParseErrorBundle Text Void) Tm
+parseTm = parse (runReaderT (ws *> pTm <* eof) (mkPos 1)) ""
 
 parseFile :: String -> Text -> Either (ParseErrorBundle Text Void) Program
 parseFile = parse (runReaderT pFile (mkPos 1))
