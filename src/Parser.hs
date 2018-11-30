@@ -193,16 +193,12 @@ pPostulate = nonIndented $
   indent (symbol "assume") (\_ -> TEPostulate <$> withPos pIdent <*> (char ':' *> pTm))
 
 pDefinition :: Parser TopEntry
-pDefinition = do
-  T2 x a  <- nonIndented $ indent (withPos pIdent) $ \x -> T2 x <$> (char ':' *> pTm)
-  o       <- getOffset
-  T2 x' t <- nonIndented $ indent (withPos pIdent) $ \x' -> do
-    unless (proj2 x == proj2 x') $
-      failWithOffset o
-        (printf "Expected a definition for \"%s\", got a definition for \"%s\"."
-                (proj2 x) (proj2 x'))
-    T2 x' <$> (char '=' *> pTm)
-  pure (TEDefinition x a t)
+pDefinition = nonIndented $ indent (withPos pIdent) $ \x -> do
+  a <- optional (char ':' *> pTm)
+  t <- char '=' *> pTm
+  case a of
+    Just a  -> pure (TEDefinition x a t)
+    Nothing -> pure (TEDefinition x (T2 (proj1 x) Hole) t)
 
 pProgram :: Parser Program
 pProgram = many (pPostulate <|> pDefinition)

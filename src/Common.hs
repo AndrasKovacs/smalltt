@@ -82,13 +82,16 @@ lookupRen (RCons k v ren) x
   | otherwise = lookupRen ren x
 lookupRen RNil _ = Null
 
--- | TODO: length is pretty ugly.
+  -- | TODO: length is pretty ugly. Also, shadowed names are not distinguished in
+  --         output.
 lookupNameEnv :: NameEnv -> Ix -> Name
 lookupNameEnv ns i = go ns (len ns - i - 1) where
   go NENil         _ = error "lookupNameEnv: impossible"
+
   go (NESnoc ns n) 0 = n
   go (NESnoc ns n) x = go ns (x - 1)
 
+  len :: NameEnv -> Int
   len = go 0 where
     go l NENil         = l
     go l (NESnoc ns _) = go (l + 1) ns

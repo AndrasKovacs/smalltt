@@ -31,6 +31,11 @@ top :: A.Array TopEntry
 top = runIO A.empty
 {-# noinline top #-}
 
+isPostulate :: Ix -> Bool
+isPostulate x = let e = runIO (A.read top x)
+                in case _entryDef e of EDPostulate -> True; _ -> False
+{-# inline isPostulate #-}
+
 -- Meta state
 --------------------------------------------------------------------------------
 

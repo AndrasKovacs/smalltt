@@ -99,6 +99,10 @@ vApp (VNe h vs) ~u i = VNe h (SApp vs u i)
 vApp _ ~_ _ = error "vApp: impossible"
 {-# inline vApp #-}
 
+vAppSpine :: Val -> VSpine -> Val
+vAppSpine v (SApp vs v' i) = vApp (vAppSpine v vs) v' i
+vAppSpine v SNil           = v
+
 --------------------------------------------------------------------------------
 
 gvEval :: Int -> GEnv -> VEnv -> Tm -> GV

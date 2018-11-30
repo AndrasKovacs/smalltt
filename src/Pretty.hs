@@ -58,7 +58,7 @@ prettyTm prec = go (prec /= 0) where
     | otherwise =
        (if p then (" -> "++) else id) .
        go (case a of App{} -> False; _ -> True) ns a .
-       (" -> "++) . go False ns b
+       (" -> "++) . go False (NESnoc ns "") b
   goPi p ns t = (if p then (" -> "++) else id) . go False ns t
 
   goLamBind :: Name -> Icit -> ShowS

@@ -55,14 +55,12 @@ library:
   source-dirs:
       src
   dependencies:
-    - containers
     - dynamic-array
+    - containers
     - ghc-prim
     - megaparsec
-    - microlens-platform
     - mtl
     - nullable
-    - prettyprinter
     - text
     - text-short
     - unordered-containers
