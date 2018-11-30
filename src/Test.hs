@@ -129,11 +129,19 @@ t = T.unlines [
   "nfun : Nat → U",
   " = λ n. n U (λ A. U → A) U",
 
-  "localtest1 : nfun n10k → nfun n10k = λ x. x"
+  "localtest1 : nfun n10k → nfun n10k = λ x. x",
+
+  "idStress : {A} → A → A",
+  " = id id id id id id id id id id id id id id id id id id id id"
 
   ]
 
+-- test :: IO ()
+-- test = either (putStrLn . errorBundlePretty)
+--               (\t -> checkProgram t)
+--               (parseFile "" t)
+
 test :: IO ()
 test = either (putStrLn . errorBundlePretty)
-              (\t -> checkProgram t)
+              (\t -> do {checkProgram t; putStrLn =<< renderElabOutput})
               (parseFile "" t)

@@ -1,4 +1,4 @@
-{-# options_ghc -Wno-unused-imports -Wno-type-defaults #-}
+-- {-# options_ghc -Wno-unused-imports -Wno-type-defaults #-}
 
 {- |
 
@@ -561,8 +561,8 @@ infer ins cxt (updPos -> T2 pos t) = case t of
     m2 <- newMeta cxt
     pure (T2 m1 (gvEval' cxt m2))
 
-checkUnsolvedMetas :: IO ()
-checkUnsolvedMetas = do
+guardUnsolvedMetas :: IO ()
+guardUnsolvedMetas = do
   arr <- UA.last metas
   i   <- subtract 1 <$> UA.size metas
   A.anyIx (\j -> \case Null -> reportError (printf "Unsolved meta: ?%d.%d" i j); _ -> False)
@@ -577,14 +577,14 @@ checkTopEntry ntbl e = do
   case e of
     P.TEPostulate (updPos -> T2 pos n) a -> do
       a <- check cxt a gvU
-      checkUnsolvedMetas
+      guardUnsolvedMetas
       A.push top (TopEntry (T2 pos n) EDPostulate (EntryTy a (gvEval' cxt a)))
       pure (addName n (NITop pos x) ntbl)
     P.TEDefinition (updPos -> T2 pos n) a t -> do
       a <- check cxt a gvU
       let gva = gvEval' cxt a
       t <- check cxt t gva
-      checkUnsolvedMetas
+      guardUnsolvedMetas
       let gvt = gvEval' cxt t
       A.push top (TopEntry (T2 pos n) (EDDefinition t gvt) (EntryTy a gva))
       pure (addName n (NITop pos x) ntbl)
@@ -594,3 +594,27 @@ checkProgram es = reset >> go mempty es where
   go ntbl = \case
     []   -> pure ()
     e:es -> do {ntbl <- checkTopEntry ntbl e; go ntbl es}
+
+--------------------------------------------------------------------------------
+
+-- | Render elaboration output. Just for demo purposes. Serialization proper is TODO,
+--   but this should already contain all to-be-seriaized information.
+renderElabOutput :: IO String
+renderElabOutput = do
+  es <- A.foldr'  (:) [] top
+  ms <- UA.foldr' (:) [] metas
+
+  let go :: (Int, TopEntry) -> A.Array (Nullable MetaEntry) -> IO [String]
+      go (i, TopEntry (T2 _ n)  def (EntryTy a _)) ms = do
+        ms <- A.foldr' (:) [] ms
+        let metaBlock = map
+              (\case (j, Some (MEntry t _)) -> printf "%d.%d = %s" i j (showTm0 t)
+                     _                      -> error "renderElabOutput: impossible")
+              (zip [(0 :: Int)..] ms)
+            thisDef :: String
+            thisDef = case def of
+              EDPostulate      -> printf "assume %s : %s" n (showTm0 a)
+              EDDefinition t _ -> printf "%s : %s\n = %s" n (showTm0 a) (showTm0 t)
+        pure $ metaBlock ++ [thisDef]
+
+  unlines . map unlines <$> zipWithM go (zip [(0::Int)..] es) ms

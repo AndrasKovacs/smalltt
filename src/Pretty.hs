@@ -22,6 +22,7 @@ showTm0 = showTm NENil
 showTm :: NameEnv -> Tm -> String
 showTm ns t = prettyTm 0 ns t ""
 
+-- TODO: resolve shadowing names with indices
 prettyTm :: Int -> NameEnv -> Tm -> ShowS
 prettyTm prec = go (prec /= 0) where
 
@@ -56,14 +57,26 @@ prettyTm prec = go (prec /= 0) where
   goPi p ns (Pi (NI x i) a b)
     | i == Impl || x /= "" = goPiBind x i ns a . goPi True (NESnoc ns x) b
     | otherwise =
-       (if p then (" -> "++) else id) .
+       (if p then (" → "++) else id) .
        go (case a of App{} -> False; _ -> True) ns a .
-       (" -> "++) . go False (NESnoc ns "") b
-  goPi p ns t = (if p then (" -> "++) else id) . go False ns t
+       (" → "++) . go False (NESnoc ns "") b
+  goPi p ns t = (if p then (" → "++) else id) . go False ns t
 
   goLamBind :: Name -> Icit -> ShowS
-  goLamBind x i = icit i bracket id (T.unpack x++)
+  goLamBind x i = icit i bracket id (T.unpack (case x of "" -> "_"; _ -> x) ++)
 
   goLam :: NameEnv -> Tm -> ShowS
   goLam ns (Lam (NI x i) t) = (' ':) . goLamBind x i . goLam (NESnoc ns x) t
   goLam ns t                = (". "++) . go False ns t
+
+  lookupNameEnv :: NameEnv -> Ix -> Name
+  lookupNameEnv ns i = go ns (len ns - i - 1) where
+    go NENil         _ = error "lookupNameEnv: impossible"
+
+    go (NESnoc ns n)  0 = case n of "" -> "_"; _ -> n
+    go (NESnoc ns n)  x = go ns (x - 1)
+
+    len :: NameEnv -> Int
+    len = go 0 where
+      go l NENil         = l
+      go l (NESnoc ns _) = go (l + 1) ns

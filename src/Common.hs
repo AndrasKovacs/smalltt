@@ -88,7 +88,7 @@ lookupNameEnv :: NameEnv -> Ix -> Name
 lookupNameEnv ns i = go ns (len ns - i - 1) where
   go NENil         _ = error "lookupNameEnv: impossible"
 
-  go (NESnoc ns n) 0 = n
+  go (NESnoc ns n) 0 = case n of "" -> "_"; _ -> n
   go (NESnoc ns n) x = go ns (x - 1)
 
   len :: NameEnv -> Int

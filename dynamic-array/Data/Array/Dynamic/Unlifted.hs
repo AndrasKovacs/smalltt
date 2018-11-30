@@ -14,9 +14,11 @@ module Data.Array.Dynamic.Unlifted (
   , Data.Array.Dynamic.Unlifted.last
   , isEmpty
   , foldl'
+  , foldlIx'
+  , foldr'
+  , foldrIx'
   , Data.Array.Dynamic.Unlifted.any
   , Data.Array.Dynamic.Unlifted.all
-  , foldlIx'
   , anyIx
   , allIx
   ) where
@@ -180,6 +182,26 @@ foldlIx' f b = \arr -> do
                  go (i + 1) (f b i a)
   go 0 b
 {-# inline foldlIx' #-}
+
+foldr' :: PrimUnlifted a => (a -> b -> b) -> b -> Array a -> IO b
+foldr' f b = \arr -> do
+  s <- size arr
+  let go i b | i == (-1) = pure b
+             | otherwise = do
+                 a <- unsafeRead arr i
+                 go (i - 1) (f a b)
+  go (s - 1) b
+{-# inline foldr' #-}
+
+foldrIx' :: PrimUnlifted a => (Int -> a -> b -> b) -> b -> Array a -> IO b
+foldrIx' f b = \arr -> do
+  s <- size arr
+  let go i b | i == (-1) = pure b
+             | otherwise = do
+                 a <- unsafeRead arr i
+                 go (i - 1) (f i a b)
+  go (s - 1) b
+{-# inline foldrIx' #-}
 
 anyIx :: PrimUnlifted a => (Int -> a -> Bool) -> Array a -> IO Bool
 anyIx f = foldlIx' (\b i a -> f i a || b) False

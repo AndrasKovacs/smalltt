@@ -15,6 +15,8 @@ module Data.Array.Dynamic (
   , isEmpty
   , foldl'
   , foldlIx'
+  , foldr'
+  , foldrIx'
   , Data.Array.Dynamic.any
   , Data.Array.Dynamic.all
   , allIx
@@ -163,15 +165,35 @@ foldl' f b = \arr -> do
   go 0 b
 {-# inline foldl' #-}
 
-foldlIx' :: (b -> Int -> a -> b) -> b -> Array a -> IO b
+foldlIx' :: (Int -> b -> a -> b) -> b -> Array a -> IO b
 foldlIx' f b = \arr -> do
   s <- size arr
   let go i b | i == s    = pure b
              | otherwise = do
                  a <- unsafeRead arr i
-                 go (i + 1) (f b i a)
+                 go (i + 1) (f i b a)
   go 0 b
 {-# inline foldlIx' #-}
+
+foldr' :: (a -> b -> b) -> b -> Array a -> IO b
+foldr' f b = \arr -> do
+  s <- size arr
+  let go i b | i == (-1) = pure b
+             | otherwise = do
+                 a <- unsafeRead arr i
+                 go (i - 1) (f a b)
+  go (s - 1) b
+{-# inline foldr' #-}
+
+foldrIx' :: (Int -> a -> b -> b) -> b -> Array a -> IO b
+foldrIx' f b = \arr -> do
+  s <- size arr
+  let go i b | i == (-1) = pure b
+             | otherwise = do
+                 a <- unsafeRead arr i
+                 go (i - 1) (f i a b)
+  go (s - 1) b
+{-# inline foldrIx' #-}
 
 any :: (a -> Bool) -> Array a -> IO Bool
 any f = foldl' (\b a -> f a || b) False
@@ -182,9 +204,9 @@ all f = foldl' (\b a -> f a && b) True
 {-# inline all #-}
 
 anyIx :: (Int -> a -> Bool) -> Array a -> IO Bool
-anyIx f = foldlIx' (\b i a -> f i a || b) False
+anyIx f = foldlIx' (\i b a -> f i a || b) False
 {-# inline anyIx #-}
 
 allIx :: (Int -> a -> Bool) -> Array a -> IO Bool
-allIx f = foldlIx' (\b i a -> f i a && b) True
+allIx f = foldlIx' (\i b a -> f i a && b) True
 {-# inline allIx #-}

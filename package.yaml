@@ -75,9 +75,10 @@ library:
 
 executables:
   smalltt-exe:
-    main:  Main.hs
+    main:  app/Main.hs
     ghc-options:
     - -rtsopts -O2
     dependencies:
     - smalltt
     - megaparsec
+    - nullable
