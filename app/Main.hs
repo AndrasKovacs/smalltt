@@ -3,20 +3,20 @@ module Main where
 
 import Control.Exception
 import Data.Char
-import Data.Nullable
-import System.IO (hSetBuffering, stdout, BufferMode(..))
-import Text.Megaparsec (errorBundlePretty)
 import Data.Time.Clock
+import System.IO (hSetBuffering, stdout, BufferMode(..))
+import System.Mem
+import Text.Megaparsec (errorBundlePretty)
 
 import qualified Data.Text.Short as ST
 import qualified Data.Text.IO as T
 
-import Values
 import Common
 import Elaboration
+import Evaluation
 import Parser
 import Pretty
-import Evaluation
+import Values
 
 --------------------------------------------------------------------------------
 
@@ -25,41 +25,47 @@ main = do
   hSetBuffering stdout NoBuffering
   putStrLn "smalltt 0.1.0.0"
   putStrLn "enter :? for help"
-  loop Null mempty
+  loop Nothing mempty
 
-timed ∷ IO a → IO (a, NominalDiffTime)
+timed :: IO a -> IO (a, NominalDiffTime)
 timed a = do
-  t1 ← getCurrentTime
-  res ← a
-  t2 ← getCurrentTime
+  t1 <- getCurrentTime
+  res <- a
+  t2 <- getCurrentTime
   pure (res, diffUTCTime t2 t1)
 
-load :: Nullable FilePath -> IO NameTable
-load Null = do
+load :: Maybe FilePath -> IO NameTable
+load Nothing = do
   putStrLn "No filepath loaded" >> pure mempty
-load (Some path) = do
-  (ntbl, t) <- timed $
+load (Just path) = do
+  (ntbl, ttotal) <- timed $
     try (T.readFile path) >>= \case
       Left (e :: SomeException) -> mempty <$ (putStrLn $ displayException e)
       Right file -> case parseFile path file of
         Left e     -> mempty <$ (putStrLn $ errorBundlePretty e)
-        Right prog -> try (checkProgram prog) >>= \case
-          Left (e :: SomeException) -> mempty <$ (putStrLn $ displayException e)
-          Right ntbl -> pure ntbl
-  putStrLn ("loaded in " ++ show t)
+        Right prog -> do
+            (ntbl, telab) <- timed $ try (checkProgram prog) >>= \case
+              Left (e :: SomeException) -> mempty <$ (putStrLn $ displayException e)
+              Right ntbl -> pure ntbl
+            putStrLn ("elaborated in " ++ show telab)
+            pure ntbl
+
+  putStrLn ("total load time: " ++ show ttotal)
   pure ntbl
 
-loop :: Nullable FilePath -> NameTable -> IO ()
+loop :: Maybe FilePath -> NameTable -> IO ()
 loop p ntbl = do
   putStr "λ> "
   l <- getLine
   case l of
     ':':'l':rest -> do
       let path = dropWhile isSpace rest
-      ntbl <- load (Some path)
-      loop (Some path) ntbl
+      ntbl <- load (Just path)
+      performGC
+      loop (Just path) ntbl
     ':':'r':_ -> do
-      load p
+      ntbl <- load p
+      performGC
       loop p ntbl
     ':':'t':_:name -> do
       try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
@@ -68,6 +74,13 @@ loop p ntbl = do
         Right (T2 _ (GV ga va)) -> do
           putStrLn $ showTm0 (vQuote 0 va)
       loop p ntbl
+    ':':'n':'t':_:name -> do
+      try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
+        Left (e :: SomeException) -> do
+          putStrLn $ displayException e
+        Right (T2 _ (GV ga va)) -> do
+          putStrLn $ showTm0 (gQuote 0 ga)
+      loop p ntbl
     ':':'n':_:name -> do
       try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
         Left (e :: SomeException) -> do
@@ -75,6 +88,7 @@ loop p ntbl = do
         Right (T2 t _) -> do
           (_, t) <- timed (putStrLn $ showTm0 (gQuote 0 $ gEval 0 ENil' ENil' t))
           putStrLn ("evaluated in " ++ show t)
+      performGC
       loop p ntbl
     ':':'e':_ -> do
       putStrLn =<< renderElabOutput
@@ -83,7 +97,8 @@ loop p ntbl = do
     ':':'?':_ -> do
       putStrLn ":l <file>    load file"
       putStrLn ":r           reload file"
-      putStrLn ":t <name>    show type of definition"
+      putStrLn ":t <name>    show elaborated type of definition"
+      putStrLn ":nt <name>   show normal elaborated type of definition"
       putStrLn ":n <name>    show normal form of definition"
       putStrLn ":e           show elaborated file"
       putStrLn ":q           quit"

@@ -1,0 +1,228 @@
+
+id  : {A} → A → A = λ x. x
+id2 : {A} → A → A = id (id!)
+id3 : {A} → A → A = λ x. id x
+the : (A : _) → A → A = λ _ x. x
+
+constTy = {A B} → A → B → A
+const : constTy = λ x y. x
+
+constU = const {U} !
+
+namedArgTest  = const {B = U} U
+namedArgTest2 = the constTy (λ x y. x) {B = U} U
+
+Bool = (B : U) → B → B → B
+true  : Bool = λ _ t f. t
+false : Bool = λ _ t f . f
+
+Nat : U
+ = (n : U) → (n → n) → n → n
+
+zero : Nat
+ = λ n s z. z
+
+suc : Nat → Nat
+ = λ a n s z. s (a n s z)
+
+n2 : Nat = λ n s z. s (s z)
+n5 : Nat = λ n s z. s (s (s (s (s z))))
+
+mul : Nat → Nat → Nat
+ = λ a b n s z. a n (b n s) z
+
+n10   = mul n2 n5
+n100  = mul n10 n10
+n10k  = mul n100 n100
+n10kb = mul n100 (mul n10 n10)
+n1M   = mul n10k n100
+n1Mb  = mul n100 n10k
+
+List : U → U = λ a. (l : U) → (a → l → l) → l → l
+nil  : {a} → List a = λ l c n. n
+cons : {a} → a → List a → List a = λ a as l c n. c a (as l c n)
+
+list1 = cons true (cons false (cons false nil))
+
+map : {a b} → (a → b) → List a → List b
+ = λ f as l c. as l (λ a. c (f a))
+
+Vec : U → Nat → U
+ = λ a n. (V : Nat → U) → V zero → ({n} → a → V n → V (suc n)) → V n
+
+vnil : {a} → Vec a zero
+ = λ V n c. n
+
+vcons : {a n} → a → Vec a n → Vec a (suc n)
+ = λ a as V n c. c a (as V n c)
+
+vec1 = vcons true (vcons false (vcons true vnil))
+
+Eq : {A} → A → A → U
+ = λ {A} x y. (P : A → U) → P x → P y
+
+refl : {A}{x : A} → Eq x x
+ = λ P px. px
+
+trans : {A}{x y z : A} → Eq x y → Eq y z → Eq x z
+ = λ {x = x} p q. q _ p
+
+sym : {A}{x y : A} → Eq x y → Eq y x
+ = λ {x = x}{y} p. p (λ y. Eq y x) refl
+
+ap : {A B}(f : A → B){x y : A} → Eq x y → Eq (f x) (f y)
+ = λ f {x}{y} p. p (λ y. Eq (f x) (f y)) refl
+
+comp :
+  {A}
+  {B : A → U}
+  {C : {a} → B a → U}
+  (f : {a}(b : B a) → C b)
+  (g : (a : A) → B a)
+  (x : A)
+  → C (g x)
+ = λ f g a. f (g a)
+
+compTest1 : Nat → Nat = comp suc suc
+
+compTest2 : {m A} → A → Vec A m → Vec A (suc (suc m))
+ = λ a. comp (vcons a) (vcons a)
+
+nfun : Nat → U
+ = λ n. n U (λ A. U → A) U
+
+localtest1 : nfun n10k → nfun n10k = λ x. x
+
+idStress : {A} → A → A
+ = id id id id id id id id id id id id id id id id id id id id
+   id id id id id id id id id id id id id id id id id id id id
+
+not : Bool → Bool
+ = λ b _ t f. b _ f t
+
+isEven : Nat → Bool
+ = λ n. n Bool not true
+
+computeTest = isEven n1M
+
+
+-- Std lib
+--------------------------------------------------------------------------------
+
+Pair : U → U → U
+ = λ A B. (Pair : U)(pair : A → B → Pair) → Pair
+
+pair : {A B} → A → B → Pair A B
+ = λ a b Pair pair. pair a b
+
+proj1 : {A B} → Pair A B → A
+ = λ p. p _ (λ x y. x)
+
+proj2 : {A B} → Pair A B → B
+ = λ p. p _ (λ x y. y)
+
+Top : U
+ = (Top : U)(tt : Top) → Top
+
+tt : Top
+ = λ Top tt. tt
+
+Bot : U
+ = (Bot : U) → Bot
+
+
+-- STLC
+--------------------------------------------------------------------------------
+
+
+Ty : U
+ = (Ty  : U)
+   (ι   : Ty)
+   (fun : Ty → Ty → Ty)
+ → Ty
+
+ι : Ty
+ = λ _ ι _. ι
+
+fun : Ty → Ty → Ty
+ = λ A B Ty ι fun. fun (A Ty ι fun) (B Ty ι fun)
+
+Con : U
+ = (Con : U)
+   (nil  : Con)
+   (cons : Con → Ty → Con)
+ → Con
+
+nil : Con
+ = λ Con nil cons. nil
+
+cons : Con → Ty → Con
+ = λ Γ A Con nil cons. cons (Γ Con nil cons) A
+
+Var : Con → Ty → U
+ = λ Γ A.
+   (Var : Con → Ty → U)
+   (vz  : {Γ A} → Var (cons Γ A) A)
+   (vs  : {Γ B A} → Var Γ A → Var (cons Γ B) A)
+ → Var Γ A
+
+vz : {Γ A} → Var (cons Γ A) A
+ = λ Var vz vs. vz
+
+vs : {Γ B A} → Var Γ A → Var (cons Γ B) A
+ = λ x Var vz vs. vs (x Var vz vs)
+
+Tm : Con → Ty → U
+ = λ Γ A.
+   (Tm  : Con → Ty → U)
+   (var : {Γ A} → Var Γ A → Tm Γ A)
+   (lam : {Γ A B} → Tm (cons Γ A) B → Tm Γ (fun A B))
+   (app : {Γ A B} → Tm Γ (fun A B) → Tm Γ A → Tm Γ B)
+ → Tm Γ A
+
+var : {Γ A} → Var Γ A → Tm Γ A
+ = λ x Tm var lam app. var x
+
+lam : {Γ A B} → Tm (cons Γ A) B → Tm Γ (fun A B)
+ = λ t Tm var lam app. lam (t Tm var lam app)
+
+app : {Γ A B} → Tm Γ (fun A B) → Tm Γ A → Tm Γ B
+ = λ t u Tm var lam app. app (t Tm var lam app) (u Tm var lam app)
+
+
+-- Interpretation
+--------------------------------------------------------------------------------
+
+assume cheat: {A} → A
+
+EvalTy : Ty → U
+ = λ A. A _ Bot (λ A B. A → B)
+
+EvalCon : Con → U
+ = λ Γ. Γ _ Top (λ Δ A. Pair Δ (EvalTy A))
+
+EvalVar : {Γ A} → Var Γ A → EvalCon Γ → EvalTy A
+ = λ x. x (λ Γ A. EvalCon Γ → EvalTy A)
+          (λ env. proj2 env)
+	  (λ rec env. rec (proj1 env))
+
+EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
+ = λ t. t (λ Γ A. EvalCon Γ → EvalTy A)
+          EvalVar
+	  (λ t env α. t (pair env α))
+	  (λ t u env. t env (u env))
+
+-- Examples
+--------------------------------------------------------------------------------
+
+t1 : Tm nil (fun (fun ι ι) (fun ι ι))
+ = lam (lam (
+     app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (var vz))))))))
+   ))
+
+-- t2 : Tm nil (fun (fun ι ι) (fun ι ι))
+--  = lam (lam (
+--      app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (var vz))))))))
+--    ))
+
+-- v1 = EvalTm t1 tt

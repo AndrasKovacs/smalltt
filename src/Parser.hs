@@ -5,7 +5,6 @@ import Control.Applicative hiding (many, some)
 import Control.Monad.Reader
 import Data.Char
 import Data.Void
-import Data.Nullable
 
 import qualified Data.Set as Set
 
@@ -141,17 +140,17 @@ pLam = withPos $ do
                     (char '.' *> pTm)
 
 -- | Parse a spine argument or meta insertion stopping.
-pArg :: Parser (Posed (Nullable (T2 Tm (Sum Name Icit))))
+pArg :: Parser (Posed (Maybe (T2 Tm (Sum Name Icit))))
 pArg = withPos (
-      (Some <$> (
+      (Just <$> (
             try (flip T2 (Inr Impl) <$> brackets pTm)
         <|> brackets ((\x t -> T2 t (Inl x)) <$> (pIdent <* char '=') <*> pTm)
         <|> (flip T2 (Inr Expl) <$> pAtom)))
-  <|> (Null <$ char '!'))
+  <|> (Nothing <$ char '!'))
 
 pSpine :: Parser Tm
 pSpine = chainl
-  (\t (T2 p u) -> T2 p (nullable (StopMetaIns t) (\(T2 u ni) -> App t u ni) u))
+  (\t (T2 p u) -> T2 p (maybe (StopMetaIns t) (\(T2 u ni) -> App t u ni) u))
   pArg
   pAtom
 

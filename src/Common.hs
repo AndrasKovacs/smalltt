@@ -4,7 +4,6 @@ module Common where
 import Data.Bits
 import Data.Text.Short (ShortText)
 import Text.Megaparsec.Pos (SourcePos)
-import Data.Nullable
 
 import GHC.Types (IO(..))
 import GHC.Magic (runRW#)
@@ -76,11 +75,12 @@ data NameEnv = NENil | NESnoc NameEnv {-# unpack #-} Name deriving Show
 -- TODO: Renaming can be simpler and probably faster.
 data Renaming = RNil | RCons Ix Ix Renaming
 
-lookupRen :: Renaming -> Ix -> Nullable Ix
+-- | Returns (-1) on error.
+lookupRen :: Renaming -> Ix -> Ix
 lookupRen (RCons k v ren) x
-  | x == k    = Some v
+  | x == k    = v
   | otherwise = lookupRen ren x
-lookupRen RNil _ = Null
+lookupRen RNil _ = (-1)
 
   -- | TODO: length is pretty ugly. Also, shadowed names are not distinguished in
   --         output.
@@ -95,3 +95,10 @@ lookupNameEnv ns i = go ns (len ns - i - 1) where
   len = go 0 where
     go l NENil         = l
     go l (NESnoc ns _) = go (l + 1) ns
+
+data Rigidity = Rigid | Flex deriving Show
+
+meld :: Rigidity -> Rigidity -> Rigidity
+meld Flex  _ = Flex
+meld Rigid r = r
+{-# inline meld #-}

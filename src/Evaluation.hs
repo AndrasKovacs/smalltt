@@ -11,9 +11,6 @@ TODO:
     - (general optimization, after top-level group elaboration)
 -}
 
-import Data.Nullable
-import qualified Data.Array.Dynamic as A
-
 import Common
 import ElabState
 import Syntax
@@ -28,18 +25,16 @@ gLocal d gs x = go x (d - x - 1) gs where
   go x y (ESnoc' gs _) = go x (y - 1) gs
 
 gTop :: Ix -> Glued
-gTop x = runIO $ do
-  entry <- A.read top x
-  case _entryDef entry of
-    EDPostulate             -> pure (GTop x)
-    EDDefinition _ (GV g _) -> pure g
+gTop x = case _entryDef (lookupTop x) of
+  EDPostulate             -> GTop x
+  EDDefinition _ (GV g _) -> g
 {-# inline gTop #-}
 
 gEval :: Int -> GEnv -> VEnv -> Tm -> Glued
 gEval d gs vs = \case
   LocalVar x  -> gLocal d gs x
   TopVar   x  -> gTop x
-  MetaVar  x  -> nullable (GMeta x) (\(MEntry _ (GV g _)) -> g) (lookupMeta x)
+  MetaVar  x  -> case lookupMeta x of MESolved _  (GV g _) -> g; _ -> GMeta x
   App t u i   -> gApp (gEval d gs vs t) (gvEval d gs vs u) i
   Let _ a t u -> let GV gt vt = gvEval d gs vs t
                  in gEval (d + 1) (ESnoc' gs (Just gt)) (ESnoc' vs (Just vt)) u
@@ -66,7 +61,7 @@ gAppSpine _ _ _ = error "gAppSpine: impossible"
 
 gForce :: Glued -> Glued
 gForce = \case
-  GNe (HMeta x) gs vs | Some (MEntry _ (GV g v)) <- lookupMeta x -> gForce (gAppSpine g gs vs)
+  GNe (HMeta x) gs vs | MESolved _ (GV g v) <- lookupMeta x -> gForce (gAppSpine g gs vs)
   g -> g
 
 --------------------------------------------------------------------------------

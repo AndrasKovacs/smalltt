@@ -7,4 +7,3 @@ packages:
 extra-deps:
   - text-short-0.1.2
   - ./dynamic-array
-  - ./nullable

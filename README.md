@@ -16,7 +16,6 @@
     solutions can also refer to previous top-level definitions and postulates.
   + Metas abstract over local bound variables, but not local let-definitions.
   + Hence, local let-definitions must be unfolded in meta solutions.
-    - TODO: abstract over local let-s as well.
   + We have glued evaluation with respect to the current top-level scope position. I.e.
     the glued evaluator doesn't unfold top-level definitions, including solved metas.
   + The great simplification compared to my previous designs is that metas never
@@ -25,11 +24,7 @@
     superfluous abstractions.
   + Sharing would be also worse, because the extra variable abstractions prevent
     meta solutions from being call-by-need memoized.
-  + We freeze all metas when we finish elaborating a top entry. This is
-    a bit crude, but it matches Agda and makes it simpler to deal with
-	illegal variables in local meta solutions (since now illegal vars can
-	only be local bound vars, otherwise top-level names could be illegal as well).
-  + Shadowing allowed.
+  + Shadowing is allowed.
   + We throw error if there are unsolved metas after a top-level entry elab. Hence,
     unsolved frozen metas are not possible and we don't check for them.
 

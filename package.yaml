@@ -60,7 +60,6 @@ library:
     - ghc-prim
     - megaparsec
     - mtl
-    - nullable
     - text
     - text-short
     - unordered-containers
@@ -78,11 +77,10 @@ executables:
   smalltt:
     main:  app/Main.hs
     ghc-options:
-    - -rtsopts -O2 -ddump-simpl -dsuppress-all -dno-suppress-type-signatures -static
+    - -rtsopts -O2 -ddump-simpl -dsuppress-all -dno-suppress-type-signatures
     dependencies:
     - smalltt
     - megaparsec
-    - nullable
     - text
     - text-short
     - time
