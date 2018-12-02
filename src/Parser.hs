@@ -154,6 +154,21 @@ pSpine = chainl
   pArg
   pAtom
 
+pArrow :: Parser Text
+pArrow = symbol "->" <|> symbol "→"
+
+pLet :: Parser Tm
+pLet = withPos $ do
+  symbol "let"
+  T3 x a t <- indent (withPos pIdent) $ \(T2 pos x) -> do
+    a <- optional (char ':' *> pTm)
+    t <- char '=' *> pTm
+    case a of
+      Just a  -> pure (T3 x a t)
+      Nothing -> pure (T3 x (T2 pos Hole) t)
+  u <- symbol "in" *> pTm
+  pure (Let x a t u)
+
 pPiBinder :: Parser (Posed (T3 [Posed Name] Tm Icit))
 pPiBinder = withPos (
       brackets ((\x y -> T3 x y Impl)
@@ -163,29 +178,28 @@ pPiBinder = withPos (
                 <$> some (withPos pBind)
                 <*> (char ':' *> pTm)))
 
-pArrow :: Parser Text
-pArrow = symbol "->" <|> symbol "→"
+pPiWithBinders :: Parser Tm
+pPiWithBinders =
+  chainr1
+    (\(T2 p (T3 xs a i)) b ->
+         T2 p (proj2 $ foldr (\(T2 p x) b -> T2 p (Pi (NI x i) a b)) b xs))
+    pPiBinder
+    (pArrow *> pTm)
 
-pPi :: Parser Tm
-pPi = try (chainr1
-             (\(T2 p (T3 xs a i)) b ->
-                 T2 p (proj2 $ foldr (\(T2 p x) b -> T2 p (Pi (NI x i) a b)) b xs))
-             pPiBinder
-             (pArrow *> pTm))
-  <|> (withPos (Pi (NI mempty Expl) <$> pSpine <*> (pArrow *> pTm)))
-
-pLet :: Parser Tm
-pLet = withPos $ do
-  symbol "let"
-  T3 x a t <- indent pIdent $ \x -> T3 x <$> (char ':' *> pTm) <*> (char '=' *> pTm)
-  u <- symbol "in" *> pTm
-  pure (Let x a t u)
+pPiOrSpine :: Parser Tm
+pPiOrSpine = try pPiWithBinders <|> do
+  T2 pos sp <- pSpine
+  optional pArrow >>= \case
+    Nothing -> pure (T2 pos sp)
+    Just{}  -> do
+      b <- pTm
+      pure (T2 pos (Pi (NI mempty Expl) (T2 pos sp) b))
 
 pAtom :: Parser Tm
 pAtom = pU <|> pVar <|> pHole <|> parens pTm
 
 pTm :: Parser Tm
-pTm = pLam <|> pLet <|> try pPi <|> pSpine
+pTm = pLam <|> pLet <|> pPiOrSpine
 
 pPostulate :: Parser TopEntry
 pPostulate = nonIndented $
@@ -217,6 +231,5 @@ parseFile = parse (runReaderT pFile (mkPos 1))
 -- parseTest' p t = parseTest (runReaderT p (mkPos 1)) t
 
 -- test = T.unlines [
---    "f : (x y z : U) -> U",
---    "f = \\ x y z. g !"
+--    "f = (g (g (g (g (g x)))))"
 --    ]

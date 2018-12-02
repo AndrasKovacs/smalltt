@@ -31,7 +31,7 @@ top = runIO A.empty
 {-# noinline top #-}
 
 lookupTop :: Ix -> TopEntry
-lookupTop x = runIO (A.read top x)
+lookupTop x = runIO (A.unsafeRead top x)
 {-# inline lookupTop #-}
 
 topRigidity :: Ix -> Rigidity
@@ -51,8 +51,8 @@ metas = runIO UA.empty
 
 lookupMeta :: MetaIx -> MetaEntry
 lookupMeta (MetaIx i j) = runIO $ do
-  arr <- UA.read metas i
-  res <- A.read arr j
+  arr <- UA.unsafeRead metas i
+  res <- A.unsafeRead arr j
   pure res
 {-# inline lookupMeta #-}
 

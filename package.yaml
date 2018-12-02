@@ -71,7 +71,7 @@ library:
     - -Wno-unused-matches
     - -Wno-partial-type-signatures
     - -O2
-    - -ddump-simpl -dsuppress-all -dno-suppress-type-signatures
+    # - -ddump-simpl -dsuppress-all -dno-suppress-type-signatures
 
 executables:
   smalltt:

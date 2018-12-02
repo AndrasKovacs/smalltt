@@ -138,8 +138,8 @@ lams ns = go where
 
 registerSolution :: MetaIx -> Tm -> IO ()
 registerSolution (MetaIx i j) t = do
-  arr <- UA.read metas i
-  A.write arr j (MESolved t (gvEval 0 ENil' ENil' t))
+  arr <- UA.unsafeRead metas i
+  A.unsafeWrite arr j (MESolved t (gvEval 0 ENil' ENil' t))
 
 vShowTm :: Cxt -> Val -> String
 vShowTm cxt v = showTm (_nameEnv cxt) (vQuote (_size cxt) v)
@@ -445,7 +445,7 @@ gEval' cxt t = gEval (_size cxt) (_gVals cxt) (_vVals cxt) t
 newMeta :: Cxt -> IO Tm
 newMeta (_boundIndices -> bis) = do
   i     <- subtract 1 <$> UA.size metas
-  arr   <- UA.read metas i
+  arr   <- UA.unsafeRead metas i
   j     <- A.size arr
   A.push arr MEUnsolved
   let go BINil          = MetaVar (MetaIx i j)
@@ -501,7 +501,7 @@ inferVar cxt n = do
     Just es -> go es where
       go ENil'                              = reportError (printf "Name not in scope: %s" n)
       go (ESnoc' es (NITop pos x))          = do
-        EntryTy _ gvty <- _entryTy <$> A.read top x
+        EntryTy _ gvty <- _entryTy <$> A.unsafeRead top x
         pure (T2 (TopVar x) gvty)
       go (ESnoc' es (NILocal pos origin x)) = case origin of
         NOInserted -> go es
@@ -614,13 +614,14 @@ renderElabOutput = do
       go (i, TopEntry (T2 _ n)  def (EntryTy a _)) ms = do
         ms <- A.foldr' (:) [] ms
         let metaBlock = map
-              (\case (j, (MESolved t _)) -> printf "%d.%d = %s" i j (showTm0 t)
+              (\case (j, (MESolved t _)) -> printf "  %d.%d = %s" i j (showTm0 t)
                      _                   -> error "renderElabOutput: impossible")
               (zip [(0 :: Int)..] ms)
             thisDef :: String
             thisDef = case def of
               EDPostulate      -> printf "assume %s : %s" n (showTm0 a)
               EDDefinition t _ -> printf "%s : %s\n = %s" n (showTm0 a) (showTm0 t)
-        pure $ metaBlock ++ [thisDef]
+        pure $ if not (null metaBlock) then "mutual":metaBlock ++ [thisDef]
+                                       else [thisDef]
 
   unlines . map unlines <$> zipWithM go (zip [(0::Int)..] es) ms

@@ -1,5 +1,8 @@
 # smalltt
 
+See "Demo.stt" for notes on usage, and a demo.
+
+
 ### Design & goals
 
 - Higher-order unification, implicit arguments type-in type.
