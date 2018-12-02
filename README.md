@@ -1,3 +1,3 @@
 # smalltt
 
-See "Demo.stt" for notes on usage, project goals and a demo.
+See [Demo.stt](Demo.stt) for notes on usage, project goals and a demo.
