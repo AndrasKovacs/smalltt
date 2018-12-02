@@ -514,6 +514,8 @@ EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
 -- Large embedded STLC term
 --------------------------------------------------------------------------------
 
+-- smalltt : 63ms , constant space
+-- Agda    : ~2.5s, 120 Mb
 t1 : Tm nil (fun (fun ι ι) (fun ι ι))
  = lam (lam (
       app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
