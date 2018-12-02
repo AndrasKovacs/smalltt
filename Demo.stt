@@ -7,7 +7,8 @@ this repo, which mirror the contents of this file, for benchmarking purposes.
 
 
 Installation, usage:
-  - install with "stack install"
+  - install stack: https://docs.haskellstack.org/en/stable/README/
+  - install smalltt with "stack install" in this directory
   - make sure stack bin directory is on PATH
   - hit "smalltt" in a directory with .stt files
 
