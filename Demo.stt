@@ -44,8 +44,9 @@ elaboration itself).
 
 The smalltt evaluator seems to be faster than the newest Agda Abstract Machine,
 but it's less than half as fast as the fastest AST interpreter which I
-previously managed to implement in Haskell, so there is room for
-improvement. Switching to bytecode from AST would be yet another large boost.
+previously managed to implement in Haskell, and leaks way more space, so there
+is room for improvement. Switching to bytecode from AST would be yet another
+large boost.
 
 A particularly nice thing about our system is that the standard, Agda-beating
 evaluator is actually the sole default evaluator: there no is separate "slow"
