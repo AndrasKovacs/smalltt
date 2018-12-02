@@ -23,7 +23,7 @@ import Values
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
-  putStrLn "smalltt 0.1.0.0"
+  putStrLn "smalltt 0.2.0.0"
   putStrLn "enter :? for help"
   loop Nothing mempty
 
