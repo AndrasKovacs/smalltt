@@ -30,11 +30,11 @@ top :: A.Array TopEntry
 top = runIO A.empty
 {-# noinline top #-}
 
-lookupTop :: Ix -> TopEntry
+lookupTop :: Lvl -> TopEntry
 lookupTop x = runIO (A.unsafeRead top x)
 {-# inline lookupTop #-}
 
-topRigidity :: Ix -> Rigidity
+topRigidity :: Lvl -> Rigidity
 topRigidity x = case _entryDef (lookupTop x) of
   EDPostulate -> Rigid
   _           -> Flex
@@ -49,14 +49,14 @@ metas :: UA.Array (A.Array MetaEntry)
 metas = runIO UA.empty
 {-# noinline metas #-}
 
-lookupMeta :: MetaIx -> MetaEntry
-lookupMeta (MetaIx i j) = runIO $ do
+lookupMeta :: Meta -> MetaEntry
+lookupMeta (Meta i j) = runIO $ do
   arr <- UA.unsafeRead metas i
   res <- A.unsafeRead arr j
   pure res
 {-# inline lookupMeta #-}
 
-metaRigidity :: MetaIx -> Rigidity
+metaRigidity :: Meta -> Rigidity
 metaRigidity x = case lookupMeta x of MESolved{} -> Flex; _ -> Rigid
 {-# inline metaRigidity #-}
 
@@ -68,7 +68,7 @@ currPos = runIO (newIORef (initialPos ""))
 {-# noinline currPos #-}
 
 updPos :: Posed a -> Posed a
-updPos (T2 p a) = runIO (writeIORef currPos p >> pure (T2 p a))
+updPos (Posed p a) = runIO (writeIORef currPos p >> pure (Posed p a))
 {-# inline updPos #-}
 
 reportError ∷ String → a

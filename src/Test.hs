@@ -91,8 +91,10 @@ t = T.unlines [
   "vnil : {a} → Vec a zero",
   " = λ V n c. n",
 
-  "vcons : {a n} → a → Vec a n → Vec a (suc n)",
-  " = λ a as V n c. c a (as V n c)",
+  "assume cheat : {A} → A",
+
+  "vcons : {a k} → a → Vec a k → Vec a (suc k)",
+  " = λ a as V m c. c a (as V m c)",
 
   "vec1 = vcons true (vcons false (vcons true vnil))",
 

@@ -86,7 +86,7 @@ loop p ntbl = do
         Left (e :: SomeException) -> do
           putStrLn $ displayException e
         Right (T2 t _) -> do
-          (_, t) <- timed (putStrLn $ showTm0 (gQuote 0 $ gEval 0 ENil' ENil' t))
+          (_, t) <- timed (putStrLn $ showTm0 (gQuote 0 $ gEval ENil ENil t))
           putStrLn ("evaluated in " ++ show t)
       performGC
       loop p ntbl

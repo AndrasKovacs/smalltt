@@ -4,19 +4,11 @@ module Values where
 import Common
 import Syntax
 
-data Env   a = ENil  | ESnoc (Env a) ~a       deriving (Functor, Foldable, Traversable)
-data Env'  a = ENil' | ESnoc' (Env' a) a      deriving (Show, Functor, Foldable, Traversable)
-data Spine a = SNil  | SApp (Spine a) ~a Icit deriving (Functor, Foldable, Traversable)
+data Spine a = SNil | SAppI (Spine a) ~a | SAppE (Spine a) ~a
+data Env a = ENil | EDef (Env a) ~a | ESkip (Env a)
 
-lookupEnv :: Ix -> Env a -> Ix -> Box a
-lookupEnv d e i = go e (d - i - 1) where
-  go ENil         _ = error "lookupEnv: impossible"
-  go (ESnoc as a) 0 = Box a
-  go (ESnoc as a) n = go as (n - 1)
-{-# inlinable lookupEnv #-}
-
-type GEnv   = Env' (Maybe Glued)
-type VEnv   = Env' (Maybe Val)
+type GEnv   = Env Glued
+type VEnv   = Env Val
 type GSpine = Spine Glued
 type VSpine = Spine Val
 type VTy    = Val
@@ -25,25 +17,25 @@ type GVTy   = GV
 
 data GV = GV ~Glued ~Val
 
-data GCl = GCl Int GEnv VEnv Tm
-data VCl = VCl Int VEnv Tm
+data GCl = GCl GEnv VEnv Tm
+data VCl = VCl VEnv Tm
 
 data Head
-  = HMeta MetaIx
-  | HLocal Ix
-  | HTop Ix
+  = HMeta Meta
+  | HLocal Lvl
+  | HTop Lvl
 
 data Val
   = VNe Head VSpine
-  | VLam NameIcit {-# unpack #-} VCl
-  | VPi NameIcit ~VTy {-# unpack #-} VCl
+  | VLam (Named Icit) {-# unpack #-} VCl
+  | VPi (Named Icit) ~VTy {-# unpack #-} VCl
   | VU
   | VIrrelevant
 
 data Glued
   = GNe Head GSpine VSpine
-  | GLam NameIcit {-# unpack #-} GCl
-  | GPi NameIcit  {-# unpack #-} GVTy {-# unpack #-} GCl
+  | GLam (Named Icit) {-# unpack #-} GCl
+  | GPi (Named Icit)  {-# unpack #-} GVTy {-# unpack #-} GCl
   | GU
   | GIrrelevant
 
@@ -63,10 +55,10 @@ pattern GTop x = GNe (HTop x) SNil SNil
 pattern VTop :: Ix -> Val
 pattern VTop x = VNe (HTop x) SNil
 
-pattern VMeta :: MetaIx -> Val
+pattern VMeta :: Meta -> Val
 pattern VMeta x = VNe (HMeta x) SNil
 
-pattern GMeta :: MetaIx -> Glued
+pattern GMeta :: Meta -> Glued
 pattern GMeta x = GNe (HMeta x) SNil SNil
 
 gvU :: GVTy

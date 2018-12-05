@@ -1,7 +1,7 @@
-{-|
+{-# options_ghc -Wno-incomplete-patterns #-}
 
-Preliminary pretty printing, to be replaced by more sophisticated solutions.
-
+{- |
+Preliminary pretty printing, to be replaced with more sophisticated solutions.
 -}
 
 module Pretty (
@@ -12,71 +12,89 @@ module Pretty (
 
 import qualified Data.Array.Dynamic as A
 import qualified Data.Text.Short as T
+
+import Common
 import ElabState
 import Syntax
-import Common
 
 showTm0 :: Tm -> String
-showTm0 = showTm NENil
+showTm0 = showTm NNil
 
-showTm :: NameEnv -> Tm -> String
+showTm :: Names -> Tm -> String
 showTm ns t = prettyTm 0 ns t ""
 
--- TODO: resolve shadowing names with indices
-prettyTm :: Int -> NameEnv -> Tm -> ShowS
+getApp :: Tm -> Maybe (Icit, Tm, Tm)
+getApp (AppI t u) = Just (Impl, t, u)
+getApp (AppE t u) = Just (Expl, t, u)
+getApp _          = Nothing
+
+-- | Unfortunately this trips ups pattern coverage checking.
+pattern App :: Icit -> Tm -> Tm -> Tm
+pattern App i t u <- (getApp -> Just (i, t, u)) where
+  App Impl t u = AppI t u
+  App Expl t u = AppE t u
+
+prettyTm :: Int -> Names -> Tm -> ShowS
 prettyTm prec = go (prec /= 0) where
 
-  go :: Bool -> NameEnv -> Tm -> ShowS
+  go :: Bool -> Names -> Tm -> ShowS
   go p ns = \case
-    LocalVar x -> ((T.unpack $ lookupNameEnv ns x)++)
-    TopVar x -> runIO $ do {T2 _ n <- _entryName <$> A.read top x; pure (T.unpack n++)}
-    MetaVar (MetaIx i j) -> (("?"++).(show i++)).('.':).(show j++)
-    Let x a t u ->
+    LocalVar x -> ((T.unpack $ lookupName ns x)++)
+    TopVar x -> runIO $ do {Posed _ n <- _entryName <$> A.read top x; pure (T.unpack n++)}
+    MetaVar (Meta i j) -> (("?"++).(show i++)).('.':).(show j++)
+    Let (Named (disamb ns -> x) a) t u ->
       ("let "++) . (T.unpack x++) . (" : "++) . go False ns a . ("\n    = "++)
-      . go False ns t  . ("\nin\n"++) . go False (NESnoc ns x) u
-    App (App t u i) u' i' ->
+      . go False ns t  . ("\nin\n"++) . go False (NSnoc ns x) u
+    App i' (App i t u) u' ->
       showParen p (go False ns t . (' ':) . goArg ns u i . (' ':) . goArg ns u' i')
 
-    App t u i      -> showParen p (go True ns t . (' ':) . goArg ns u i)
-    Lam (NI x i) t -> showParen p (("λ "++) . goLamBind x i . goLam (NESnoc ns x) t)
-    t@Pi{}         -> showParen p (goPi False ns t)
-    U              -> ("U"++)
-    Irrelevant     -> ("Irr"++)
+    App i t u         -> showParen p (go True ns t . (' ':) . goArg ns u i)
+    Lam (Named (disamb ns -> x) i) t ->
+      showParen p (("λ "++) . goLamBind x i . goLam (NSnoc ns x) t)
+    t@Pi{}            -> showParen p (goPi False ns t)
+    U                 -> ("U"++)
+    Irrelevant        -> ("Irr"++)
 
-  goArg :: NameEnv -> Tm -> Icit -> ShowS
+  goArg :: Names -> Tm -> Icit -> ShowS
   goArg ns t i = icit i (bracket (go False ns t)) (go True ns t)
 
   bracket :: ShowS -> ShowS
   bracket s = ('{':).s.('}':)
 
-  goPiBind :: Name -> Icit -> NameEnv -> Tm -> ShowS
+  goPiBind :: Name -> Icit -> Names -> Tm -> ShowS
   goPiBind x i ns a =
     icit i bracket (showParen True) ((T.unpack x++) . (" : "++) . go False ns a)
 
-  goPi :: Bool -> NameEnv -> Tm -> ShowS
-  goPi p ns (Pi (NI x i) a b)
-    | i == Impl || x /= "" = goPiBind x i ns a . goPi True (NESnoc ns x) b
+  goPi :: Bool -> Names -> Tm -> ShowS
+  goPi p ns (Pi (Named (disamb ns -> x) i) a b)
+    | i == Impl || not (T.null x) = goPiBind x i ns a . goPi True (NSnoc ns x) b
     | otherwise =
        (if p then (" → "++) else id) .
        go (case a of App{} -> False; _ -> True) ns a .
-       (" → "++) . go False (NESnoc ns "") b
+       (" → "++) . go False (NSnoc ns "") b
   goPi p ns t = (if p then (" → "++) else id) . go False ns t
 
   goLamBind :: Name -> Icit -> ShowS
-  goLamBind x i = icit i bracket id (T.unpack (case x of "" -> "_"; _ -> x) ++)
+  goLamBind x i = icit i bracket id (T.unpack (if T.null x then "_" else x) ++)
 
-  goLam :: NameEnv -> Tm -> ShowS
-  goLam ns (Lam (NI x i) t) = (' ':) . goLamBind x i . goLam (NESnoc ns x) t
-  goLam ns t                = (". "++) . go False ns t
+  goLam :: Names -> Tm -> ShowS
+  goLam ns (Lam (Named (disamb ns -> x) i) t) = (' ':) . goLamBind x i . goLam (NSnoc ns x) t
+  goLam ns t = (". "++) . go False ns t
 
-  lookupNameEnv :: NameEnv -> Ix -> Name
-  lookupNameEnv ns i = go ns (len ns - i - 1) where
-    go NENil         _ = error "lookupNameEnv: impossible"
+  lookupName :: Names -> Ix -> Name
+  lookupName = go where
+    go NNil         _ = error "lookupNames: impossible"
+    go (NSnoc ns n) 0 = if T.null n then "_" else n
+    go (NSnoc ns n) x = go ns (x - 1)
 
-    go (NESnoc ns n)  0 = case n of "" -> "_"; _ -> n
-    go (NESnoc ns n)  x = go ns (x - 1)
-
-    len :: NameEnv -> Int
-    len = go 0 where
-      go l NENil         = l
-      go l (NESnoc ns _) = go (l + 1) ns
+  disamb :: Names -> Name -> Name
+  disamb ns n | T.null n = n
+  disamb ns n = go (0 :: Int) where
+    go 0 | elem n ns = go 1
+         | otherwise = n
+    go i = let n' = n <> T.pack (show i)
+           in if elem n' ns then go (i + 1) else n'
+    elem n NNil = False
+    elem n (NSnoc ns n')
+      | n == n'   = True
+      | otherwise = elem n ns

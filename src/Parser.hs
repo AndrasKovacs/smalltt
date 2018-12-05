@@ -119,38 +119,38 @@ pIdent = try $ lexeme $ do
   pure (TS.fromText txt)
 
 withPos :: Parser a -> Parser (Posed a)
-withPos p = T2 <$> getSourcePos <*> p
+withPos p = Posed <$> getSourcePos <*> p
 
 pBind    = pIdent <|> (mempty @Name <$ char '_')
 pVar     = withPos (Var <$> pIdent)
 pU       = withPos (U <$ char 'U')
 pHole    = withPos (Hole <$ char '_')
 
-pLamBinder :: Parser (Posed (T2 Name (Sum Name Icit)))
+pLamBinder :: Parser (Posed (Named NameOrIcit))
 pLamBinder = withPos (
-      (flip T2 (Inr Expl) <$> pBind)
-  <|> try (flip T2 (Inr Impl) <$> brackets pBind)
-  <|> brackets ((\x y → T2 y (Inl x)) <$> (pIdent <* char '=') <*> pBind))
+      (flip Named NOExpl <$> pBind)
+  <|> try (flip Named NOImpl <$> brackets pBind)
+  <|> brackets ((\x y → Named y (NOName x)) <$> (pIdent <* char '=') <*> pBind))
 
 pLam :: Parser Tm
 pLam = withPos $ do
   satisfy (\c -> c == 'λ' || c == '\\')
-  proj2 <$> chainr1 (\(T2 p (T2 x ni)) t -> T2 p (Lam x ni t))
+  unPosed <$> chainr1 (\(Posed p (Named x ni)) t -> Posed p (Lam x ni t))
                     pLamBinder
                     (char '.' *> pTm)
 
 -- | Parse a spine argument or meta insertion stopping.
-pArg :: Parser (Posed (Maybe (T2 Tm (Sum Name Icit))))
+pArg :: Parser (Posed (Maybe (T2 Tm NameOrIcit)))
 pArg = withPos (
       (Just <$> (
-            try (flip T2 (Inr Impl) <$> brackets pTm)
-        <|> brackets ((\x t -> T2 t (Inl x)) <$> (pIdent <* char '=') <*> pTm)
-        <|> (flip T2 (Inr Expl) <$> pAtom)))
+            try (flip T2 NOImpl <$> brackets pTm)
+        <|> brackets ((\x t -> T2 t (NOName x)) <$> (pIdent <* char '=') <*> pTm)
+        <|> (flip T2 NOExpl <$> pAtom)))
   <|> (Nothing <$ char '!'))
 
 pSpine :: Parser Tm
 pSpine = chainl
-  (\t (T2 p u) -> T2 p (maybe (StopMetaIns t) (\(T2 u ni) -> App t u ni) u))
+  (\t (Posed p u) -> Posed p (maybe (StopMetaIns t) (\(T2 u ni) -> App t u ni) u))
   pArg
   pAtom
 
@@ -160,12 +160,12 @@ pArrow = symbol "->" <|> symbol "→"
 pLet :: Parser Tm
 pLet = withPos $ do
   symbol "let"
-  T3 x a t <- indent (withPos pIdent) $ \(T2 pos x) -> do
+  T3 x a t <- indent (withPos pIdent) $ \(Posed pos x) -> do
     a <- optional (char ':' *> pTm)
     t <- char '=' *> pTm
     case a of
       Just a  -> pure (T3 x a t)
-      Nothing -> pure (T3 x (T2 pos Hole) t)
+      Nothing -> pure (T3 x (Posed pos Hole) t)
   u <- symbol "in" *> pTm
   pure (Let x a t u)
 
@@ -181,19 +181,19 @@ pPiBinder = withPos (
 pPiWithBinders :: Parser Tm
 pPiWithBinders =
   chainr1
-    (\(T2 p (T3 xs a i)) b ->
-         T2 p (proj2 $ foldr (\(T2 p x) b -> T2 p (Pi (NI x i) a b)) b xs))
+    (\(Posed p (T3 xs a i)) b ->
+         Posed p (unPosed $ foldr (\(Posed p x) b -> Posed p (Pi (Named x i) a b)) b xs))
     pPiBinder
     (pArrow *> pTm)
 
 pPiOrSpine :: Parser Tm
 pPiOrSpine = try pPiWithBinders <|> do
-  T2 pos sp <- pSpine
+  Posed pos sp <- pSpine
   optional pArrow >>= \case
-    Nothing -> pure (T2 pos sp)
+    Nothing -> pure (Posed pos sp)
     Just{}  -> do
       b <- pTm
-      pure (T2 pos (Pi (NI mempty Expl) (T2 pos sp) b))
+      pure (Posed pos (Pi (Named mempty Expl) (Posed pos sp) b))
 
 pAtom :: Parser Tm
 pAtom = pU <|> pVar <|> pHole <|> parens pTm
@@ -206,12 +206,12 @@ pPostulate = nonIndented $
   indent (symbol "assume") (\_ -> TEPostulate <$> withPos pIdent <*> (char ':' *> pTm))
 
 pDefinition :: Parser TopEntry
-pDefinition = nonIndented $ indent (withPos pIdent) $ \x -> do
+pDefinition = nonIndented $ indent (withPos pIdent) $ \x@(Posed pos _) -> do
   a <- optional (char ':' *> pTm)
   t <- char '=' *> pTm
   case a of
     Just a  -> pure (TEDefinition x a t)
-    Nothing -> pure (TEDefinition x (T2 (proj1 x) Hole) t)
+    Nothing -> pure (TEDefinition x (Posed pos Hole) t)
 
 pProgram :: Parser Program
 pProgram = many (pPostulate <|> pDefinition)

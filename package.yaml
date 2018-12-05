@@ -77,7 +77,9 @@ executables:
   smalltt:
     main:  app/Main.hs
     ghc-options:
-    - -rtsopts -O2 -ddump-simpl -dsuppress-all -dno-suppress-type-signatures
+    - -rtsopts
+    - -O2
+    # - -ddump-simpl -dsuppress-all -dno-suppress-type-signatures
     dependencies:
     - smalltt
     - megaparsec
