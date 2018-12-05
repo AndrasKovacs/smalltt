@@ -335,6 +335,12 @@ computeTest = forceNat n10M
 -- convTest4 : Eq n1M (add n1Mb _)
 -- convTest4 = refl
 
+-- Testing laziness
+--------------------------------------------------------------------------------
+
+-- normalized instantly
+lazyU = const U (forceNat n10M)
+
 
 -- Church-coded simply typed lambda calculus
 --------------------------------------------------------------------------------

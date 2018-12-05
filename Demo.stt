@@ -422,7 +422,6 @@ computeTest = forceNat n10M
 -- convTest3 : Eq (nfun n1M) (nfun n1Mb)
 --   = refl
 
-
 -- Conversion checking in the presence of metas: note that Agda dies while
 -- smalltt performance is unchanged.
 
@@ -431,6 +430,13 @@ computeTest = forceNat n10M
 -- convTest4 : Eq n1M (add n1Mb _)
 --  = refl
 
+
+-- Testing laziness
+--------------------------------------------------------------------------------
+
+-- smalltt : instantly normalized
+-- Agda    : instantly normalized
+lazyU = const U (forceNat n10M)
 
 
 -- Church-coded simply typed lambda calculus

@@ -1,6 +1,9 @@
 
 module Values where
 
+import Data.Bits
+import Data.Coerce
+
 import Common
 import Syntax
 
@@ -20,10 +23,30 @@ data GV = GV ~Glued ~Val
 data GCl = GCl GEnv VEnv Tm
 data VCl = VCl VEnv Tm
 
-data Head
-  = HMeta Meta
-  | HLocal Lvl
-  | HTop Lvl
+newtype Head = Head Int deriving (Eq, Ord)
+
+instance Show Head where
+  show (HMeta x)  = "HMeta " ++ show x
+  show (HLocal x) = "HLocal " ++ show x
+  show (HTop x)   = "HTop " ++ show x
+
+unpackHead :: Head -> (Int, Int)
+unpackHead (Head n) = (n .&. 3, unsafeShiftR n 2)
+{-# inline unpackHead #-}
+
+pattern HMeta :: Meta -> Head
+pattern HMeta x <- (unpackHead -> (0, coerce -> x)) where
+  HMeta (MkMeta x) = Head (unsafeShiftL x 2)
+
+pattern HLocal :: Ix -> Head
+pattern HLocal x <- (unpackHead -> (1, x)) where
+  HLocal x = Head (unsafeShiftL x 2 .|. 1)
+
+pattern HTop :: Lvl -> Head
+pattern HTop x <- (unpackHead -> (2, x)) where
+  HTop x = Head (unsafeShiftL x 2 .|. 2)
+{-# complete HMeta, HLocal, HTop #-}
+
 
 data Val
   = VNe Head VSpine
