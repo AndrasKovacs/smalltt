@@ -3,7 +3,6 @@ module Main where
 
 import Control.Exception
 import Data.Char
-import Data.Time.Clock
 import System.IO (hSetBuffering, stdout, BufferMode(..))
 import System.Mem
 import Text.Megaparsec (errorBundlePretty)
@@ -26,13 +25,6 @@ main = do
   putStrLn "smalltt 0.2.0.0"
   putStrLn "enter :? for help"
   loop Nothing mempty
-
-timed :: IO a -> IO (a, NominalDiffTime)
-timed a = do
-  t1 <- getCurrentTime
-  res <- a
-  t2 <- getCurrentTime
-  pure (res, diffUTCTime t2 t1)
 
 load :: Maybe FilePath -> IO NameTable
 load Nothing = do

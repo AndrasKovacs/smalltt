@@ -6,6 +6,7 @@ module Common where
 
 import Data.Bits
 import Data.Text.Short (ShortText)
+import Data.Time.Clock
 import Text.Megaparsec.Pos (SourcePos)
 import GHC.Types (IO(..))
 import GHC.Magic (runRW#)
@@ -100,31 +101,9 @@ proj2 (T2 _ b) = b
 
 data T3 a b c = T3 a b c deriving (Eq, Show)
 
-
-
-
--- data List a = LNil | LCons (List a) ~a
---   deriving (Eq, Show, Functor, Foldable, Traversable)
-
--- data List' a = LNil' | LCons' (List' a) a
---   deriving (Eq, Show, Functor, Foldable, Traversable)
-
--- data T3 a b c = T3 a b c deriving (Eq, Show)
--- data T4 a b c d = T4 a b c d deriving (Eq, Show)
-
--- Strict sum type.
--- data Sum a b = Inl a | Inr b deriving (Eq, Show, Functor, Foldable, Traversable)
-
---   -- | TODO: length is pretty ugly. Also, shadowed names are not distinguished in
---   --         output.
--- lookupNameEnv :: NameEnv -> Ix -> Name
--- lookupNameEnv ns i = go ns (len ns - i - 1) where
---   go NENil         _ = error "lookupNameEnv: impossible"
-
---   go (NESnoc ns n) 0 = case n of "" -> "_"; _ -> n
---   go (NESnoc ns n) x = go ns (x - 1)
-
---   len :: NameEnv -> Int
---   len = go 0 where
---     go l NENil         = l
---     go l (NESnoc ns _) = go (l + 1) ns
+timed :: IO a -> IO (a, NominalDiffTime)
+timed a = do
+  t1 <- getCurrentTime
+  res <- a
+  t2 <- getCurrentTime
+  pure (res, diffUTCTime t2 t1)

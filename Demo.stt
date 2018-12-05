@@ -146,6 +146,8 @@ n1M   = mul n10k n100
 n1Mb  = mul n100 n10k
 n10M  = mul n1M n10
 n10Mb = mul n10 n1M
+n100M = mul n10M n10
+n200M = mul n2 n100M
 
 
 -- Church lists
@@ -395,7 +397,7 @@ forceNat : Nat → U
 
 -- smalltt :  0.9s , constant space (no discernible RAM hike)
 -- Agda    : ~5.5s , ~700 Mb
-computeTest = forceNat n10M
+computeTest = forceNat n200M
 
 
 -- Conversion checking tests (uncomment benchmarks as you like)

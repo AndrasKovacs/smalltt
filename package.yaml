@@ -63,6 +63,7 @@ library:
     - text
     - text-short
     - unordered-containers
+    - time
   ghc-options:
     - -Wall
     - -Wno-missing-signatures
@@ -85,4 +86,3 @@ executables:
     - megaparsec
     - text
     - text-short
-    - time
