@@ -9,6 +9,8 @@ this repo, which mirror the contents of this file, for benchmarking purposes.
 Installation, usage:
   - install stack: https://docs.haskellstack.org/en/stable/README/
   - install smalltt with "stack install" in this directory
+  - if you have LLVM installed, you should do "stack install --ghc-options="-fllvm"",
+    it gives a significant speed boost.
   - make sure stack bin directory is on PATH
   - hit "smalltt" in a directory with .stt files
 
@@ -27,8 +29,8 @@ is currently trash. Printing doesn't disambiguate shadowed names (internally
 it's de Bruijn levels). Source locations in errors are also bugged out.
 
 Although there are lots of unimplemented optimizations currently, the system is
-already *very* fast. This file is elaborated in 70 ms on my system, and if we
-remove the crazier "vecStress" and "t1" definitions, this goes down to *1.5* ms.
+already *very* fast. This file is elaborated in 43 ms on my system, and if we
+remove the crazier "vecStress" and "t1" definitions, this goes down to *1* ms.
 
 I have done preliminary (informal, manual) bechmarking comparing raw evaluation
 and conversion performance and asymptotics to Agda. It's a TODO to make it more
@@ -177,7 +179,7 @@ vec1 = vcons true (vcons false (vcons true vnil))
 
 
 -- Type checking vecStress in smalltt and Agda:
--- smalltt : 6ms, 7 Mb RAM
+-- smalltt : 3.7ms, 6 Mb RAM
 -- Agda    : ~3s, 330 Mb RAM
 vecStress =
    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
@@ -395,30 +397,30 @@ forceNat : Nat → U
 -- simple test of raw compute performance
 --   (you can normalize in smalltt with :n computeTest)
 
--- smalltt :  0.9s , constant space (no discernible RAM hike)
+-- smalltt :  0.53s , constant space (no discernible RAM hike)
 -- Agda    : ~5.5s , ~700 Mb
-computeTest = forceNat n200M
+computeTest = forceNat n10M
 
 
 -- Conversion checking tests (uncomment benchmarks as you like)
 --------------------------------------------------------------------------------
 
 
--- smalltt: 0.4s, constant space
+-- smalltt: 0.23s, constant space
 -- Agda   : 4.5s, 1.5 Gb RAM
 
 -- convTest1 : Eq n1M n1Mb
 --  = refl
 
 
--- smalltt: 4s, constant space
+-- smalltt: 2.4s, constant space
 -- Agda   : out of memory
 
 -- convTest2 : Eq n10M n10Mb
 --  = refl
 
 
--- smalltt: 1.3s, 1.2 Gb RAM
+-- smalltt: 1.1s, 890 Mb RAM
 -- Agda   : 9s  , 3.8 Gb RAM
 
 -- convTest3 : Eq (nfun n1M) (nfun n1Mb)
@@ -427,7 +429,7 @@ computeTest = forceNat n200M
 -- Conversion checking in the presence of metas: note that Agda dies while
 -- smalltt performance is unchanged.
 
--- smalltt: 0.4s, constant space
+-- smalltt: 0.23s, constant space
 -- Agda   : out of memory
 -- convTest4 : Eq n1M (add n1Mb _)
 --  = refl
@@ -523,7 +525,7 @@ EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
 -- Large embedded STLC term
 --------------------------------------------------------------------------------
 
--- smalltt : 63ms , ~constant space (can't see extra space on process monitor)
+-- smalltt : 37ms , ~constant space (can't see extra space on process monitor)
 -- Agda    : ~2.5s, 120 Mb
 t1 : Tm nil (fun (fun ι ι) (fun ι ι))
  = lam (lam (

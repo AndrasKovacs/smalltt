@@ -18,4 +18,4 @@ Definition n200M := mul n2 n100M.
 
 Definition forceNat : Nat → bool := λ n, n _ (λ x, x) true.
 
-Eval lazy in forceNat n10M.
+Eval vm_compute in forceNat n200M.

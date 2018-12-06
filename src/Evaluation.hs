@@ -25,30 +25,42 @@ envLength = go 0 where
 
 --------------------------------------------------------------------------------
 
-gLocal :: GEnv -> Ix -> Glued
+gLocal :: GEnv -> Ix -> Box Glued
 gLocal = go where
-  go (EDef gs g) 0 = g
-  go (ESkip gs)  0 = GLocal (envLength gs)
+  go (EDef gs g) 0 = Box g
+  go (ESkip gs)  0 = let l = envLength gs in Box (GLocal l)
   go (EDef gs _) x = go gs (x - 1)
   go (ESkip gs)  x = go gs (x - 1)
   go ENil        x = error "gLocal: impossible"
 
-gTop :: Lvl -> Glued
+gTop :: Lvl -> Box Glued
 gTop x = case _entryDef (lookupTop x) of
-  EDPostulate             -> GTop x
-  EDDefinition _ (GV g _) -> g
+  EDPostulate             -> Box (GTop x)
+  EDDefinition _ (GV g _) -> Box g
 {-# inline gTop #-}
+
+gEvalBox :: GEnv -> VEnv -> Tm -> Box Glued
+gEvalBox gs vs = \case
+  LocalVar x  -> gLocal gs x
+  TopVar   x  -> gTop x
+  MetaVar  x  -> case lookupMeta x of MESolved _  (GV g _) -> Box g; _ -> Box (GMeta x)
+  t           -> Box (gEval gs vs t)
+{-# inline gEvalBox #-}
 
 gEval :: GEnv -> VEnv -> Tm -> Glued
 gEval gs vs = \case
-  LocalVar x  -> gLocal gs x
-  TopVar   x  -> gTop x
+  LocalVar x  -> let Box g = gLocal gs x in g
+  TopVar   x  -> let Box g = gTop x in g
   MetaVar  x  -> case lookupMeta x of MESolved _  (GV g _) -> g; _ -> GMeta x
-  AppI t u    -> gAppI (gEval gs vs t) (gvEval gs vs u)
-  AppE t u    -> gAppE (gEval gs vs t) (gvEval gs vs u)
-  Let _ t u   -> let GV gt vt = gvEval gs vs t in gEval (EDef gs gt) (EDef vs vt) u
+  AppI t u    -> let Box gu = gEvalBox gs vs u
+                 in gAppI (gEval gs vs t) (GV gu (vEval vs u))
+  AppE t u    -> let Box gu = gEvalBox gs vs u
+                 in gAppE (gEval gs vs t) (GV gu (vEval vs u))
+  Let _ t u   -> let Box gt = gEvalBox gs vs t
+                 in gEval (EDef gs gt) (EDef vs (vEval vs u)) u
   Lam x t     -> GLam x (GCl gs vs t)
-  Pi x a b    -> GPi x (gvEval gs vs a) (GCl gs vs b)
+  Pi x a b    -> let Box ga = gEvalBox gs vs a
+                 in GPi x (GV ga (vEval vs a)) (GCl gs vs b)
   U           -> GU
   Irrelevant  -> GIrrelevant
 
@@ -81,24 +93,32 @@ gForce = \case
 
 --------------------------------------------------------------------------------
 
-vLocal :: VEnv -> Ix -> Val
+vLocal :: VEnv -> Ix -> Box Val
 vLocal = go where
-  go (EDef vs v) 0 = v
-  go (ESkip vs)  0 = VLocal (envLength vs)
+  go (EDef vs v) 0 = Box v
+  go (ESkip vs)  0 = let l = envLength vs in Box (VLocal l)
   go (EDef vs _) x = go vs (x - 1)
   go (ESkip vs)  x = go vs (x - 1)
   go ENil        x = error "vLocal: impossible"
 
+vEvalBox :: VEnv -> Tm -> Box Val
+vEvalBox vs = \case
+  LocalVar x -> vLocal vs x
+  TopVar x   -> Box (VTop x)
+  MetaVar x  -> Box (VMeta x)
+  t          -> Box (vEval vs t)
+{-# inline vEvalBox #-}
+
 vEval :: VEnv -> Tm -> Val
 vEval vs = \case
-  LocalVar x  -> vLocal vs x
+  LocalVar x  -> let Box v = vLocal vs x in v
   TopVar x    -> VTop x
   MetaVar x   -> VMeta x
   Let _   t u -> vEval (EDef vs (vEval vs t)) u
-  AppI t u    -> vAppI (vEval vs t) (vEval vs u)
-  AppE t u    -> vAppE (vEval vs t) (vEval vs u)
+  AppI t u    -> let Box vu = vEvalBox vs u in vAppI (vEval vs t) vu
+  AppE t u    -> let Box vu = vEvalBox vs u in vAppE (vEval vs t) vu
   Lam x t     -> VLam x (VCl vs t)
-  Pi x a b    -> VPi x (vEval vs a) (VCl vs b)
+  Pi x a b    -> let Box va = vEvalBox vs a in VPi x va (VCl vs b)
   U           -> VU
   Irrelevant  -> VIrrelevant
 
