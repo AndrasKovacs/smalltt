@@ -7,3 +7,6 @@ TAGS
 .stack-work/
 *.cabal
 *.agdai
+*.vo
+*.aux
+*.glob

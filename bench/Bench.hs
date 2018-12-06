@@ -1,6 +1,13 @@
 {-# language RankNTypes #-}
 
-import Common
+import Data.Time.Clock
+
+timed :: IO a -> IO (a, NominalDiffTime)
+timed a = do
+  t1 <- getCurrentTime
+  res <- a
+  t2 <- getCurrentTime
+  pure (res, diffUTCTime t2 t1)
 
 newtype Nat = Nat (forall n. (n -> n) -> n -> n)
 

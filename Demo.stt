@@ -139,17 +139,20 @@ mul : Nat → Nat → Nat
 add : Nat → Nat → Nat
  = λ a b n s z. a n s (b n s z)
 
-n10   = mul n2 n5
-n100  = mul n10 n10
-n10k  = mul n100 n100
-n10kb = mul n100 (mul n10 n10)
-n1M   = mul n10k n100
-n1Mb  = mul n100 n10k
-n10M  = mul n1M n10
-n10Mb = mul n10 n1M
-n100M = mul n10M n10
-n200M = mul n2 n100M
-
+n10    = mul n2    n5
+n10b   = mul n5    n2
+n100   = mul n10   n10
+n100b  = mul n10b  n10b
+n10k   = mul n100  n100
+n10kb  = mul n100b n100b
+n100k  = mul n10k  n10
+n100kb = mul n10kb n10b
+n1M    = mul n10k  n100
+n1Mb   = mul n10kb n100b
+n10M   = mul n1M   n10
+n10Mb  = mul n1Mb  n10b
+n100M  = mul n10M  n10
+n200M  = mul n2    n100M
 
 -- Church lists
 --------------------------------------------------------------------------------
@@ -177,9 +180,10 @@ vcons : {a n} → a → Vec a n → Vec a (suc n)
 vec1 = vcons true (vcons false (vcons true vnil))
 
 
--- Type checking vecStress in smalltt and Agda:
--- smalltt : 3.7ms, 6 Mb RAM
--- Agda    : ~3s, 330 Mb RAM
+-- Type checking:
+-- smalltt : 3.7ms , 6.3 Mb
+-- Coq     : 300ms , 280 Mb
+-- Agda    : ~3s   , 330 Mb
 vecStress =
    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
@@ -357,14 +361,19 @@ synEqtest1 : nfun n10k → nfun n10k = λ x. x
 
 
 -- Classic example for exponential-time Hindley-Milner checking.
--- Surprisingly, Agda-2.6.0 (2018 sept) manages this fine. When I
--- previously checked in 2018 january, Agda, Coq and GHC all failed this.
+-- Suprisingly, Agda-2018-sept manages fine, although in 2018-jan
+-- it also failed.
+
+-- smalltt: instant
+-- Agda   : instant
+-- Coq    : doesn't finish
 idStress : {A} → A → A
  = id id id id id id id id id id id id id id id id id id id id
    id id id id id id id id id id id id id id id id id id id id
 
--- However, the following other classic exponential Hindley-Milner example kills
--- Agda, while smalltt checks it merrily.
+-- smalltt : "instant"
+-- Agda    : doesn't finish
+-- Coq     : doesn't finish
 pairStress : Top
  = let x0  = pair tt  tt  in
    let x1  = pair x0  x0  in
@@ -390,55 +399,73 @@ pairStress : Top
    tt
 
 -- A simple way to force a Church Nat.
-forceNat : Nat → U
- = λ n. n U (λ x. x) U
-
--- simple test of raw compute performance
---   (you can normalize in smalltt with :n computeTest)
-
--- smalltt :  0.53s , constant space (no discernible RAM hike)
--- Agda    : ~5.5s , ~700 Mb
-computeTest = forceNat n10M
+forceNat : Nat → Bool
+ = λ n. n _ (λ x. x) true
 
 
--- Conversion checking tests (uncomment benchmarks as you like)
+-- Raw compute performance
+
+-- GHC -O2 -fllvm            : 14ms   , 0 Mb
+-- Coq (Eval vm_compute)     : 0.23s  , 82 Mb
+-- smalltt                   : 0.53s  , 6.3 Mb
+-- runghc                    : 1.1s   , 22 Mb
+-- Coq (Eval cbv)            : 1.1s   , 270 Mb
+-- Coq (Eval lazy)           : 2.8s   , 290 Mb
+-- Agda                      : ~5.5s  , ~700 Mb
+-- Coq (Eval native_compute) : compilation failure
+compute10M = forceNat n10M
+
+
+-- Conversion checking
 --------------------------------------------------------------------------------
 
+-- smalltt : 27ms  , 6.2 Mb
+-- Agda    : 0.6s  , 57 Mb
+-- Coq     : 1s    , 340 Mb
+-- conv100k : Eq n100k n100kb = refl
 
--- smalltt: 0.23s, constant space
--- Agda   : 4.5s, 1.5 Gb RAM
 
--- convTest1 : Eq n1M n1Mb
+-- smalltt : 0.31s , 6.2 Mb
+-- Agda    : 3.5s  , 1 Gb
+-- Coq     : stack overflow
+-- conv1M : Eq n1M n1Mb = refl
+
+
+-- smalltt : 2.7s, 6.2 Mb
+-- Coq     : stack overflow
+-- Agda    : out of memory
+-- conv1M : Eq n10M n10Mb
 --  = refl
 
 
--- smalltt: 2.4s, constant space
--- Agda   : out of memory
-
--- convTest2 : Eq n10M n10Mb
---  = refl
-
-
--- smalltt: 1.1s, 890 Mb RAM
--- Agda   : 9s  , 3.8 Gb RAM
-
--- convTest3 : Eq (nfun n1M) (nfun n1Mb)
+-- smalltt : 1.33s, 925 Mb
+-- Agda    : 8.5s , 3.5 Gb
+-- Coq     : stack overflow
+-- convNfun1M : Eq (nfun n1M) (nfun n1Mb)
 --   = refl
 
--- Conversion checking in the presence of metas: note that Agda dies while
--- smalltt performance is unchanged.
 
--- smalltt: 0.23s, constant space
--- Agda   : out of memory
--- convTest4 : Eq n1M (add n1Mb _)
---  = refl
+-- Conversion checking in the presence of metas
+
+-- smalltt : 3.5ms,  6 Mb
+-- Coq     : 0.1s ,  220 Mb
+-- Agda    : out of memory
+-- conv10kmeta : Eq n10k (add n10kb _) = refl
+
+
+-- smalltt : 0.31s, 6 Mb
+-- Agda    : out of memory
+-- Coq     : stack overflow
+-- conv1Mmeta : Eq n1M (add n1Mb _) = refl
+
 
 
 -- Testing laziness
 --------------------------------------------------------------------------------
 
--- smalltt : instantly normalized
--- Agda    : instantly normalized
+-- smalltt         : instantly normalized
+-- Agda            : instantly normalized
+-- Coq (Eval lazy) : instanty normalized
 lazyU = const U (forceNat n10M)
 
 
