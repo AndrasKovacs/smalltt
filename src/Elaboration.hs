@@ -20,10 +20,7 @@ Enhancement:
 Things to later benchmark:
   - IO Exception vs error codes in unification
   - Arrays vs lists in renaming
-  - Benefit of known call optimization.
-  -     storing (in closure) and passing (to eval) local context length
-    vs. passing local context length but not storing them in closures
-    vs. not passing and not storing context length, instead recomputing it on each lookup.
+  - Known call optimization.
   - Reader monads vs param passing.
 -}
 
@@ -49,12 +46,8 @@ import Values
 import qualified Presyntax as P
 import Pretty
 
--- import Debug.Trace
 
 -- Local elaboration context
---------------------------------------------------------------------------------
-
--- Naming state
 --------------------------------------------------------------------------------
 
 -- | Inserted names come from inserting implicit binders during elaboration.
@@ -168,20 +161,22 @@ Two basic operations: conversion, scope check.
 Conversion:
   1. Check local conversion; track rigidity of conversion context, solve
      metas in rigid context but throw error when encountering metas
-     in flex context. We throw rigidity of context as error.
+     in flex context.
 
-  2. If local conversion throws flex, we do full conversion.
+  2. If local conversion throws flex error, we do full conversion.
 
 Scope check:
-  1. Do scope check on local value. While doing this, build meta solution
-     candidate as a Tm. If scope check succeeds, return this candidate.
+  1. Do scope check on local value. This operation can be viewed as
+     a variant of quoting which returns a scope-checked solution candidate.
 
-     Illegal variable occurrences are possible in eventual meta solutions, but
-     we replace all illegal occurrences with Irrelevant during scope checking,
-     so evaluation will never encounter ill-scoped variables.
+     Illegal variable occurrences are possible in these solution candidates, but
+     we replace them with Irrelevant during scope checking, so evaluation will
+     never encounter ill-scoped variables.
 
   2. We always use the local solution candidate. If local scope check fails
-     flexibly we have to do full scope check.
+     flexibly we have to do full scope check, which (in the case of success)
+     tells us that illegal occurences in the local solution candidate actually
+     disappear during evaluation.
 
 -}
 
@@ -241,7 +236,7 @@ vQuoteSolutionRefError ref = vQuoteSolution (writeIORef ref . Just)
 
 type Unfolding = Int
 
--- | Try to unify local values. May succeed with () or throw Rigidity. A rigid
+-- | Try to unify local values. May succeed with () or throw ElabError. A rigid
 --   error is unrecoverable and will be reported, a flex error can be rectified
 --   if full unification succeeds later. TODO: annotate rigid errors with
 --   information.

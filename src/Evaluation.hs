@@ -3,7 +3,6 @@ module Evaluation where
 
 {-|
 TODO:
-  - thunk allocation control with boxes
   - known call optimization for syntax
   - environment trimming
   - meta solution lowering, inlining and arg trimming
@@ -39,6 +38,8 @@ gTop x = case _entryDef (lookupTop x) of
   EDDefinition _ (GV g _) -> Box g
 {-# inline gTop #-}
 
+-- | We use this to avoid allocating useless thunks for looking up variables
+--   from environments.
 gEvalBox :: GEnv -> VEnv -> Tm -> Box Glued
 gEvalBox gs vs = \case
   LocalVar x  -> gLocal gs x
@@ -101,6 +102,8 @@ vLocal = go where
   go (ESkip vs)  x = go vs (x - 1)
   go ENil        x = error "vLocal: impossible"
 
+-- | We use this to avoid allocating useless thunks for looking up variables
+--   from environments.
 vEvalBox :: VEnv -> Tm -> Box Val
 vEvalBox vs = \case
   LocalVar x -> vLocal vs x

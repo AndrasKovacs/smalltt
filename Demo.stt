@@ -25,8 +25,7 @@ vectors, where the implicit natural number indices make normal forms of vector
 expressions quadratic-sized in the length.
 
 Project is very WIP, implementation is ugly, CLI is crap and error reporting
-is currently trash. Printing doesn't disambiguate shadowed names (internally
-it's de Bruijn levels). Source locations in errors are also bugged out.
+is currently trash. Source locations in errors are also bugged out.
 
 Although there are lots of unimplemented optimizations currently, the system is
 already *very* fast. This file is elaborated in 43 ms on my system, and if we
