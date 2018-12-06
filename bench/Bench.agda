@@ -38,12 +38,15 @@ true = λ _ t f → t
 false : Bool
 false = λ _ t f  → f
 
-Nat : U
-Nat = (n : U) → (n → n) → n → n
+and : Bool → Bool → Bool
+and = λ b1 b2 → b1 Bool true b2
 
 
 -- Church natural numbers
 --------------------------------------------------------------------------------
+
+Nat : U
+Nat = (n : U) → (n → n) → n → n
 
 zero : Nat
 zero = λ n s z → z
@@ -320,8 +323,8 @@ idStress =
 --        x20 = pair x19 x19
 --    in tt
 
-forceNat : Nat → U
-forceNat n = n U (λ b → b) U
+forceNat : Nat → Bool
+forceNat n = n _ (λ b → b) true
 
 computeTest = forceNat n10M
 
@@ -342,18 +345,26 @@ computeTest = forceNat n10M
 -- convNfun1M : Eq (nfun n1M) (nfun n1Mb)
 -- convNfun1M = refl
 
-conv10kmeta : Eq n10k (add n10kb _)
-conv10kmeta = refl
+-- conv10kmeta : Eq n10k (add n10kb _)
+-- conv10kmeta = refl
 
 -- OOM
 -- conv1Mmeta : Eq n1M (add n1Mb _)
 -- conv1Mmeta = refl
 
--- Testing laziness
+
 --------------------------------------------------------------------------------
 
 -- normalized instantly
 lazyU = const U (forceNat n10M)
+
+localCBN : Nat → Bool
+localCBN
+  = λ n → let m = forceNat (mul n n100k)
+          in n _ (λ b → and m b) true
+
+cbnReference = forceNat (mul n10 n100k)
+localCBNtest = localCBN n10
 
 
 -- Church-coded simply typed lambda calculus

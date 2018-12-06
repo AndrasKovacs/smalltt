@@ -52,6 +52,9 @@ Definition Bool := ∀(B : U), B → B → B.
 Definition true  : Bool := λ _ t f, t.
 Definition false : Bool := λ _ t f, f.
 
+Definition and : Bool → Bool → Bool
+ := λ b1 b2, b1 Bool true b2.
+
 Definition Pair : U → U → U
  := λ A B, ∀ (Pair : U)(pair : A → B → Pair), Pair.
 
@@ -219,10 +222,184 @@ Definition forceNat : Nat → Bool := λ n, n _ (λ x, x) true.
 (* Eval native_compute in forceNat n10M. *)
 
 (* Definition conv10k   : Eq n10k n10kb := refl. *)
-Definition conv100k  : Eq n100k n100kb := refl.
+(* Definition conv100k  : Eq n100k n100kb := refl. *)
 (* Definition conv1M : Eq n1M n1Mb := refl. *)
 (* Definition conv10M : Eq n10M n10Mb := refl. *)
 (* Definition convNfun1M : Eq (nfun n1M) (nfun n1Mb) := refl. *)
 (* Definition conv10kmeta : Eq n10k (add n10kb _) := refl. *)
 
 (* Definition conv1Mmeta : Eq n1M (add n1Mb _) := refl. *)
+
+
+(* -------------------------------------------------------------------------------- *)
+
+Definition localCBN : Nat → Bool
+ := λ n, let m := forceNat (mul n n100k) in
+         n _ (λ b, and m b) true.
+
+Definition cbnReference := forceNat (mul n10 n100k).
+Definition localCBNtest := localCBN n10.
+
+(* Eval lazy in localCBNtest. *)
+
+
+
+(* Church-coded simply typed lambda calculus *)
+(* -------------------------------------------------------------------------------- *)
+
+Definition Ty : U
+ := ∀ (Ty  : U)
+      (ι   : Ty)
+      (fn  : Ty → Ty → Ty)
+    , Ty.
+
+Definition ι : Ty
+ := λ _ ι _, ι.
+
+Definition fn : Ty → Ty → Ty
+ := λ A B Ty ι fn, fn (A Ty ι fn) (B Ty ι fn).
+
+Definition Con : U
+ := ∀ (Con : U)
+      (nil  : Con)
+      (cons : Con → Ty → Con)
+    , Con.
+
+Definition nil : Con
+ := λ Con nil cons, nil.
+
+Definition cons : Con → Ty → Con
+ := λ Γ A Con nil cons, cons (Γ Con nil cons) A.
+
+Definition Var : Con → Ty → U
+ := λ Γ A,
+      ∀ (Var : Con → Ty → U)
+        (vz  : ∀ {Γ A}, Var (cons Γ A) A)
+        (vs  : ∀ {Γ B A}, Var Γ A → Var (cons Γ B) A)
+      , Var Γ A.
+
+Definition vz {Γ A} : Var (cons Γ A) A
+ := λ V vz vs, vz _ _.
+
+Definition vs : ∀ {Γ B A}, Var Γ A → Var (cons Γ B) A
+ := λ _ _ _ x Var vz vs, vs _ _ _ (x Var vz vs).
+
+Definition Tm : Con → Ty → U
+ := λ Γ A,
+     ∀ (Tm  : Con → Ty → U)
+       (var : ∀{Γ A}, Var Γ A → Tm Γ A)
+       (lam : ∀{Γ A B}, Tm (cons Γ A) B → Tm Γ (fn A B))
+       (app : ∀{Γ A B}, Tm Γ (fn A B) → Tm Γ A → Tm Γ B)
+     , Tm Γ A.
+
+Definition var : ∀{Γ A}, Var Γ A → Tm Γ A
+ := λ _ _ x Tm var lam app, var _ _ x.
+
+Definition lam : ∀{Γ A B}, Tm (cons Γ A) B → Tm Γ (fn A B)
+ := λ _ _ _ t Tm var lam app, lam _ _ _ (t Tm var lam app).
+
+Definition  app : ∀ {Γ A B}, Tm Γ (fn A B) → Tm Γ A → Tm Γ B
+  := λ _ _ _ t u Tm var lam app, app _ _ _ (t Tm var lam app) (u Tm var lam app).
+
+
+(* Well-typed interpreter for Church-coded STLC *)
+(* -------------------------------------------------------------------------------- *)
+
+Definition EvalTy : Ty → U
+ := λ A, A _ Bot (λ A B, A → B).
+
+Definition EvalCon : Con → U
+ := λ Γ, Γ _ Top (λ Δ A, Pair Δ (EvalTy A)).
+
+Definition EvalVar : ∀ {Γ A}, Var Γ A → EvalCon Γ → EvalTy A
+  := λ Γ A x, x (λ Γ A, EvalCon Γ → EvalTy A)
+                (λ _ _ env, proj2 env)
+                (λ _ _ _ hyp env, hyp (proj1 env)).
+
+Definition EvalTm : ∀ {Γ A}, Tm Γ A → EvalCon Γ → EvalTy A
+ := λ _ _ t, t (λ Γ A, EvalCon Γ → EvalTy A)
+               (λ _ _, EvalVar)
+	       (λ _ _ _ t env α, t (pair env α))
+	       (λ _ _ _ t u env, t env (u env)).
+
+
+(* Large embedded STLC term *)
+(* -------------------------------------------------------------------------------- *)
+
+
+Definition t1 : Tm nil (fn (fn ι ι) (fn ι ι))
+ := lam (lam (
+      app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (var vz))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+     )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+     )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+     ))))))))))))))))))))))))))))))))))))))
+
+        )).
+
+Definition evalTest := EvalTm t1 tt.
+
+Eval cbv in evalTest.

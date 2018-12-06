@@ -32,8 +32,19 @@ already *very* fast. This file is elaborated in 43 ms on my system, and if we
 remove the crazier "vecStress" and "t1" definitions, this goes down to *1* ms.
 
 I have done preliminary (informal, manual) bechmarking comparing raw evaluation
-and conversion performance and asymptotics to Agda. It's a TODO to make it more
-complete, automated and also include Coq.
+and conversion performance and asymptotics to Agda, Coq and GHC. You can find
+result and benchmarks scattered in this file. It's a TODO to make benchmarking
+more automated. You can find Agda and Coq files used for benchmarking in the
+"bench" directory.
+
+Benchmarking setup:
+- smalltt is compiled with GHC 8.6.2, -O2 -fllvm
+- GHC 8.6.2 is likewise used for GHC/GHCI benchmarks.
+- Coq 8.8.2 for Coq, with -type-in-type
+- Agda 2.6.0 master built in 2018 september is used for Agda,
+  again with --type-in-type
+- Timings and memory usage come from "time" util and process monitoring.
+- System: Core i7 3770, 8GB RAM, Ubuntu 16.04
 
 Note: smalltt does not serialize elaboration output, it just generates core
 terms for all definitions. In contrast, Agda writes interface files and also
@@ -44,20 +55,15 @@ smalltt in the future; in particular I'll keep serialization simple and markedly
 won't do hash consing (because keeping output small should be the job of
 elaboration itself).
 
-The smalltt evaluator seems to be faster than the newest Agda Abstract Machine,
-but it's less than half as fast as the fastest AST interpreter which I
-previously managed to implement in Haskell, and leaks way more space, so there
-is room for improvement. Switching to bytecode from AST would be yet another
-large boost.
-
-A particularly nice thing about our system is that the standard, Agda-beating
-evaluator is actually the sole default evaluator: there no is separate "slow"
-and "fast" evaluator as in Agda and Coq. In particular, in Agda and Coq the
-"fast" evaluators are not available for terms which contain unsolved
-metavariables, which is a pretty large limitation. In smalltt, the default
-evaluator is used everywhere, regardless of metas, and there are no fundamental
-limitations which would prevent it from being even faster, or it being based on
-bytecode or machine code.
+A particularly nice thing about our system is that the standard evaluator (which
+despite being a "glued" AST interpter is about a third as fast as the Coq
+bytecode VM!) is actually the sole default evaluator: there no is separate
+"slow" and "fast" evaluator as in Agda and Coq. In Agda and Coq the "fast"
+evaluators are not available for terms which contain unsolved metavariables,
+which is a pretty large limitation. In smalltt, the default evaluator is used
+everywhere, regardless of metas, and there are no fundamental limitations which
+would prevent it from being even faster, or it being based on bytecode or
+machine code.
 
 As the current system stands, unification is already remarkably usable but
 weaker than in Agda. We just have pattern unification, bidirectional elaboration
@@ -67,17 +73,33 @@ nonlinear bound variables.
 
 Eventually I would like to have approximate unification parity with Agda, but I
 would really prefer to *not* have postponing (a major source of headache), while
-also avoiding performance regression.
+also avoiding performance regression. My plans for this:
+
+- Have features which work without postponing in any case:
+  - pruning
+  - intersections
+  - eta-contraction in patterns,
+  - eta-expanding metas (starts to make sense once we have unit and sigmas)
+
+- Have slightly "evil" features which cut down on the need for postponing.
+  - ignore nonlinear patterns, always bind innermost nonlinear variable
+    - (I intuit from some testing experience that this is what we mostly want in
+       practice, also Coq does the same thing AFAIK)
+  - erasing dependencies on non-variable pattern entries. By Agda standards, this
+    is just plain evil.
+
 -}
 
 
 -- Basics
 --------------------------------------------------------------------------------
 
+-- We have type-in-type:
+typeInType : U = U
+
 {-
 - There is a distinguished top level scope, local definitions
   can be written like "let x : A = t in u" or "let x = t in u".
-
 - Name shadowing is allowed everywhere.
 -}
 
@@ -118,6 +140,9 @@ Bool = (B : U) → B → B → B
 true  : Bool = λ _ t f. t
 false : Bool = λ _ t f. f
 
+and : Bool → Bool → Bool
+ = λ b1 b2. b1 Bool true b2
+
 
 -- Church natural numbers
 --------------------------------------------------------------------------------
@@ -148,9 +173,9 @@ n10kb  = mul n100b n100b
 n100k  = mul n10k  n10
 n100kb = mul n10kb n10b
 n1M    = mul n10k  n100
-n1Mb   = mul n10kb n100b
+n1MB   = mul n10kb n100b
 n10M   = mul n1M   n10
-n10Mb  = mul n1Mb  n10b
+n10MB  = mul n1MB  n10b
 n100M  = mul n10M  n10
 n200M  = mul n2    n100M
 
@@ -180,10 +205,10 @@ vcons : {a n} → a → Vec a n → Vec a (suc n)
 vec1 = vcons true (vcons false (vcons true vnil))
 
 
--- Type checking:
--- smalltt : 3.7ms , 6.3 Mb
--- Coq     : 300ms , 280 Mb
--- Agda    : ~3s   , 330 Mb
+-- Type checking vecStress:
+-- smalltt : 3.7ms , 6.3 MB
+-- Coq     : 300ms , 280 MB
+-- Agda    : ~3s   , 330 MB
 vecStress =
    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
@@ -353,15 +378,61 @@ compTest2 : {m A} → A → Vec A m → Vec A (suc (suc m))
 nfun : Nat → U
  = λ n. n U (λ A. U → A) U
 
--- Test for syntactic equality check, i.e. the ability to tell that some
--- expressions are equal without actually reducing them.  For some reason, Agda
--- 2.6.0-sept fails the test below with out-of-memory, although this is perhaps
--- a bug because Agda should generally have adequate syntactic eq. checking.
-synEqtest1 : nfun n10k → nfun n10k = λ x. x
+-- Tests for approximate equality, i.e. the ability to tell terms equal
+-- without fully reducing them.
+
+-- smalltt : approx check succeds
+-- Coq     : approx check succeds
+-- Agda    : approx check fails
+synEqTest1 : nfun n10k → nfun n10k = λ x. x
+
+-- Coq     : approx check succeeds
+-- Agda    : approx check succeeds
+-- smalltt : approx check fails
+-- synEqTest2 : Eq n1M n1M = refl
+
+{- I note: approx check failed above in smalltt because of the following: the
+   inferred type of refl is Eq {?1} ?2 ?2, we need to unify (Eq {?1} ?2 ?2) with
+   (Eq {Nat} n1M n1M). smalltt then tries to approximately ("locally") unify the
+   two spines, but gets stuck, because it doesn't know that Eq is generative,
+   and refuses to solve metas when unifying the spines to avoid losing possible
+   solutions. So smalltt switches to full conversion check, thereby forcing
+   n1M. Coq on the other hand is happy to take approximate solutions.
+
+   Of course, if Eq were defined as a rigid type constructor, there wouldn't be
+   an issue. I demonstrate this in the next benchmark below.
+
+   Alternatively, we could try to do injectivity/generativity analysis on
+   definitions, which I suspect would be a good thing overall.
+
+   I prefer to not use the Coq solution, nor any backtracking or non-trivially
+   bounded unfolding in approximate conversion check. A key principle of my
+   approximate conversion checker is to not do significant computation, because
+   that's effectively call-by-name and without any sharing. Hence, I give up
+   approximate checks relatively quickly and bring in the heavy-duty
+   call-by-need machine.
+
+   At this stage, it's only a conjecture that this approach is faster than Coq
+   in practice; we need more and larger benchmarks. It will be, however, much
+   easier to compare performance of Coq-style approximate checking with
+   smalltt-style, if both are implemented in smalltt, because a Coq-smalltt
+   comparison would be too muddled by asymptotic differences.
+-}
+
+-- approximate equality works in smallt if Eq is postulated:
+assume Eq2   : {A} → A → A → U
+assume refl2 : {A x} → Eq2 {A} x x
+
+-- smalltt : approx check succeeds
+-- Agda    : approx check succeeds
+-- Coq     : approx check succeeds
+synEqTest3 : Eq2 n1M n1M = refl2
 
 
--- Classic example for exponential-time Hindley-Milner checking.
--- Suprisingly, Agda-2018-sept manages fine, although in 2018-jan
+-- Classic examples for exponential-time Hindley-Milner checking.
+--------------------------------------------------------------------------------
+
+-- Suprisingly, Agda-2018-sept manages the following fine, although in 2018-jan
 -- it also failed.
 
 -- smalltt: instant
@@ -371,7 +442,7 @@ idStress : {A} → A → A
  = id id id id id id id id id id id id id id id id id id id id
    id id id id id id id id id id id id id id id id id id id id
 
--- smalltt : "instant"
+-- smalltt : instant
 -- Agda    : doesn't finish
 -- Coq     : doesn't finish
 pairStress : Top
@@ -398,75 +469,91 @@ pairStress : Top
    let x20 = pair x19 x19 in
    tt
 
+
+-- Raw compute performance
+--------------------------------------------------------------------------------
+
 -- A simple way to force a Church Nat.
 forceNat : Nat → Bool
  = λ n. n _ (λ x. x) true
 
 
--- Raw compute performance
-
--- GHC -O2 -fllvm            : 14ms   , 0 Mb
--- Coq (Eval vm_compute)     : 0.23s  , 82 Mb
--- smalltt                   : 0.53s  , 6.3 Mb
--- runghc                    : 1.1s   , 22 Mb
--- Coq (Eval cbv)            : 1.1s   , 270 Mb
--- Coq (Eval lazy)           : 2.8s   , 290 Mb
--- Agda                      : ~5.5s  , ~700 Mb
+-- GHC -O2 -fllvm            : 14ms   , 0 MB
+-- Coq (Eval vm_compute)     : 0.23s  , 82 MB
+-- smalltt                   : 0.53s  , 6.3 MB
+-- runghc                    : 1.1s   , 22 MB
+-- Coq (Eval cbv)            : 1.1s   , 270 MB
+-- Coq (Eval lazy)           : 2.8s   , 290 MB
+-- Agda                      : ~5.5s  , ~635 MB
 -- Coq (Eval native_compute) : compilation failure
 compute10M = forceNat n10M
+
+
+-- Lazy/call-by-need evaluation
+--------------------------------------------------------------------------------
+
+-- smalltt         : instantly normalized
+-- Agda            : instantly normalized
+-- Coq (Eval lazy) : instantly normalized
+lazyU = const U (forceNat n10M)
+
+
+-- call-by-need local definitions
+-- local cbn works if "localCBN n10" runs roughly as fast as
+-- "forceNat (mul n10 n100k)"
+localCBN : Nat → Bool
+ = λ n. let m = forceNat (mul n n100k) in
+        n _ (λ b. and m b) true
+
+-- smalltt         : local cbn works
+-- Coq (Eval lazy) : local cbn works
+-- Agda            : local cbn works
+
+-- cbnReference = forceNat (mul n10 n100k)
+-- localCBNtest : Bool = localCBN n10
 
 
 -- Conversion checking
 --------------------------------------------------------------------------------
 
--- smalltt : 27ms  , 6.2 Mb
--- Agda    : 0.6s  , 57 Mb
--- Coq     : 1s    , 340 Mb
+-- smalltt : 27ms  , 6.2 MB
+-- Agda    : 0.6s  , 57 MB
+-- Coq     : 1s    , 340 MB
 -- conv100k : Eq n100k n100kb = refl
 
 
--- smalltt : 0.31s , 6.2 Mb
--- Agda    : 3.5s  , 1 Gb
+-- smalltt : 0.31s , 6.2 MB
+-- Agda    : 3.5s  , 1 GB
 -- Coq     : stack overflow
--- conv1M : Eq n1M n1Mb = refl
+-- conv1M : Eq n1M n1MB = refl
 
 
--- smalltt : 2.7s, 6.2 Mb
+-- smalltt : 2.7s, 6.2 MB
 -- Coq     : stack overflow
 -- Agda    : out of memory
--- conv1M : Eq n10M n10Mb
+-- conv1M : Eq n10M n10MB
 --  = refl
 
 
--- smalltt : 1.33s, 925 Mb
--- Agda    : 8.5s , 3.5 Gb
+-- smalltt : 1.33s, 925 MB
+-- Agda    : 8.5s , 3.5 GB
 -- Coq     : stack overflow
--- convNfun1M : Eq (nfun n1M) (nfun n1Mb)
+-- convNfun1M : Eq (nfun n1M) (nfun n1MB)
 --   = refl
 
 
--- Conversion checking in the presence of metas
+-- Conversion check in the presence of metas (note Agda/Coq death)
 
--- smalltt : 3.5ms,  6 Mb
--- Coq     : 0.1s ,  220 Mb
+-- smalltt : 3.5ms,  6 MB
+-- Coq     : 0.1s ,  220 MB
 -- Agda    : out of memory
 -- conv10kmeta : Eq n10k (add n10kb _) = refl
 
 
--- smalltt : 0.31s, 6 Mb
+-- smalltt : 0.31s, 6 MB
 -- Agda    : out of memory
 -- Coq     : stack overflow
--- conv1Mmeta : Eq n1M (add n1Mb _) = refl
-
-
-
--- Testing laziness
---------------------------------------------------------------------------------
-
--- smalltt         : instantly normalized
--- Agda            : instantly normalized
--- Coq (Eval lazy) : instanty normalized
-lazyU = const U (forceNat n10M)
+-- conv1Mmeta : Eq n1M (add n1MB _) = refl
 
 
 -- Church-coded simply typed lambda calculus
@@ -551,8 +638,9 @@ EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
 -- Large embedded STLC term
 --------------------------------------------------------------------------------
 
--- smalltt : 37ms , ~constant space (can't see extra space on process monitor)
--- Agda    : ~2.5s, 120 Mb
+-- smalltt : 37ms  , 6   MB
+-- Coq     : 270ms , 240 MB
+-- Agda    : 2.5s  , 120 MB
 t1 : Tm nil (fun (fun ι ι) (fun ι ι))
  = lam (lam (
       app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
@@ -626,5 +714,7 @@ t1 : Tm nil (fun (fun ι ι) (fun ι ι))
 
      ))
 
--- test evaluation
+-- smalltt : 70 ms , 46 MB
+-- Coq, Agda : can't benchmark precisely (too fast to measure by hand)
+-- Coq seems subjectively as fast as smalltt, Agda a bit slower
 evalTest = EvalTm t1 tt
