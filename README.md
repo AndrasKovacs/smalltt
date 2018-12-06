@@ -23,6 +23,14 @@ Setup:
 | Coq | 300ms | 280 MB  |
 | Agda | ~3s |  330 MB  |
 
+#### Large embedded STLC term elaboration
+
+| | Time | Space |
+| --- | :--- | :--- |
+| smalltt | 37ms  | 6   MB |
+| Coq     | 270ms | 240 MB |
+| Agda    | 2.5s  | 120 MB |
+
 #### Evaluation performance: forcing Church-encoded 10m-sized numeral
 
 | | Time | Space
@@ -83,11 +91,3 @@ Setup:
 | smalltt | 1.33s  | 925 MB |
 | Agda    | 8.5s | 3.5 GB |
 | Coq     | stack overflow |
-
-#### Elaborating large embedded STLC term
-
-| | Time | Space |
-| --- | :--- | :--- |
-| smalltt | 37ms  | 6   MB |
-| Coq     | 270ms | 240 MB |
-| Agda    | 2.5s  | 120 MB |
