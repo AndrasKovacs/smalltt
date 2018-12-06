@@ -7,9 +7,11 @@ type Ty' = Tm'
 type Tm  = Posed Tm'
 type Ty  = Posed Ty'
 
+type Profiling = Bool
+
 data TopEntry
-  = TEPostulate  (Posed Name) {-# unpack #-} Ty
-  | TEDefinition (Posed Name) {-# unpack #-} Ty {-# unpack #-} Tm
+  = TEPostulate  Profiling (Posed Name) {-# unpack #-} Ty
+  | TEDefinition Profiling (Posed Name) {-# unpack #-} Ty {-# unpack #-} Tm
   deriving Show
 
 type Program = [TopEntry]

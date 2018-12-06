@@ -204,12 +204,15 @@ vcons : {a n} → a → Vec a n → Vec a (suc n)
 
 vec1 = vcons true (vcons false (vcons true vnil))
 
+-- Note: putting [profiling] after a top-level name will cause
+-- elaboration time for that entry to be displayed on load.
+
 
 -- Type checking vecStress:
--- smalltt : 3.7ms , 6.3 MB
+-- smalltt : 3.8ms , 6.3 MB
 -- Coq     : 300ms , 280 MB
 -- Agda    : ~3s   , 330 MB
-vecStress =
+vecStress [profiling] =
    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
@@ -641,7 +644,7 @@ EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
 -- smalltt : 37ms  , 6   MB
 -- Coq     : 270ms , 240 MB
 -- Agda    : 2.5s  , 120 MB
-t1 : Tm nil (fun (fun ι ι) (fun ι ι))
+t1 [profiling] : Tm nil (fun (fun ι ι) (fun ι ι))
  = lam (lam (
       app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))

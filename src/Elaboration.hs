@@ -617,18 +617,23 @@ checkTopEntry ntbl e = do
   let cxt = initCxt ntbl
   x <- A.size top
   case e of
-    P.TEPostulate (updPos -> Posed pos n) a -> do
-      a <- check cxt a gvU
-      guardUnsolvedMetas
-      A.push top (TopEntry (Posed pos n) EDPostulate (EntryTy a (gvEval' cxt a)))
+    P.TEPostulate prof (updPos -> Posed pos n) a -> do
+      ((), time) <- timed $ do
+        a <- check cxt a gvU
+        guardUnsolvedMetas
+        A.push top (TopEntry (Posed pos n) EDPostulate (EntryTy a (gvEval' cxt a)))
+      when prof $ printf "Postulate \"%s\": elaborated in %s\n" n (show time)
       pure (addName n (NITop pos x) ntbl)
-    P.TEDefinition (updPos -> Posed pos n) a t -> do
-      a <- check cxt a gvU
-      let gva = gvEval' cxt a
-      t <- check cxt t gva
-      guardUnsolvedMetas
-      let gvt = gvEval' cxt t
-      A.push top (TopEntry (Posed pos n) (EDDefinition t gvt) (EntryTy a gva))
+    P.TEDefinition prof (updPos -> Posed pos n) a t -> do
+      ((), time) <- timed $ do
+        a <- check cxt a gvU
+        let gva = gvEval' cxt a
+        t <- check cxt t gva
+        guardUnsolvedMetas
+        let gvt = gvEval' cxt t
+        A.push top (TopEntry (Posed pos n) (EDDefinition t gvt) (EntryTy a gva))
+        pure ()
+      when prof $ printf "Definition \"%s\" elaborated in %s\n" n (show time)
       pure (addName n (NITop pos x) ntbl)
 
 checkProgram :: P.Program -> IO NameTable

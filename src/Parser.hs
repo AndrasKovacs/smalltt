@@ -99,7 +99,8 @@ symbol s   = lexeme (C.string s)
 char c     = lexeme (C.char c)
 satisfy f  = lexeme (Text.Megaparsec.satisfy f)
 parens p   = char '(' *> p <* char ')'
-brackets p = char '{' *> p <* char '}'
+brackets p = char '[' *> p <* char ']'
+braces p = char '{' *> p <* char '}'
 
 keyword :: Text -> Bool
 keyword x = x == "let" || x == "in" || x == "λ" || x == "U" || x == "assume"
@@ -129,8 +130,8 @@ pHole    = withPos (Hole <$ char '_')
 pLamBinder :: Parser (Posed (Named NameOrIcit))
 pLamBinder = withPos (
       (flip Named NOExpl <$> pBind)
-  <|> try (flip Named NOImpl <$> brackets pBind)
-  <|> brackets ((\x y → Named y (NOName x)) <$> (pIdent <* char '=') <*> pBind))
+  <|> try (flip Named NOImpl <$> braces pBind)
+  <|> braces ((\x y → Named y (NOName x)) <$> (pIdent <* char '=') <*> pBind))
 
 pLam :: Parser Tm
 pLam = withPos $ do
@@ -143,8 +144,8 @@ pLam = withPos $ do
 pArg :: Parser (Posed (Maybe (T2 Tm NameOrIcit)))
 pArg = withPos (
       (Just <$> (
-            try (flip T2 NOImpl <$> brackets pTm)
-        <|> brackets ((\x t -> T2 t (NOName x)) <$> (pIdent <* char '=') <*> pTm)
+            try (flip T2 NOImpl <$> braces pTm)
+        <|> braces ((\x t -> T2 t (NOName x)) <$> (pIdent <* char '=') <*> pTm)
         <|> (flip T2 NOExpl <$> pAtom)))
   <|> (Nothing <$ char '!'))
 
@@ -171,7 +172,7 @@ pLet = withPos $ do
 
 pPiBinder :: Parser (Posed (T3 [Posed Name] Tm Icit))
 pPiBinder = withPos (
-      brackets ((\x y -> T3 x y Impl)
+      braces ((\x y -> T3 x y Impl)
                 <$> some (withPos pBind)
                 <*> ((char ':' *> pTm) <|> withPos (pure Hole)))
   <|> parens ((\x y -> T3 x y Expl)
@@ -203,15 +204,21 @@ pTm = pLam <|> pLet <|> pPiOrSpine
 
 pPostulate :: Parser TopEntry
 pPostulate = nonIndented $
-  indent (symbol "assume") (\_ -> TEPostulate <$> withPos pIdent <*> (char ':' *> pTm))
+  indent (symbol "assume") $ \_ -> do
+    i <- withPos pIdent
+    prof <- maybe False (\_ -> True) <$>
+            optional (brackets (symbol "profiling"))
+    TEPostulate prof i <$> (char ':' *> pTm)
 
 pDefinition :: Parser TopEntry
 pDefinition = nonIndented $ indent (withPos pIdent) $ \x@(Posed pos _) -> do
+  prof <- maybe False (\_ -> True) <$>
+          optional (brackets (symbol "profiling"))
   a <- optional (char ':' *> pTm)
   t <- char '=' *> pTm
   case a of
-    Just a  -> pure (TEDefinition x a t)
-    Nothing -> pure (TEDefinition x (Posed pos Hole) t)
+    Just a  -> pure (TEDefinition prof x a t)
+    Nothing -> pure (TEDefinition prof x (Posed pos Hole) t)
 
 pProgram :: Parser Program
 pProgram = many (pPostulate <|> pDefinition)
