@@ -179,28 +179,28 @@ pPiBinder = withPos (
                 <$> some (withPos pBind)
                 <*> (char ':' *> pTm)))
 
-pPiWithBinders :: Parser Tm
-pPiWithBinders =
+pPi :: Parser Tm
+pPi =
   chainr1
     (\(Posed p (T3 xs a i)) b ->
          Posed p (unPosed $ foldr (\(Posed p x) b -> Posed p (Pi (Named x i) a b)) b xs))
     pPiBinder
     (pArrow *> pTm)
 
-pPiOrSpine :: Parser Tm
-pPiOrSpine = try pPiWithBinders <|> do
+pFunOrSpine :: Parser Tm
+pFunOrSpine = do
   Posed pos sp <- pSpine
   optional pArrow >>= \case
     Nothing -> pure (Posed pos sp)
     Just{}  -> do
       b <- pTm
-      pure (Posed pos (Pi (Named mempty Expl) (Posed pos sp) b))
+      pure (Posed pos (Fun (Posed pos sp) b))
 
 pAtom :: Parser Tm
 pAtom = pU <|> pVar <|> pHole <|> parens pTm
 
 pTm :: Parser Tm
-pTm = pLam <|> pLet <|> pPiOrSpine
+pTm = pLam <|> pLet <|> try pPi <|> pFunOrSpine
 
 pPostulate :: Parser TopEntry
 pPostulate = nonIndented $

@@ -199,28 +199,27 @@ vQuoteSolution throwAction = \l occurs (T2 renl ren) ->
 
     go :: Lvl -> Rigidity -> Renaming -> Val -> IO Tm
     go l r ren = \case
-      VNe h vsp -> do
-        h' <- case h of
-              HLocal x -> case applyRen ren x of
-                (-1)   -> do
-                            throwAction $ mkError r (printf "Out of scope variable: %d" x)
-                            pure Irrelevant
-                y      -> pure (LocalVar (l - shift - y - 1))
-              HTop   x -> pure (TopVar x)
-              HMeta  x | x == occurs -> do
-                           throwAction $ mkError r "Occurs check"
-                           pure Irrelevant
-                       | otherwise   -> pure (MetaVar x)
-        goSp l h' ren vsp
+      VNe h vsp -> case h of
+        HLocal x -> case applyRen ren x of
+          (-1)   -> do
+                      throwAction $ mkError r (printf "Out of scope variable: %d" x)
+                      pure Irrelevant
+          y      -> goSp l r ren (LocalVar (l - shift - y - 1)) vsp
+        HTop   x -> goSp l (topRigidity x `meld` r) ren (TopVar x) vsp
+        HMeta  x | x == occurs -> do
+                     throwAction $ mkError r "Occurs check"
+                     pure Irrelevant
+                 | otherwise -> goSp l (metaRigidity x `meld` r) ren (MetaVar x) vsp
       VLam x t    -> Lam x <$> go (l + 1) r (RCons l (l - shift) ren) (vInst t (VLocal l))
       VPi x a b   -> Pi x <$> go l r ren a <*> go (l + 1) r (RCons l (l - shift) ren) (vInst b (VLocal l))
+      VFun a b    -> Fun <$> go l r ren a <*> go l r ren b
       VU          -> pure U
       VIrrelevant -> pure Irrelevant
 
-    goSp :: Lvl -> Tm -> Renaming -> VSpine -> IO Tm
-    goSp l t ren (SAppI vsp v) = AppI <$> goSp l t ren vsp <*> go l Flex ren v
-    goSp l t ren (SAppE vsp v) = AppE <$> goSp l t ren vsp <*> go l Flex ren v
-    goSp l t ren SNil          = pure t
+    goSp :: Lvl -> Rigidity -> Renaming -> Tm -> VSpine -> IO Tm
+    goSp l r ren t (SAppI vsp v) = AppI <$> goSp l r ren t vsp <*> go l Flex ren v
+    goSp l r ren t (SAppE vsp v) = AppE <$> goSp l r ren t vsp <*> go l Flex ren v
+    goSp l r ren t SNil          = pure t
 
   in go l Rigid ren
 {-# inline vQuoteSolution #-}
@@ -267,6 +266,16 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
       go l u ns r a a'
       let var = VLocal l
       go (l + 1) u (NSnoc ns n) r (vInst b var) (vInst b' var)
+
+    (VPi (Named n i) a b, VFun a' b') -> do
+      go l u ns r a a'
+      go (l + 1) u (NSnoc ns n) r (vInst b (VLocal l)) b'
+
+    (VFun a b, VPi (Named n' i') a' b') -> do
+      go l u ns r a a'
+      go (l + 1) u (NSnoc ns n') r b (vInst b' (VLocal l))
+
+    (VFun a b, VFun a' b') -> go l u ns r a a' >> go l u ns r b b'
 
     (VNe (HTop x) vsp, VNe (HTop x') vsp') | x == x' ->
       goSp l u ns (r `meld` topRigidity x `meld` topRigidity x') vsp vsp'
@@ -325,13 +334,7 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
   solve :: Lvl -> Names -> Meta -> VSpine -> Val -> IO ()
   solve l ns x vsp ~v = do
     let ren = checkSpine vsp
-
     rhs <- lams l ns (proj2 ren) <$> vQuoteSolutionShortCut l x ren v
-
-    -- let Meta i j = x
-    -- traceM (printf "solution candidate: %s" (show (vQuote l v)))
-    -- traceM (printf "solved meta %d.%d with %s" i j (show rhs))
-
     registerSolution x rhs
 
   goSp :: Lvl -> Unfolding -> Names -> Rigidity -> VSpine -> VSpine -> IO ()
@@ -364,6 +367,7 @@ gvQuoteSolution l occurs (T2 renl ren) (GV g v) = do
           goSp l ren gsp
         GLam x t -> go (l + 1) (RCons l (l - shift) ren) (gInst t (gvLocal l))
         GPi x (GV a _) b -> go l ren a >> go (l + 1) (RCons l (l - shift) ren) (gInst b (gvLocal l))
+        GFun (GV a _) (GV b _) -> go l ren a >> go l ren b
         GU -> pure ()
         GIrrelevant -> pure ()
 
@@ -408,6 +412,16 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
         let var = gvLocal l
         go l ns a a'
         go (l + 1) (NSnoc ns n) (gvInst b var) (gvInst b' var)
+
+      (GPi (Named n i) a b, GFun a' b') -> do
+        go l ns a a'
+        go (l + 1) (NSnoc ns n) (gvInst b (gvLocal l)) b'
+
+      (GFun a b, GPi (Named n' i') a' b') -> do
+        go l ns a a'
+        go (l + 1) (NSnoc ns n') b (gvInst b' (gvLocal l))
+
+      (GFun a b, GFun a' b') -> go l ns a a' >> go l ns b b'
 
       (GNe (HTop x)   gsp vsp, GNe (HTop x')   gsp' vsp') | x == x' -> goSp l ns gsp gsp' vsp vsp'
       (GNe (HLocal x) gsp vsp, GNe (HLocal x') gsp' vsp') | x == x' -> goSp l ns gsp gsp' vsp vsp'
@@ -485,9 +499,14 @@ check cxt (Posed pos t) (GV gwant vwant) = updPos pos >> case (t, gForce gwant) 
                                                       NOImpl   -> i' == Impl
                                                       NOExpl   -> i' == Expl) ->
     Lam (Named x i') <$> check (localBindSrc (Posed pos x) a cxt) t (gvInst b (gvLocal (_size cxt)))
+
+  (P.Lam x NOExpl t, GFun a b) ->
+    Lam (Named x Expl) <$> check (localBindSrc (Posed pos x) a cxt) t b
+
   (t, GPi (Named x Impl) a b) ->
     Lam (Named x Impl) <$> check (localBindIns (Posed pos x) a cxt)
                                  (Posed pos t) (gvInst b (gvLocal (_size cxt)))
+
   (P.Let x a t u, gwant) -> do
     a <- check cxt a gvU
     let gva = gvEval' cxt a
@@ -495,8 +514,10 @@ check cxt (Posed pos t) (GV gwant vwant) = updPos pos >> case (t, gForce gwant) 
     let gvt = gvEval' cxt t
     u <- check (localDefine (Posed pos x) gvt gva cxt) u (GV gwant vwant)
     pure (Let (Named x a) t u)
+
   (P.Hole, _) ->
     newMeta cxt
+
   (t, gwant) -> do
     T2 t gvhas <- infer MIYes cxt (Posed pos t)
     gvUnify cxt gvhas (GV gwant vwant)
@@ -548,10 +569,9 @@ infer :: MetaInsertion -> Cxt -> P.Tm -> IO (T2 Tm GVTy)
 infer ins cxt (Posed pos t) = updPos pos >> case t of
   P.U -> pure (T2 U gvU)
 
-  P.StopMetaIns t -> infer MINo cxt t
-
   P.Var x -> insertMetas ins cxt (inferVar cxt x)
 
+  -- TODO: do the case where a meta is inferred for "t"
   P.App t u ni -> insertMetas ins cxt $ do
     T2 t (GV ga va) <- infer
       (case ni of NOName x -> MIUntilName x
@@ -566,6 +586,10 @@ infer ins cxt (Posed pos t) = updPos pos >> case t of
           NOExpl   -> unless (i' == Expl) (reportError "icitness mismatch")
         u <- check cxt u a
         pure (T2 (app i' t u) (gvInst b (gvEval' cxt u)))
+      GFun a b -> do
+        case ni of NOExpl -> pure (); _ -> reportError "icitness mismatch"
+        u <- check cxt u a
+        pure (T2 (AppE t u) b)
       _ -> reportError $
         printf "Expected a function type for expression:\n\n%s\n\nInferred type:\n\n%s"
            (showTm' cxt t) (gShowTm cxt ga)
@@ -575,13 +599,10 @@ infer ins cxt (Posed pos t) = updPos pos >> case t of
     b <- check (localBindSrc (Posed pos x) (gvEval' cxt a) cxt) b gvU
     pure (T2 (Pi (Named x i) a b) gvU)
 
-  P.Let x a t u -> do
+  P.Fun a b -> do
     a <- check cxt a gvU
-    let gva = gvEval' cxt a
-    t <- check cxt t gva
-    let gvt = gvEval' cxt t
-    T2 u gvb <- infer ins (localDefine (Posed pos x) gvt gva cxt) u
-    pure (T2 (Let (Named x a) t u) gvb)
+    b <- check cxt b gvU
+    pure (T2 (Fun a b) gvU)
 
   P.Lam x ni t -> insertMetas ins cxt $ do
     i <- case ni of
@@ -596,6 +617,16 @@ infer ins cxt (Posed pos t) = updPos pos >> case t of
     pure (T2 (Lam ni' t)
              (GV (GPi ni' gva (GCl (_gVals cxt) (_vVals cxt) b))
                  (VPi ni' va  (VCl (_vVals cxt) b))))
+
+  P.Let x a t u -> do
+    a <- check cxt a gvU
+    let gva = gvEval' cxt a
+    t <- check cxt t gva
+    let gvt = gvEval' cxt t
+    T2 u gvb <- infer ins (localDefine (Posed pos x) gvt gva cxt) u
+    pure (T2 (Let (Named x a) t u) gvb)
+
+  P.StopMetaIns t -> infer MINo cxt t
 
   P.Hole -> do
     m1 <- newMeta cxt

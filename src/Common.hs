@@ -101,6 +101,7 @@ proj2 (T2 _ b) = b
 
 data T3 a b c = T3 a b c deriving (Eq, Show)
 
+-- | Time an IO computation. Result is forced to whnf.
 timed :: IO a -> IO (a, NominalDiffTime)
 timed a = do
   t1  <- getCurrentTime
@@ -109,9 +110,11 @@ timed a = do
   pure (res, diffUTCTime t2 t1)
 {-# inline timed #-}
 
+-- | Time a lazy pure value. Result is forced to whnf.
 timedPure :: a -> IO (a, NominalDiffTime)
 timedPure ~a = do
   t1  <- getCurrentTime
   let res = a
   t2  <- getCurrentTime
   pure (res, diffUTCTime t2 t1)
+{-# inline timedPure #-}

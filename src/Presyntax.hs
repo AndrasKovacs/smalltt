@@ -23,6 +23,7 @@ data Tm'
   | App {-# unpack #-} Tm {-# unpack #-} Tm NameOrIcit
   | Lam Name NameOrIcit {-# unpack #-} Tm
   | Pi {-# unpack #-} (Named Icit) {-# unpack #-} Ty {-# unpack #-} Ty
+  | Fun {-# unpack #-} Tm {-# unpack #-} Tm
   | U
   | StopMetaIns {-# unpack #-} Tm
   | Hole

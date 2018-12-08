@@ -57,12 +57,14 @@ gEval gs vs = \case
                  in gAppI (gEval gs vs t) (GV gu (vEval vs u))
   AppE t u    -> let Box gu = gEvalBox gs vs u
                  in gAppE (gEval gs vs t) (GV gu (vEval vs u))
-  Let _ t u   -> let Box gt = gEvalBox gs vs t
-                 in gEval (EDef gs gt) (EDef vs (vEval vs u)) u
   Lam x t     -> GLam x (GCl gs vs t)
   Pi x a b    -> let Box ga = gEvalBox gs vs a
                  in GPi x (GV ga (vEval vs a)) (GCl gs vs b)
+  Fun t u     -> let Box gt = gEvalBox gs vs t; Box gu = gEvalBox gs vs u
+                 in GFun (GV gt (vEval vs t)) (GV gu (vEval vs u))
   U           -> GU
+  Let _ t u   -> let Box gt = gEvalBox gs vs t
+                 in gEval (EDef gs gt) (EDef vs (vEval vs u)) u
   Irrelevant  -> GIrrelevant
 
 gInst :: GCl -> GV -> Glued
@@ -117,13 +119,16 @@ vEval vs = \case
   LocalVar x  -> let Box v = vLocal vs x in v
   TopVar x    -> VTop x
   MetaVar x   -> VMeta x
-  Let _   t u -> vEval (EDef vs (vEval vs t)) u
   AppI t u    -> let Box vu = vEvalBox vs u in vAppI (vEval vs t) vu
   AppE t u    -> let Box vu = vEvalBox vs u in vAppE (vEval vs t) vu
   Lam x t     -> VLam x (VCl vs t)
   Pi x a b    -> let Box va = vEvalBox vs a in VPi x va (VCl vs b)
+  Fun t u     -> let Box vt = vEvalBox vs t; Box vu = vEvalBox vs u
+                 in VFun vt vu
   U           -> VU
+  Let _   t u -> vEval (EDef vs (vEval vs t)) u
   Irrelevant  -> VIrrelevant
+
 
 vInst :: VCl -> Val -> Val
 vInst (VCl vs t) ~u = vEval (EDef vs u) t
@@ -200,20 +205,22 @@ vQuote = go where
                      goSp (SAppE vsp t) = AppE (goSp vsp) (go l t)
     VLam ni t   -> Lam ni (go (l + 1) (vInst t (VLocal l)))
     VPi ni a b  -> Pi ni (go l a) (go (l + 1) (vInst b (VLocal l)))
+    VFun a b    -> Fun (go l a) (go l b)
     VU          -> U
     VIrrelevant -> Irrelevant
 
 gQuote :: Lvl -> Glued -> Tm
 gQuote = go where
   go l g = case gForce g of
-    GNe h gsp vsp      -> goSp gsp where
-                            goSp SNil = case h of
-                              HMeta x  -> MetaVar x
-                              HLocal x -> LocalVar (l - x - 1)
-                              HTop x   -> TopVar x
-                            goSp (SAppI vsp t) = AppI (goSp vsp) (go l t)
-                            goSp (SAppE vsp t) = AppE (goSp vsp) (go l t)
-    GLam ni t          -> Lam ni (go (l + 1) (gInst t (gvLocal l)))
-    GPi ni (GV a _) b  -> Pi ni (go l a) (go (l + 1) (gInst b (gvLocal l)))
-    GU                 -> U
-    GIrrelevant        -> Irrelevant
+    GNe h gsp vsp          -> goSp gsp where
+                                goSp SNil = case h of
+                                  HMeta x  -> MetaVar x
+                                  HLocal x -> LocalVar (l - x - 1)
+                                  HTop x   -> TopVar x
+                                goSp (SAppI vsp t) = AppI (goSp vsp) (go l t)
+                                goSp (SAppE vsp t) = AppE (goSp vsp) (go l t)
+    GLam ni t              -> Lam ni (go (l + 1) (gInst t (gvLocal l)))
+    GPi ni (GV a _) b      -> Pi ni (go l a) (go (l + 1) (gInst b (gvLocal l)))
+    GFun (GV a _) (GV b _) -> Fun (go l a) (go l b)
+    GU                     -> U
+    GIrrelevant            -> Irrelevant

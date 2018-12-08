@@ -19,6 +19,7 @@ data Tm
   | AppE Tm Tm
   | Lam (Named Icit) Tm
   | Pi (Named Icit) Ty Ty
+  | Fun Tm Tm
   | Irrelevant
   | U
   deriving Show

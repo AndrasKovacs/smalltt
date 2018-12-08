@@ -548,7 +548,7 @@ conv10kmeta [elaborate] : Eq n10k (add n10kb _) = refl
 -- Coq     : stack overflow
 conv1Mmeta [elaborate] : Eq n1M (add n1M _) = refl
 
--- smalltt : 1.33s, 925 MB
+-- smalltt : 0.9s, 900 MB
 -- Agda    : 8.5s , 3.5 GB
 -- Coq     : stack overflow
 convNfun1M [elaborate] : Eq (nfun n1M) (nfun n1MB) = refl
@@ -712,7 +712,7 @@ STLCStress [elaborate] : Tm nil (fun (fun ι ι) (fun ι ι))
 
      ))
 
--- smalltt : 70 ms , 46 MB
+-- smalltt : 50 ms , 46 MB
 -- Coq, Agda : can't benchmark precisely (too fast to measure by hand)
 -- Coq seems subjectively as fast as smalltt, Agda a bit slower
-STLCEvalTest [elaborate] = EvalTm STLCStress tt
+STLCEvalTest [normalize] = EvalTm STLCStress tt

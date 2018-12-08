@@ -52,6 +52,7 @@ data Val
   = VNe Head VSpine
   | VLam (Named Icit) {-# unpack #-} VCl
   | VPi (Named Icit) ~VTy {-# unpack #-} VCl
+  | VFun ~VTy ~VTy
   | VU
   | VIrrelevant
 
@@ -59,6 +60,7 @@ data Glued
   = GNe Head GSpine VSpine
   | GLam (Named Icit) {-# unpack #-} GCl
   | GPi (Named Icit)  {-# unpack #-} GVTy {-# unpack #-} GCl
+  | GFun {-# unpack #-} GVTy {-# unpack #-} GVTy
   | GU
   | GIrrelevant
 

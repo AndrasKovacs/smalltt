@@ -42,7 +42,7 @@ Setup:
 | Coq (Eval cbv)            |  1.1s   |  270 MB |
 | Coq (Eval lazy)           |  2.8s   |  290 MB |
 | Agda                      |  ~5.5s  |  ~635 MB |
-| Coq (Eval native_compute) |  failed to compile | 
+| Coq (Eval native_compute) |  failed to compile |
 
 #### Conversion checking 100k-sized Church numerals
 
@@ -88,6 +88,6 @@ Setup:
 
 | | Time | Space |
 | --- | :--- | :--- |
-| smalltt | 1.33s  | 925 MB |
+| smalltt | 0.9s  | 900 MB |
 | Agda    | 8.5s | 3.5 GB |
 | Coq     | stack overflow |

@@ -52,6 +52,8 @@ prettyTm prec = go (prec /= 0) where
     Lam (Named (disamb ns -> x) i) t ->
       showParen p (("λ "++) . goLamBind x i . goLam (NSnoc ns x) t)
     t@Pi{}            -> showParen p (goPi False ns t)
+    Fun t u           -> showParen p (go (case t of App{} -> False; _ -> True) ns t
+                                      . (" → "++) . go False ns u)
     U                 -> ("U"++)
     Irrelevant        -> ("Irr"++)
 
@@ -66,12 +68,7 @@ prettyTm prec = go (prec /= 0) where
     icit i bracket (showParen True) ((T.unpack x++) . (" : "++) . go False ns a)
 
   goPi :: Bool -> Names -> Tm -> ShowS
-  goPi p ns (Pi (Named (disamb ns -> x) i) a b)
-    | i == Impl || not (T.null x) = goPiBind x i ns a . goPi True (NSnoc ns x) b
-    | otherwise =
-       (if p then (" → "++) else id) .
-       go (case a of App{} -> False; _ -> True) ns a .
-       (" → "++) . go False (NSnoc ns "") b
+  goPi p ns (Pi (Named (disamb ns -> x) i) a b) = goPiBind x i ns a . goPi True (NSnoc ns x) b
   goPi p ns t = (if p then (" → "++) else id) . go False ns t
 
   goLamBind :: Name -> Icit -> ShowS
