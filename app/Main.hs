@@ -39,7 +39,7 @@ load (Just path) = do
             (ntbl, telab) <- timed $ try (checkProgram prog) >>= \case
               Left (e :: SomeException) -> mempty <$ (putStrLn $ displayException e)
               Right ntbl -> pure ntbl
-            putStrLn ("file elaborated in " ++ show telab)
+            putStrLn ("file \"" ++ path ++ "\" elaborated in " ++ show telab)
             pure ntbl
 
   putStrLn ("total load time: " ++ show ttotal)

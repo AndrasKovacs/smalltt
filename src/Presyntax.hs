@@ -7,11 +7,12 @@ type Ty' = Tm'
 type Tm  = Posed Tm'
 type Ty  = Posed Ty'
 
-type Profiling = Bool
+data Profiling = PElabTime | PNormalizeTime
+  deriving Show
 
 data TopEntry
-  = TEPostulate  Profiling (Posed Name) {-# unpack #-} Ty
-  | TEDefinition Profiling (Posed Name) {-# unpack #-} Ty {-# unpack #-} Tm
+  = TEPostulate  (Posed Name) {-# unpack #-} Ty
+  | TEDefinition (Posed Name) (Maybe Profiling) {-# unpack #-} Ty {-# unpack #-} Tm
   deriving Show
 
 type Program = [TopEntry]

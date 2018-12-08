@@ -7,9 +7,9 @@ module Common where
 import Data.Bits
 import Data.Text.Short (ShortText)
 import Data.Time.Clock
-import Text.Megaparsec.Pos (SourcePos)
-import GHC.Types (IO(..))
 import GHC.Magic (runRW#)
+import GHC.Types (IO(..))
+import Text.Megaparsec.Pos (SourcePos)
 
 data Icit = Expl | Impl deriving (Eq, Show)
 
@@ -103,7 +103,15 @@ data T3 a b c = T3 a b c deriving (Eq, Show)
 
 timed :: IO a -> IO (a, NominalDiffTime)
 timed a = do
-  t1 <- getCurrentTime
+  t1  <- getCurrentTime
   res <- a
-  t2 <- getCurrentTime
+  t2  <- getCurrentTime
+  pure (res, diffUTCTime t2 t1)
+{-# inline timed #-}
+
+timedPure :: a -> IO (a, NominalDiffTime)
+timedPure ~a = do
+  t1  <- getCurrentTime
+  let res = a
+  t2  <- getCurrentTime
   pure (res, diffUTCTime t2 t1)

@@ -480,7 +480,7 @@ newMeta cxt = do
   pure (go bis)
 
 check :: Cxt -> P.Tm -> GVTy -> IO Tm
-check cxt (updPos -> Posed pos t) (GV gwant vwant) = case (t, gForce gwant) of
+check cxt (Posed pos t) (GV gwant vwant) = updPos pos >> case (t, gForce gwant) of
   (P.Lam x ni t, GPi (Named x' i') a b) | (case ni of NOName y -> y == x'
                                                       NOImpl   -> i' == Impl
                                                       NOExpl   -> i' == Expl) ->
@@ -545,7 +545,7 @@ inferVar cxt n = do
 {-# inline inferVar #-}
 
 infer :: MetaInsertion -> Cxt -> P.Tm -> IO (T2 Tm GVTy)
-infer ins cxt (updPos -> Posed pos t) = case t of
+infer ins cxt (Posed pos t) = updPos pos >> case t of
   P.U -> pure (T2 U gvU)
 
   P.StopMetaIns t -> infer MINo cxt t
@@ -606,10 +606,9 @@ guardUnsolvedMetas :: IO ()
 guardUnsolvedMetas = do
   arr <- UA.last metas
   i   <- subtract 1 <$> UA.size metas
-  A.anyIx (\j -> \case MEUnsolved -> reportError (printf "Unsolved meta: ?%d.%d" i j)
-                       _ -> False)
-          arr
-  pure ()
+  A.forMIx_ arr $ \j -> \case
+    MEUnsolved -> reportError (printf "Unsolved meta: ?%d.%d" i j)
+    _          -> pure ()
 
 checkTopEntry :: NameTable -> P.TopEntry -> IO NameTable
 checkTopEntry ntbl e = do
@@ -617,23 +616,29 @@ checkTopEntry ntbl e = do
   let cxt = initCxt ntbl
   x <- A.size top
   case e of
-    P.TEPostulate prof (updPos -> Posed pos n) a -> do
+    P.TEPostulate (Posed pos n) a -> updPos pos >> do
       ((), time) <- timed $ do
         a <- check cxt a gvU
         guardUnsolvedMetas
         A.push top (TopEntry (Posed pos n) EDPostulate (EntryTy a (gvEval' cxt a)))
-      when prof $ printf "Postulate \"%s\": elaborated in %s\n" n (show time)
       pure (addName n (NITop pos x) ntbl)
-    P.TEDefinition prof (updPos -> Posed pos n) a t -> do
-      ((), time) <- timed $ do
+    P.TEDefinition (Posed pos n) prof a t -> updPos pos >> do
+      (GV gt _, time) <- timed $ do
         a <- check cxt a gvU
         let gva = gvEval' cxt a
         t <- check cxt t gva
         guardUnsolvedMetas
         let gvt = gvEval' cxt t
         A.push top (TopEntry (Posed pos n) (EDDefinition t gvt) (EntryTy a gva))
-        pure ()
-      when prof $ printf "Definition \"%s\" elaborated in %s\n" n (show time)
+        pure gvt
+      case prof of
+        Nothing -> pure ()
+        Just P.PElabTime ->
+          printf "Definition \"%s\" elaborated in %s\n" n (show time)
+        Just P.PNormalizeTime -> do
+          (nt, time) <- timedPure (gQuote 0 gt)
+          printf "Definition \"%s\" normalized in %s\n"
+                 n (show time)
       pure (addName n (NITop pos x) ntbl)
 
 checkProgram :: P.Program -> IO NameTable

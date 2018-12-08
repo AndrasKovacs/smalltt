@@ -204,7 +204,8 @@ vcons : {a n} → a → Vec a n → Vec a (suc n)
 
 vec1 = vcons true (vcons false (vcons true vnil))
 
--- Note: putting [profiling] after a top-level name will cause
+
+-- Note: putting [elaborate] after a top-level name will cause
 -- elaboration time for that entry to be displayed on load.
 
 
@@ -212,7 +213,7 @@ vec1 = vcons true (vcons false (vcons true vnil))
 -- smalltt : 3.8ms , 6.3 MB
 -- Coq     : 300ms , 280 MB
 -- Agda    : ~3s   , 330 MB
-vecStress [profiling] =
+vecStress [elaborate] =
    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
@@ -387,12 +388,12 @@ nfun : Nat → U
 -- smalltt : approx check succeds
 -- Coq     : approx check succeds
 -- Agda    : approx check fails
-synEqTest1 : nfun n10k → nfun n10k = λ x. x
+synEqTest1 [elaborate] : nfun n10k → nfun n10k = λ x. x
 
 -- Coq     : approx check succeeds
 -- Agda    : approx check succeeds
 -- smalltt : approx check fails
--- synEqTest2 : Eq n1M n1M = refl
+synEqTest2 [elaborate] : Eq n1M n1M = refl
 
 {- I note: approx check failed above in smalltt because of the following: the
    inferred type of refl is Eq {?1} ?2 ?2, we need to unify (Eq {?1} ?2 ?2) with
@@ -429,7 +430,7 @@ assume refl2 : {A x} → Eq2 {A} x x
 -- smalltt : approx check succeeds
 -- Agda    : approx check succeeds
 -- Coq     : approx check succeeds
-synEqTest3 : Eq2 n1M n1M = refl2
+synEqTest3 [elaborate] : Eq2 n1M n1M = refl2
 
 
 -- Classic examples for exponential-time Hindley-Milner checking.
@@ -441,14 +442,14 @@ synEqTest3 : Eq2 n1M n1M = refl2
 -- smalltt: instant
 -- Agda   : instant
 -- Coq    : doesn't finish
-idStress : {A} → A → A
+idStress [elaborate] : {A} → A → A
  = id id id id id id id id id id id id id id id id id id id id
    id id id id id id id id id id id id id id id id id id id id
 
 -- smalltt : instant
 -- Agda    : doesn't finish
 -- Coq     : doesn't finish
-pairStress : Top
+pairStress [elaborate] : Top
  = let x0  = pair tt  tt  in
    let x1  = pair x0  x0  in
    let x2  = pair x1  x1  in
@@ -481,6 +482,9 @@ forceNat : Nat → Bool
  = λ n. n _ (λ x. x) true
 
 
+-- Note: [normalize] prints normalization time for definition on load
+
+
 -- GHC -O2 -fllvm            : 14ms   , 0 MB
 -- Coq (Eval vm_compute)     : 0.23s  , 82 MB
 -- smalltt                   : 0.53s  , 6.3 MB
@@ -489,7 +493,7 @@ forceNat : Nat → Bool
 -- Coq (Eval lazy)           : 2.8s   , 290 MB
 -- Agda                      : ~5.5s  , ~635 MB
 -- Coq (Eval native_compute) : compilation failure
-compute10M = forceNat n10M
+compute10M [normalize]  = forceNat n10M
 
 
 -- Lazy/call-by-need evaluation
@@ -508,12 +512,12 @@ localCBN : Nat → Bool
  = λ n. let m = forceNat (mul n n100k) in
         n _ (λ b. and m b) true
 
+
 -- smalltt         : local cbn works
 -- Coq (Eval lazy) : local cbn works
 -- Agda            : local cbn works
-
--- cbnReference = forceNat (mul n10 n100k)
--- localCBNtest : Bool = localCBN n10
+cbnReference [normalize] = forceNat (mul n10 n100k)
+localCBNtest [normalize] = localCBN n10
 
 
 -- Conversion checking
@@ -522,41 +526,32 @@ localCBN : Nat → Bool
 -- smalltt : 27ms  , 6.2 MB
 -- Agda    : 0.6s  , 57 MB
 -- Coq     : 1s    , 340 MB
--- conv100k : Eq n100k n100kb = refl
-
+conv100k [elaborate] : Eq n100k n100kb = refl
 
 -- smalltt : 0.31s , 6.2 MB
 -- Agda    : 3.5s  , 1 GB
 -- Coq     : stack overflow
--- conv1M : Eq n1M n1MB = refl
-
+conv1M [elaborate] : Eq n1M n1MB = refl
 
 -- smalltt : 2.7s, 6.2 MB
 -- Coq     : stack overflow
 -- Agda    : out of memory
--- conv1M : Eq n10M n10MB
---  = refl
-
-
--- smalltt : 1.33s, 925 MB
--- Agda    : 8.5s , 3.5 GB
--- Coq     : stack overflow
--- convNfun1M : Eq (nfun n1M) (nfun n1MB)
---   = refl
-
-
--- Conversion check in the presence of metas (note Agda/Coq death)
+conv10M [elaborate] : Eq n10M n10MB = refl
 
 -- smalltt : 3.5ms,  6 MB
 -- Coq     : 0.1s ,  220 MB
 -- Agda    : out of memory
--- conv10kmeta : Eq n10k (add n10kb _) = refl
-
+conv10kmeta [elaborate] : Eq n10k (add n10kb _) = refl
 
 -- smalltt : 0.31s, 6 MB
 -- Agda    : out of memory
 -- Coq     : stack overflow
--- conv1Mmeta : Eq n1M (add n1MB _) = refl
+conv1Mmeta [elaborate] : Eq n1M (add n1M _) = refl
+
+-- smalltt : 1.33s, 925 MB
+-- Agda    : 8.5s , 3.5 GB
+-- Coq     : stack overflow
+convNfun1M [elaborate] : Eq (nfun n1M) (nfun n1MB) = refl
 
 
 -- Church-coded simply typed lambda calculus
@@ -644,7 +639,7 @@ EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
 -- smalltt : 37ms  , 6   MB
 -- Coq     : 270ms , 240 MB
 -- Agda    : 2.5s  , 120 MB
-t1 [profiling] : Tm nil (fun (fun ι ι) (fun ι ι))
+STLCStress [elaborate] : Tm nil (fun (fun ι ι) (fun ι ι))
  = lam (lam (
       app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
@@ -720,4 +715,4 @@ t1 [profiling] : Tm nil (fun (fun ι ι) (fun ι ι))
 -- smalltt : 70 ms , 46 MB
 -- Coq, Agda : can't benchmark precisely (too fast to measure by hand)
 -- Coq seems subjectively as fast as smalltt, Agda a bit slower
-evalTest = EvalTm t1 tt
+STLCEvalTest [elaborate] = EvalTm STLCStress tt

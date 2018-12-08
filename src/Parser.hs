@@ -204,21 +204,21 @@ pTm = pLam <|> pLet <|> pPiOrSpine
 
 pPostulate :: Parser TopEntry
 pPostulate = nonIndented $
-  indent (symbol "assume") $ \_ -> do
-    i <- withPos pIdent
-    prof <- maybe False (\_ -> True) <$>
-            optional (brackets (symbol "profiling"))
-    TEPostulate prof i <$> (char ':' *> pTm)
+  indent (symbol "assume") $ \_ ->
+    TEPostulate <$> withPos pIdent <*> (char ':' *> pTm)
+
+pProfiling :: Parser (Maybe Profiling)
+pProfiling = optional $ brackets $
+  (PElabTime <$ symbol "elaborate") <|> (PNormalizeTime <$ symbol "normalize")
 
 pDefinition :: Parser TopEntry
 pDefinition = nonIndented $ indent (withPos pIdent) $ \x@(Posed pos _) -> do
-  prof <- maybe False (\_ -> True) <$>
-          optional (brackets (symbol "profiling"))
+  profiling <- pProfiling
   a <- optional (char ':' *> pTm)
   t <- char '=' *> pTm
   case a of
-    Just a  -> pure (TEDefinition prof x a t)
-    Nothing -> pure (TEDefinition prof x (Posed pos Hole) t)
+    Just a  -> pure (TEDefinition x profiling a t)
+    Nothing -> pure (TEDefinition x profiling (Posed pos Hole) t)
 
 pProgram :: Parser Program
 pProgram = many (pPostulate <|> pDefinition)

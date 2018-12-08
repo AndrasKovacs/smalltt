@@ -67,14 +67,14 @@ currPos :: IORef SourcePos
 currPos = runIO (newIORef (initialPos ""))
 {-# noinline currPos #-}
 
-updPos :: Posed a -> Posed a
-updPos (Posed p a) = runIO (writeIORef currPos p >> pure (Posed p a))
+updPos :: SourcePos -> IO ()
+updPos = writeIORef currPos
 {-# inline updPos #-}
 
-reportError ∷ String → a
-reportError msg =
-  let pos = runIO (readIORef currPos)
-  in error (sourcePosPretty pos ++ ":\n\n" ++ msg ++ "\n")
+reportError :: String -> IO a
+reportError msg = do
+  pos <- readIORef currPos
+  error (sourcePosPretty pos ++ ":\n\n" ++ msg ++ "\n")
 
 --------------------------------------------------------------------------------
 

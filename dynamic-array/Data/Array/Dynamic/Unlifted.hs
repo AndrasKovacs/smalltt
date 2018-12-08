@@ -21,6 +21,8 @@ module Data.Array.Dynamic.Unlifted (
   , Data.Array.Dynamic.Unlifted.all
   , anyIx
   , allIx
+  , forM_
+  , forMIx_
   ) where
 
 import qualified Data.Primitive.PrimArray     as PA
@@ -210,3 +212,17 @@ anyIx f = foldlIx' (\b i a -> f i a || b) False
 allIx :: PrimUnlifted a => (Int -> a -> Bool) -> Array a -> IO Bool
 allIx f = foldlIx' (\b i a -> f i a && b) True
 {-# inline allIx #-}
+
+forM_ :: PrimUnlifted a => Array a -> (a -> IO b) -> IO ()
+forM_ arr f = go (0 :: Int) where
+  go i = do
+    s <- size arr
+    if i == s then pure () else do {x <- unsafeRead arr i; f x; go (i + 1)}
+{-# inline forM_ #-}
+
+forMIx_ :: PrimUnlifted a => Array a -> (Int -> a -> IO b) -> IO ()
+forMIx_ arr f = go (0 :: Int) where
+  go i = do
+    s <- size arr
+    if i == s then pure () else do {x <- unsafeRead arr i; f i x; go (i + 1)}
+{-# inline forMIx_ #-}
