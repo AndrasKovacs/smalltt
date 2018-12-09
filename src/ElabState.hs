@@ -43,7 +43,7 @@ topRigidity x = case _entryDef (lookupTop x) of
 -- Meta state
 --------------------------------------------------------------------------------
 
-data MetaEntry = MEUnsolved | MESolved Tm {-# unpack #-} GV
+data MetaEntry = MEUnsolved SourcePos | MESolved SourcePos Tm {-# unpack #-} GV
 
 metas :: UA.Array (A.Array MetaEntry)
 metas = runIO UA.empty
@@ -71,9 +71,13 @@ updPos :: SourcePos -> IO ()
 updPos = writeIORef currPos
 {-# inline updPos #-}
 
+getPos :: IO SourcePos
+getPos = readIORef currPos
+{-# inline getPos #-}
+
 reportError :: String -> IO a
 reportError msg = do
-  pos <- readIORef currPos
+  pos <- getPos
   error (sourcePosPretty pos ++ ":\n\n" ++ msg ++ "\n")
 
 --------------------------------------------------------------------------------

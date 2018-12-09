@@ -44,7 +44,7 @@ gEvalBox :: GEnv -> VEnv -> Tm -> Box Glued
 gEvalBox gs vs = \case
   LocalVar x  -> gLocal gs x
   TopVar   x  -> gTop x
-  MetaVar  x  -> case lookupMeta x of MESolved _  (GV g _) -> Box g; _ -> Box (GMeta x)
+  MetaVar  x  -> case lookupMeta x of MESolved _ _  (GV g _) -> Box g; _ -> Box (GMeta x)
   t           -> Box (gEval gs vs t)
 {-# inline gEvalBox #-}
 
@@ -52,7 +52,7 @@ gEval :: GEnv -> VEnv -> Tm -> Glued
 gEval gs vs = \case
   LocalVar x  -> let Box g = gLocal gs x in g
   TopVar   x  -> let Box g = gTop x in g
-  MetaVar  x  -> case lookupMeta x of MESolved _  (GV g _) -> g; _ -> GMeta x
+  MetaVar  x  -> case lookupMeta x of MESolved _ _  (GV g _) -> g; _ -> GMeta x
   AppI t u    -> let Box gu = gEvalBox gs vs u
                  in gAppI (gEval gs vs t) (GV gu (vEval vs u))
   AppE t u    -> let Box gu = gEvalBox gs vs u
@@ -91,7 +91,7 @@ gAppSpine _ _              _           = error "gAppSpine: impossible"
 
 gForce :: Glued -> Glued
 gForce = \case
-  GNe (HMeta x) gs vs | MESolved _ (GV g v) <- lookupMeta x -> gForce (gAppSpine g gs vs)
+  GNe (HMeta x) gs vs | MESolved _ _ (GV g v) <- lookupMeta x -> gForce (gAppSpine g gs vs)
   g -> g
 
 --------------------------------------------------------------------------------

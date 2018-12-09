@@ -136,7 +136,8 @@ lams l ns = go where
 registerSolution :: Meta -> Tm -> IO ()
 registerSolution (Meta i j) t = do
   arr <- UA.unsafeRead metas i
-  A.unsafeWrite arr j (MESolved t (gvEval ENil ENil t))
+  pos <- getPos
+  A.unsafeWrite arr j (MESolved pos t (gvEval ENil ENil t))
 {-# inline registerSolution #-}
 
 vShowTm :: Cxt -> Val -> String
@@ -288,17 +289,17 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
     -- meta sides
     (v@(VNe (HMeta x) vsp), v')
-      | MESolved _ (GV _ v) <- lookupMeta x ->
+      | MESolved _ _ (GV _ v) <- lookupMeta x ->
         if u > 0 then go l (u - 1) ns r (vAppSpine v vsp) v'
                  else cantUnify l ns Flex v v'
-      | MEUnsolved <- lookupMeta x, Rigid <- r ->
+      | MEUnsolved _ <- lookupMeta x, Rigid <- r ->
         solve l ns x vsp v'
 
     (v, v'@(VNe (HMeta x') vsp'))
-      | MESolved _ (GV _ v') <- lookupMeta x' ->
+      | MESolved _ _ (GV _ v') <- lookupMeta x' ->
         if u > 0 then go l (u - 1) ns r v (vAppSpine v' vsp')
                  else cantUnify l ns Flex v v'
-      | MEUnsolved <- lookupMeta x', Rigid <- r ->
+      | MEUnsolved _ <- lookupMeta x', Rigid <- r ->
         solve l ns  x' vsp' v
 
     -- top sides
@@ -486,7 +487,8 @@ newMeta cxt = do
   i     <- subtract 1 <$> UA.size metas
   arr   <- UA.unsafeRead metas i
   j     <- A.size arr
-  A.push arr MEUnsolved
+  pos   <- getPos
+  A.push arr (MEUnsolved pos)
   let l   = _size cxt
       bis = _boundIndices cxt
       go BINil          = MetaVar (Meta i j)
@@ -638,8 +640,8 @@ guardUnsolvedMetas = do
   arr <- UA.last metas
   i   <- subtract 1 <$> UA.size metas
   A.forMIx_ arr $ \j -> \case
-    MEUnsolved -> reportError (printf "Unsolved meta: ?%d.%d" i j)
-    _          -> pure ()
+    MEUnsolved _ -> reportError (printf "Unsolved meta: ?%d.%d" i j)
+    _            -> pure ()
 
 checkTopEntry :: NameTable -> P.TopEntry -> IO NameTable
 checkTopEntry ntbl e = do
@@ -691,7 +693,7 @@ renderElabOutput = do
       go (i, TopEntry (Posed _ n)  def (EntryTy a _)) ms = do
         ms <- A.foldr' (:) [] ms
         let metaBlock = map
-              (\case (j, (MESolved t _)) -> printf "  %d.%d = %s" i j (showTm0 t)
+              (\case (j, (MESolved _ t _)) -> printf "  %d.%d = %s" i j (showTm0 t)
                      _                   -> error "renderElabOutput: impossible")
               (zip [(0 :: Int)..] ms)
             thisDef :: String
