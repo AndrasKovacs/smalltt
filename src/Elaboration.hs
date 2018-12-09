@@ -40,11 +40,12 @@ import Data.IORef
 
 import Common
 import ElabState
+import Errors
 import Evaluation
+import Pretty
 import Syntax
 import Values
 import qualified Presyntax as P
-import Pretty
 
 
 -- Local elaboration context
@@ -137,11 +138,11 @@ registerSolution :: Meta -> Tm -> IO ()
 registerSolution (Meta i j) t = do
   arr <- UA.unsafeRead metas i
   pos <- getPos
-  A.unsafeWrite arr j (MESolved pos t (gvEval ENil ENil t))
+  A.unsafeWrite arr j (MESolved (gvEval ENil ENil t) t pos)
 {-# inline registerSolution #-}
 
 vShowTm :: Cxt -> Val -> String
-vShowTm cxt = showTm (_names cxt) . vQuote (_size cxt)
+vShowTm cxt = showTm (_names cxt) . vQuoteMetaless (_size cxt)
 
 gShowTm :: Cxt -> Glued -> String
 gShowTm cxt = showTm (_names cxt) . gQuote (_size cxt)
@@ -181,19 +182,10 @@ Scope check:
 
 -}
 
-data ElabError = EEFlex String | EERigid String deriving Show
-instance Exception ElabError
 
-mkError :: Rigidity -> String -> ElabError
-mkError Flex ~msg = let pos = runIO (readIORef currPos)
-                    in EEFlex (sourcePosPretty pos ++ ":\n\n" ++ msg ++ "\n")
-mkError _    ~msg = let pos = runIO (readIORef currPos)
-                    in EERigid (sourcePosPretty pos ++ ":\n\n" ++ msg ++ "\n")
-{-# inline mkError #-}
-
--- we need a version of vRename which throws and aborts, and a version which
--- always returns a Tm, possibly together with a flex or rigid error.
-vQuoteSolution :: (ElabError -> IO ()) -> Lvl -> Meta -> T2 Lvl Renaming -> Val -> IO Tm
+-- Throws (LocalError SolutionError)
+vQuoteSolution ::
+  (LocalError SolutionError -> IO ()) -> Lvl -> Meta -> T2 Lvl Renaming -> Val -> IO Tm
 vQuoteSolution throwAction = \l occurs (T2 renl ren) ->
   let
     shift = l - renl
@@ -203,12 +195,12 @@ vQuoteSolution throwAction = \l occurs (T2 renl ren) ->
       VNe h vsp -> case h of
         HLocal x -> case applyRen ren x of
           (-1)   -> do
-                      throwAction $ mkError r (printf "Out of scope variable: %d" x)
+                      throwAction (localError r (SEScope x))
                       pure Irrelevant
           y      -> goSp l r ren (LocalVar (l - shift - y - 1)) vsp
         HTop   x -> goSp l (topRigidity x `meld` r) ren (TopVar x) vsp
         HMeta  x | x == occurs -> do
-                     throwAction $ mkError r "Occurs check"
+                     throwAction (localError r SEOccurs)
                      pure Irrelevant
                  | otherwise -> goSp l (metaRigidity x `meld` r) ren (MetaVar x) vsp
       VLam x t    -> Lam x <$> go (l + 1) r (RCons l (l - shift) ren) (vInst t (VLocal l))
@@ -229,10 +221,11 @@ vQuoteSolutionShortCut :: Lvl -> Meta -> T2 Lvl Renaming -> Val -> IO Tm
 vQuoteSolutionShortCut = vQuoteSolution throw
 {-# inline vQuoteSolutionShortCut #-}
 
-vQuoteSolutionRefError :: IORef (Maybe ElabError) -> Lvl -> Meta -> T2 Lvl Renaming -> Val -> IO Tm
-vQuoteSolutionRefError ref = vQuoteSolution (writeIORef ref . Just)
+vQuoteSolutionRefError ::
+     IORef (Maybe (LocalError SolutionError))
+  -> Lvl -> Meta -> T2 Lvl Renaming -> Val -> IO Tm
+vQuoteSolutionRefError ref = vQuoteSolution (\e -> writeIORef ref (Just e))
 {-# inline vQuoteSolutionRefError #-}
-
 
 type Unfolding = Int
 
@@ -244,23 +237,23 @@ unfoldLimit :: Unfolding
 unfoldLimit = 2
 {-# inline unfoldLimit #-}
 
+-- throws (LocalError UnifyError)
 vUnify :: Cxt -> Val -> Val -> IO ()
 vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
   go :: Lvl -> Unfolding -> Names -> Rigidity -> Val -> Val -> IO ()
   go l u ns r v v' = case (v, v') of
-    -- irrelevance
     (VIrrelevant, _) -> pure ()
     (_, VIrrelevant) -> pure ()
 
-    -- solve with same heads
+    -- same heads
     (VU, VU) -> pure ()
 
     (VLam (Named n i) t, VLam _ t') -> let var = VLocal l in
       go (l + 1) u (NSnoc ns n) r (vInst t var) (vInst t' var)
     (VLam (Named n i) t, t'       ) -> let var = VLocal l in
       go (l + 1) u (NSnoc ns n) r (vInst t var) (vApp i t' var)
-    (t       , VLam (Named n' i') t') -> let var = VLocal l in
+    (t     , VLam (Named n' i') t') -> let var = VLocal l in
       go (l + 1) u (NSnoc ns n') r (vApp i' t var) (vInst t' var)
 
     (VPi (Named n i) a b, VPi (Named _ i') a' b') | i == i' -> do
@@ -289,14 +282,14 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
     -- meta sides
     (v@(VNe (HMeta x) vsp), v')
-      | MESolved _ _ (GV _ v) <- lookupMeta x ->
+      | MESolved (GV _ v) _ _ <- lookupMeta x ->
         if u > 0 then go l (u - 1) ns r (vAppSpine v vsp) v'
                  else cantUnify l ns Flex v v'
       | MEUnsolved _ <- lookupMeta x, Rigid <- r ->
         solve l ns x vsp v'
 
     (v, v'@(VNe (HMeta x') vsp'))
-      | MESolved _ _ (GV _ v') <- lookupMeta x' ->
+      | MESolved (GV _ v') _ _ <- lookupMeta x' ->
         if u > 0 then go l (u - 1) ns r v (vAppSpine v' vsp')
                  else cantUnify l ns Flex v v'
       | MEUnsolved _ <- lookupMeta x', Rigid <- r ->
@@ -315,27 +308,30 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
     (v, v') -> cantUnify l ns r v v'
 
-  cantUnify d ns r v v' =
-    throw $ mkError r $
-      printf "Can't (locally) unify\n\n%s\n\nwith\n\n%s"
-        (showTm ns (vQuote d v)) (showTm ns (vQuote d v'))
-
-  checkSpine :: VSpine -> T2 Lvl Renaming
-  checkSpine = go where
-    go SNil = T2 0 RNil
-    go (SAppI vsp v) = case v of
-      VLocal x -> case go vsp of
-        T2 l ren -> T2 (l + 1) (RCons x l ren)
-      _          -> throw $ mkError Flex "non-variable in meta spine"
-    go (SAppE vsp v) = case v of
-      VLocal x -> case go vsp of
-        T2 l ren -> T2 (l + 1) (RCons x l ren)
-      _          -> throw $ mkError Flex "non-variable in meta spine"
+  cantUnify l ns r v v' = throw (localError r (UELocalUnify l ns v v'))
+  {-# inline cantUnify #-}
 
   solve :: Lvl -> Names -> Meta -> VSpine -> Val -> IO ()
   solve l ns x vsp ~v = do
-    let ren = checkSpine vsp
-    rhs <- lams l ns (proj2 ren) <$> vQuoteSolutionShortCut l x ren v
+
+    -- TODO: checkSp can throw Rigid as well
+    let checkSp SNil = T2 0 RNil
+        checkSp (SAppI vsp v) = case v of
+          VLocal x -> case checkSp vsp of
+            T2 l ren -> T2 (l + 1) (RCons x l ren)
+          _        -> throw (LEFlex @UnifyError)
+        checkSp (SAppE vsp v) = case v of
+          VLocal x -> case checkSp vsp of
+            T2 l ren -> T2 (l + 1) (RCons x l ren)
+          _        -> throw (LEFlex @UnifyError)
+
+    let ren = checkSp vsp
+
+    rhs <- (lams l ns (proj2 ren) <$> vQuoteSolutionShortCut l x ren v)
+           `catch`
+           \case LEFlex    -> throw (LEFlex @UnifyError)
+                 LERigid e -> throw (LERigid (UELocalSolution l ns x vsp v e))
+
     registerSolution x rhs
 
   goSp :: Lvl -> Unfolding -> Names -> Rigidity -> VSpine -> VSpine -> IO ()
@@ -345,53 +341,47 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
   goSp _ _ _  r _               _             = error "vUnify.goSp: impossible"
 
 
+-- throws SolutionError
 gvQuoteSolution :: Lvl -> Meta -> T2 Lvl Renaming -> GV -> IO Tm
 gvQuoteSolution l occurs (T2 renl ren) (GV g v) = do
   err <- newIORef Nothing
   rhs <- vQuoteSolutionRefError err l occurs (T2 renl ren) v
   let shift = l - renl
   readIORef err >>= \case
-    Nothing            -> pure rhs
-    Just (EERigid msg) -> error msg
-    Just (EEFlex msg)  -> go l ren g >> pure rhs where
+    Nothing          -> pure rhs
+    Just (LERigid e) -> throw e
+    Just LEFlex      -> go l ren g >> pure rhs where
 
       go :: Lvl -> Renaming -> Glued -> IO ()
       go l ren g = case gForce g of
         GNe h gsp _ -> do
           case h of
             HLocal x -> case applyRen ren x of
-              (-1)   -> reportError "ill-scoped solution candidate"
+              (-1)   -> throw (SEScope x)
               _      -> pure ()
             HTop{} -> pure ()
-            HMeta x | x == occurs -> reportError "occurs check"
+            HMeta x | x == occurs -> throw SEOccurs
                     | otherwise   -> pure ()
           goSp l ren gsp
-        GLam x t -> go (l + 1) (RCons l (l - shift) ren) (gInst t (gvLocal l))
-        GPi x (GV a _) b -> go l ren a >> go (l + 1) (RCons l (l - shift) ren) (gInst b (gvLocal l))
+        GLam x t               -> go (l + 1) (RCons l (l - shift) ren) (gInst t (gvLocal l))
+        GPi x (GV a _) b       -> go l ren a >> go (l + 1) (RCons l (l - shift) ren) (gInst b (gvLocal l))
         GFun (GV a _) (GV b _) -> go l ren a >> go l ren b
-        GU -> pure ()
-        GIrrelevant -> pure ()
+        GU                     -> pure ()
+        GIrrelevant            -> pure ()
 
       goSp :: Lvl -> Renaming -> GSpine -> IO ()
       goSp l ren SNil          = pure ()
       goSp l ren (SAppI gsp g) = goSp l ren gsp >> go l ren g
       goSp l ren (SAppE gsp g) = goSp l ren gsp >> go l ren g
 
+-- throws UnifyError
 gvUnify :: Cxt -> GV -> GV -> IO ()
 gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
-  catch (do
-    -- let t1 = vShowTm cxt v
-    --     t2 = vShowTm cxt v'
-    vUnify cxt v v' -- <* traceM (printf "locally unified: %s   %s" t1 t2)
-    )
-  $ \case
-    EERigid msg -> error msg
-    EEFlex  msg -> do
-      -- traceM (printf "failed local unify: %s\n%s\n%s\n%s"
-      --          (show (vQuote (_size cxt) v)) (show (vQuote (_size cxt) v'))
-      --         (vShowTm cxt v) (vShowTm cxt v'))
-      -- traceM (printf "trying global unify: %s   %s" (gShowTm cxt g) (gShowTm cxt g'))
-      go (_size cxt) (_names cxt) gv gv'
+  vUnify cxt v v'
+  `catch`
+  \case
+    LERigid e -> throw (e :: UnifyError)
+    LEFlex    -> go (_size cxt) (_names cxt) gv gv'
   where
     go :: Lvl -> Names -> GV -> GV -> IO ()
     go l ns (GV g v) (GV g' v') = case (gForce g, gForce g') of
@@ -406,7 +396,7 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
       (GLam (Named n i) t, t'       ) -> let var = gvLocal l in
         go (l + 1) (NSnoc ns n) (gvInst t var) (gvApp i t' var)
 
-      (t       , GLam (Named n' i') t') -> let var = gvLocal l in
+      (t     , GLam (Named n' i') t') -> let var = gvLocal l in
         go (l + 1) (NSnoc ns n') (gvApp i' t var) (gvInst t' var)
 
       (GPi (Named n i) a b, GPi (Named _ i') a' b') | i == i' -> do
@@ -434,10 +424,7 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
       (GNe (HMeta x) gsp vsp, g') -> solve l ns x gsp (GV g' v')
       (g, GNe (HMeta x') gsp' vsp') -> solve l ns x' gsp' (GV g v)
 
-      (g, g') ->
-        reportError $
-          printf "Can't (globally) unify\n\n%s\n\nwith\n\n%s"
-            (showTm ns (gQuote l g)) (showTm ns (gQuote l g'))
+      (g, g') -> throw (UEGluedUnify l ns (GV g v) (GV g' v'))
 
     goSp :: Lvl -> Names -> GSpine -> GSpine -> VSpine -> VSpine -> IO ()
     goSp l ns (SAppI gsp g) (SAppI gsp' g')
@@ -449,24 +436,25 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
     goSp d ns SNil SNil SNil SNil = pure ()
     goSp _ _  _    _    _    _    = error "gvUnify.goSp: impossible"
 
-    checkSpine :: GSpine -> T2 Lvl Renaming
-    checkSpine = go where
-      go SNil = T2 0 RNil
-      go (SAppI gsp g) = case gForce g of
-        GLocal x -> case go gsp of
-          T2 l ren -> T2 (l + 1) (RCons x l ren)
-        GLam x t -> error "gvUnify: TODO: eta-contraction in meta patterns"
-        _        -> error "gvUnify: non-variable in meta spine"
-      go (SAppE gsp g) = case gForce g of
-        GLocal x -> case go gsp of
-          T2 l ren -> T2 (l + 1) (RCons x l ren)
-        GLam x t -> error "gvUnify: TODO: eta-contraction in meta patterns"
-        _        -> error "gvUnify: non-variable in meta spine"
-
     solve :: Lvl -> Names -> Meta -> GSpine -> GV -> IO ()
     solve l ns x gsp gv = do
-      let ren = checkSpine gsp
+
+      let checkSp SNil          = T2 0 RNil
+          checkSp (SAppI gsp g) = case gForce g of
+            GLocal x -> case checkSp gsp of
+              T2 l ren -> T2 (l + 1) (RCons x l ren)
+            g        -> throw (UEGluedSpine l ns x gsp gv g)
+          checkSp (SAppE gsp g) = case gForce g of
+            GLocal x -> case checkSp gsp of
+              T2 l ren -> T2 (l + 1) (RCons x l ren)
+            _        -> throw (UEGluedSpine l ns x gsp gv g)
+
+      let ren = checkSp gsp
+
       rhs <- lams l ns (proj2 ren) <$> gvQuoteSolution l x ren gv
+             `catch`
+             \case e -> throw (UEGluedSolution l ns x gsp gv e)
+
       registerSolution x rhs
 
 -- Elaboration
@@ -523,35 +511,37 @@ check cxt (Posed pos t) (GV gwant vwant) = updPos pos >> case (t, gForce gwant) 
   (t, gwant) -> do
     T2 t gvhas <- infer MIYes cxt (Posed pos t)
     gvUnify cxt gvhas (GV gwant vwant)
+      `catch`
+      \e -> throw (EECheck (_size cxt) (_names cxt) t (GV gwant vwant) gvhas e)
     pure t
 
 insertMetas :: MetaInsertion -> Cxt -> IO (T2 Tm GVTy) -> IO (T2 Tm GVTy)
 insertMetas ins cxt inp = case ins of
   MINo  -> inp
   MIYes -> do
-    T2 t (GV ga va) <- inp
-    let go t (GV (GPi (Named x Impl) a b) va) = do
+    T2 t gva <- inp
+    let go t (GV (gForce -> GPi (Named x Impl) a b) va) = do
           m <- newMeta cxt
           go (AppI t m) (gvInst b (gvEval' cxt m))
         go t gva = pure (T2 t gva)
-    go t (GV (gForce ga) va)
+    go t gva
   MIUntilName x -> do
-    T2 t (GV ga va) <- inp
-    let go t gva@(GV (GPi (Named x' Impl) a b) va)
+    T2 t gva <- inp
+    let go t gva@(GV (gForce -> GPi (Named x' Impl) a b) va)
           | x  == x'  = pure (T2 t gva)
           | otherwise = do
               m <- newMeta cxt
               go (AppI t m) (gvInst b (gvEval' cxt m))
-        go t a = reportError ("No named implicit argument with name " ++ show x)
-    go t (GV (gForce ga) va)
+        go t gva = throw (EENoNamedArg (_size cxt) (_names cxt) t gva x)
+    go t gva
 {-# inline insertMetas #-}
 
 inferVar :: Cxt -> Name -> IO (T2 Tm GVTy)
-inferVar cxt n = do
-  T2 t gvty@(GV ga va) <- case HM.lookup n (_nameTable cxt) of
-    Nothing -> reportError (printf "Name not in scope: %s" n)
+inferVar cxt n =
+  case HM.lookup n (_nameTable cxt) of
+    Nothing -> throw (EEScope n)
     Just es -> go es where
-      go []               = reportError (printf "Name not in scope: %s" n)
+      go []               = throw (EEScope n)
       go (NITop pos x:es) = do
         EntryTy _ gvty <- _entryTy <$> A.unsafeRead top x
         pure (T2 (TopVar x) gvty)
@@ -559,12 +549,6 @@ inferVar cxt n = do
         NOInserted -> go es
         NOSource   ->
           pure (T2 (LocalVar (_size cxt - x - 1)) (_types cxt !! (_size cxt - x - 1)))
-
-  -- putStrLn (T.unpack n)
-  -- putStrLn (showTm' cxt t)
-  -- putStrLn (gShowTm cxt ga)
-
-  pure (T2 t gvty)
 {-# inline inferVar #-}
 
 infer :: MetaInsertion -> Cxt -> P.Tm -> IO (T2 Tm GVTy)
@@ -575,26 +559,27 @@ infer ins cxt (Posed pos t) = updPos pos >> case t of
 
   -- TODO: do the case where a meta is inferred for "t"
   P.App t u ni -> insertMetas ins cxt $ do
-    T2 t (GV ga va) <- infer
-      (case ni of NOName x -> MIUntilName x
-                  NOImpl   -> MINo
-                  NOExpl   -> MIYes)
-      cxt t
+    let insertion = case ni of
+          NOName x -> MIUntilName x
+          NOImpl   -> MINo
+          NOExpl   -> MIYes
+    T2 t (GV ga va) <- infer insertion cxt t
     case gForce ga of
       GPi (Named x i') a b -> do
         case ni of
           NOName x -> pure ()
-          NOImpl   -> unless (i' == Impl) (reportError "icitness mismatch")
-          NOExpl   -> unless (i' == Expl) (reportError "icitness mismatch")
+          NOImpl   -> unless (i' == Impl)
+                        (updPos (posOf u) >> throw (EEAppIcit t i' Impl))
+          NOExpl   -> unless (i' == Expl)
+                        (updPos (posOf u) >> throw (EEAppIcit t i' Expl))
         u <- check cxt u a
         pure (T2 (app i' t u) (gvInst b (gvEval' cxt u)))
       GFun a b -> do
-        case ni of NOExpl -> pure (); _ -> reportError "icitness mismatch"
+        case ni of NOExpl -> pure ()
+                   _      -> updPos (posOf u) >> throw (EEAppIcit t Expl Impl)
         u <- check cxt u a
         pure (T2 (AppE t u) b)
-      _ -> reportError $
-        printf "Expected a function type for expression:\n\n%s\n\nInferred type:\n\n%s"
-           (showTm' cxt t) (gShowTm cxt ga)
+      ga -> throw (EEFunctionExpected (_size cxt) (_names cxt) t (GV ga va))
 
   P.Pi (Named x i) a b -> do
     a <- check cxt a gvU
@@ -608,9 +593,9 @@ infer ins cxt (Posed pos t) = updPos pos >> case t of
 
   P.Lam x ni t -> insertMetas ins cxt $ do
     i <- case ni of
-      NOName x -> reportError "Can't infer type for lambda with named arguments"
-      NOImpl -> pure Impl
-      NOExpl -> pure Expl
+      NOName x -> throw EENamedLambda
+      NOImpl   -> pure Impl
+      NOExpl   -> pure Expl
     gva@(GV ga va) <- gvEval' cxt <$> newMeta cxt
     T2 t gvb@(GV gb vb) <- infer MIYes (localBindSrc (Posed pos x) gva cxt) t
     let d = _size cxt
@@ -640,7 +625,7 @@ guardUnsolvedMetas = do
   arr <- UA.last metas
   i   <- subtract 1 <$> UA.size metas
   A.forMIx_ arr $ \j -> \case
-    MEUnsolved _ -> reportError (printf "Unsolved meta: ?%d.%d" i j)
+    MEUnsolved _ -> throw (EEUnsolvedMeta (Meta i j))
     _            -> pure ()
 
 checkTopEntry :: NameTable -> P.TopEntry -> IO NameTable
@@ -670,8 +655,7 @@ checkTopEntry ntbl e = do
           printf "Definition \"%s\" elaborated in %s\n" n (show time)
         Just P.PNormalizeTime -> do
           (nt, time) <- timedPure (gQuote 0 gt)
-          printf "Definition \"%s\" normalized in %s\n"
-                 n (show time)
+          printf "Definition \"%s\" normalized in %s\n" n (show time)
       pure (addName n (NITop pos x) ntbl)
 
 checkProgram :: P.Program -> IO NameTable

@@ -44,7 +44,7 @@ gEvalBox :: GEnv -> VEnv -> Tm -> Box Glued
 gEvalBox gs vs = \case
   LocalVar x  -> gLocal gs x
   TopVar   x  -> gTop x
-  MetaVar  x  -> case lookupMeta x of MESolved _ _  (GV g _) -> Box g; _ -> Box (GMeta x)
+  MetaVar  x  -> case lookupMeta x of MESolved (GV g _) _ _ -> Box g; _ -> Box (GMeta x)
   t           -> Box (gEval gs vs t)
 {-# inline gEvalBox #-}
 
@@ -52,7 +52,7 @@ gEval :: GEnv -> VEnv -> Tm -> Glued
 gEval gs vs = \case
   LocalVar x  -> let Box g = gLocal gs x in g
   TopVar   x  -> let Box g = gTop x in g
-  MetaVar  x  -> case lookupMeta x of MESolved _ _  (GV g _) -> g; _ -> GMeta x
+  MetaVar  x  -> case lookupMeta x of MESolved (GV g _) _ _ -> g; _ -> GMeta x
   AppI t u    -> let Box gu = gEvalBox gs vs u
                  in gAppI (gEval gs vs t) (GV gu (vEval vs u))
   AppE t u    -> let Box gu = gEvalBox gs vs u
@@ -91,7 +91,7 @@ gAppSpine _ _              _           = error "gAppSpine: impossible"
 
 gForce :: Glued -> Glued
 gForce = \case
-  GNe (HMeta x) gs vs | MESolved _ _ (GV g v) <- lookupMeta x -> gForce (gAppSpine g gs vs)
+  GNe (HMeta x) gs vs | MESolved (GV g v) _ _ <- lookupMeta x -> gForce (gAppSpine g gs vs)
   g -> g
 
 --------------------------------------------------------------------------------
@@ -193,6 +193,7 @@ gvApp Expl = gvAppE
 -- Quoting
 --------------------------------------------------------------------------------
 
+-- | Quote local value.
 vQuote :: Lvl -> Val -> Tm
 vQuote = go where
   go l = \case
@@ -209,6 +210,7 @@ vQuote = go where
     VU          -> U
     VIrrelevant -> Irrelevant
 
+-- | Quote glued value to full normal form.
 gQuote :: Lvl -> Glued -> Tm
 gQuote = go where
   go l g = case gForce g of
@@ -224,3 +226,23 @@ gQuote = go where
     GFun (GV a _) (GV b _) -> Fun (go l a) (go l b)
     GU                     -> U
     GIrrelevant            -> Irrelevant
+
+-- | Quote local value while unfolding all metas.
+vQuoteMetaless :: Lvl -> Val -> Tm
+vQuoteMetaless = go where
+  go l = \case
+    VNe h vsp   -> case h of
+                     HMeta x | MESolved (GV _ vt) _ _ <- lookupMeta x
+                       -> go l (vAppSpine vt vsp)
+                     HMeta x  -> goSp l (MetaVar x) vsp
+                     HLocal x -> goSp l (LocalVar x) vsp
+                     HTop   x -> goSp l (TopVar x) vsp
+    VLam ni t   -> Lam ni (go (l + 1) (vInst t (VLocal l)))
+    VPi ni a b  -> Pi ni (go l a) (go (l + 1) (vInst b (VLocal l)))
+    VFun a b    -> Fun (go l a) (go l b)
+    VU          -> U
+    VIrrelevant -> Irrelevant
+
+  goSp l h SNil          = h
+  goSp l h (SAppI vsp t) = AppI (goSp l h vsp) (go l t)
+  goSp l h (SAppE vsp t) = AppE (goSp l h vsp) (go l t)

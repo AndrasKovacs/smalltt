@@ -16,6 +16,7 @@ import Evaluation
 import Parser
 import Pretty
 import Values
+import Errors
 
 --------------------------------------------------------------------------------
 
@@ -37,7 +38,9 @@ load (Just path) = do
         Left e     -> mempty <$ (putStrLn $ errorBundlePretty e)
         Right prog -> do
             (ntbl, telab) <- timed $ try (checkProgram prog) >>= \case
-              Left (e :: SomeException) -> mempty <$ (putStrLn $ displayException e)
+              Left (e :: ElabError) -> do
+                displayElabError file e
+                pure mempty
               Right ntbl -> pure ntbl
             putStrLn ("file \"" ++ path ++ "\" elaborated in " ++ show telab)
             pure ntbl
