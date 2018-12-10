@@ -55,6 +55,14 @@ unNamed (Named _ a) = a
 --   32-bit compatible way.
 newtype Meta = MkMeta Int deriving (Eq, Ord)
 
+metaTopLvl :: Meta -> Lvl
+metaTopLvl (Meta i _) = i
+{-# inline metaTopLvl #-}
+
+metaLocalLvl :: Meta -> Lvl
+metaLocalLvl (Meta _ j) = j
+{-# inline metaLocalLvl #-}
+
 unpackMeta :: Meta -> (Int, Int)
 unpackMeta (MkMeta n) = (unsafeShiftR n 32, n .&. 0xFFFFFFFF)
 {-# inline unpackMeta #-}

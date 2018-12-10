@@ -202,7 +202,16 @@ vQuoteSolution throwAction = \l occurs (T2 renl ren) ->
         HMeta  x | x == occurs -> do
                      throwAction (localError r SEOccurs)
                      pure Irrelevant
-                 | otherwise -> goSp l (metaRigidity x `meld` r) ren (MetaVar x) vsp
+                 | otherwise -> do
+                     let xr = metaRigidity x
+                     case metaTopLvl x == metaTopLvl occurs of
+                       True | Flex <- xr -> throwAction LEFlex
+                       _ -> pure ()
+                     goSp l (xr `meld` r) ren (MetaVar x) vsp
+        -- HMeta  x | x == occurs -> do
+        --              throwAction (localError r SEOccurs)
+        --              pure Irrelevant
+        --          | otherwise -> goSp l (metaRigidity x `meld` r) ren (MetaVar x) vsp
       VLam x t    -> Lam x <$> go (l + 1) r (RCons l (l - shift) ren) (vInst t (VLocal l))
       VPi x a b   -> Pi x <$> go l r ren a <*> go (l + 1) r (RCons l (l - shift) ren) (vInst b (VLocal l))
       VFun a b    -> Fun <$> go l r ren a <*> go l r ren b
