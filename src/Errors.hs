@@ -74,7 +74,7 @@ displayElabError file err = do
           report $
             printf
               "Can't unify expected type:\n\n  %s\n\nwith inferred type:\n\n  %s\n\n"
-              (showTm ns (vQuoteMetaless l vwant)) (showTm ns (vQuoteMetaless l vhas))
+              (showTm ns (gQuote l gwant)) (showTm ns (gQuote l ghas))
 
         UEGluedUnify l ns gv gv' ->
           report $
