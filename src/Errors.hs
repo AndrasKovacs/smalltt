@@ -7,6 +7,7 @@ import Text.Megaparsec.Pos
 import Text.Printf
 
 import Common
+import Cxt
 import Syntax
 import Values
 import ElabState
@@ -20,40 +21,46 @@ data SolutionError
 instance Show SolutionError where show _ = "SolutionError"
 instance Exception SolutionError
 
+data FlexRigid a = FRFlex | FRRigid a
+instance Show a => Show (FlexRigid a) where show x = "FlexRigid " ++ show x
+instance Exception a => Exception (FlexRigid a)
+
 data UnifyError
-  = UELocalSolution Lvl Names Meta VSpine Val SolutionError
-  | UELocalUnify Lvl Names Val Val
-  | UEGluedSolution Lvl Names Meta GSpine GV SolutionError
-  | UEGluedUnify Lvl Names GV GV
-  | UELocalSpine Lvl Names Meta VSpine Val Val
-  | UEGluedSpine Lvl Names Meta GSpine GV Glued
+  = UELocalSolution Meta VSpine Val SolutionError
+  | UELocalUnify Val Val
+  | UEGluedSolution Meta GSpine GV SolutionError
+  | UEGluedUnify GV GV
+  | UELocalSpine Meta VSpine Val Val
+  | UEGluedSpine Meta GSpine GV Glued
 
 instance Show UnifyError where show _ = "UnifyError"
 instance Exception UnifyError
 
-data LocalError a
-  = LEFlex
-  | LERigid a
+data LocalError = LocalError Lvl Names UnifyError
 
-instance Show a => Show (LocalError a) where show a = "LocalError " ++ show a
-instance Exception a => Exception (LocalError a)
+instance Show LocalError where show _ = "LocalError"
+instance Exception LocalError
 
 data ElabError
-  = EECheck Lvl Names Tm GVTy GVTy UnifyError
-  | EENoNamedArg Lvl Names Tm GVTy Name
+  = EECheck Tm GVTy GVTy LocalError
+  | EENoNamedArg Tm GVTy Name
   | EEScope Name
   | EEAppIcit Tm Icit Icit
-  | EEFunctionExpected Lvl Names Tm GVTy
+  | EEFunctionExpected Tm GVTy
   | EENamedLambda
   | EEUnsolvedMeta Meta
 
 instance Show ElabError where show _ = "ElabError"
 instance Exception ElabError
 
-localError :: Rigidity -> a -> LocalError a
-localError Flex  _  = LEFlex
-localError Rigid x  = LERigid x
-{-# inline localError #-}
+data TopError = TopError Cxt ElabError
+instance Show TopError where show _ = "TopError"
+instance Exception TopError
+
+makeFR :: Rigidity -> a -> FlexRigid a
+makeFR Flex  _  = FRFlex
+makeFR Rigid x  = FRRigid x
+{-# inline makeFR #-}
 
 reportWithLine :: T.Text -> SourcePos -> String -> IO ()
 reportWithLine file (SourcePos path (unPos -> linum) (unPos -> colnum)) msg = do
@@ -64,31 +71,32 @@ reportWithLine file (SourcePos path (unPos -> linum) (unPos -> colnum)) msg = do
   printf "%  s\n" careted
   printf msg
 
-displayElabError :: T.Text -> ElabError -> IO ()
-displayElabError file err = do
+displayTopError :: T.Text -> TopError -> IO ()
+displayTopError file (TopError cxt err) = do
   report <- reportWithLine file <$> getPos
   case err of
-    EECheck l ns t want@(GV gwant vwant) has@(GV ghas vhas) err -> do
+    EECheck t want@(GV gwant vwant) has@(GV ghas vhas)
+              (LocalError l ns err) -> do
       case err of
-        UELocalUnify l ns v v' ->
+        UELocalUnify v v' ->
           report $
             printf
               "Can't unify expected type:\n\n  %s\n\nwith inferred type:\n\n  %s\n\n"
               (showTm ns (gQuote l gwant)) (showTm ns (gQuote l ghas))
 
-        UEGluedUnify l ns gv gv' ->
+        UEGluedUnify gv gv' ->
           report $
             printf
               "Can't unify expected type:\n\n  %s\n\nwith inferred type:\n\n  %s\n\n"
               (showTm ns (gQuote l gwant)) (showTm ns (gQuote l ghas))
 
-        UELocalSolution l ns x vsp v err -> report "Illegal solution candidate"
-        UEGluedSolution l ns x gsp gv err -> report "Illegal solution candidate"
-        UELocalSpine l ns x vsp rhs v -> report "Non-variable in meta spine"
-        UEGluedSpine l ns x gsp rhs g -> report "Non-variable in meta spine"
+        UELocalSolution x vsp v err  -> report "Illegal solution candidate"
+        UEGluedSolution x gsp gv err -> report "Illegal solution candidate"
+        UELocalSpine    x vsp rhs v  -> report "Non-variable in meta spine"
+        UEGluedSpine    x gsp rhs g  -> report "Non-variable in meta spine"
 
 
-    EENoNamedArg l ns t gva x ->
+    EENoNamedArg t gva x ->
       report $ printf "No implicit argument with name: %s\n\n" x
 
     EEScope x ->
@@ -100,11 +108,11 @@ displayElabError file err = do
           "Expected %s application\n\n"
           (case iwant of Expl -> "explicit"::String; _ -> "implicit")
 
-    EEFunctionExpected l ns t (GV ga va) ->
+    EEFunctionExpected t (GV ga va) ->
       report $
         printf
           "Expected a function type for expression. Inferred type:\n\n  %s\n\n"
-          (showTm ns (gQuote l ga))
+          (showTm (_names cxt) (gQuote (_size cxt) ga))
 
     EENamedLambda ->
       report "Can't infer type for lambda with named implicit argument\n\n"

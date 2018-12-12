@@ -14,7 +14,7 @@ import Text.Megaparsec.Pos (SourcePos)
 data Icit = Expl | Impl deriving (Eq, Show)
 
 -- | If-then-else for 'Icit'.
-icit :: Icit → a → a → a
+icit :: Icit -> a -> a -> a
 icit Impl i e = i
 icit Expl i e = e
 {-# inline icit #-}
@@ -75,6 +75,12 @@ pattern Meta i j <- (unpackMeta -> (i, j)) where
 instance Show Meta where show = show . unpackMeta
 
 data Names = NNil | NSnoc Names {-# unpack #-} Name deriving Show
+
+lookupName :: Ix -> Names -> Name
+lookupName = go where
+  go 0 (NSnoc _ n) = n
+  go n (NSnoc ns _) = go (n - 1) ns
+  go _ _ = error "lookupName: impossible"
 
 -- | The same as 'unsafeDupablePerformIO'.
 runIO :: IO a -> a
