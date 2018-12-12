@@ -38,6 +38,7 @@ default-extensions:
 - PatternGuards
 - PatternSynonyms
 - RankNTypes
+- RecordWildCards
 - RoleAnnotations
 - ScopedTypeVariables
 - StandaloneDeriving

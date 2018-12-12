@@ -59,15 +59,6 @@ registerSolution (Meta i j) t = do
   A.unsafeWrite arr j (MESolved (gvEval ENil ENil t) t pos)
 {-# inline registerSolution #-}
 
-vShowTm :: Cxt -> Val -> String
-vShowTm cxt = showTm (_names cxt) . vQuoteMetaless (_size cxt)
-
-gShowTm :: Cxt -> Glued -> String
-gShowTm cxt = showTm (_names cxt) . gQuote (_size cxt)
-
-showTm' :: Cxt -> Tm -> String
-showTm' cxt = showTm (_names cxt)
-
 
 -- Unification
 --------------------------------------------------------------------------------
@@ -231,7 +222,7 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
     (v, v') -> cantUnify l ns r v v'
 
-  cantUnify l ns r v v' = throw (makeFR r (LocalError l ns (UELocalUnify v v')))
+  cantUnify l ns r v v' = throw (makeFR r (LocalError ns (UELocalUnify v v')))
   {-# inline cantUnify #-}
 
   solve :: Lvl -> Names -> Meta -> VSpine -> Val -> IO ()
@@ -253,7 +244,7 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
     rhs <- (lams l ns (proj2 ren) <$> vQuoteSolutionShortCut l x ren v)
            `catch`
            \case FRFlex    -> throw (FRFlex @LocalError)
-                 FRRigid e -> throw (FRRigid (LocalError l ns (UELocalSolution x vsp v e)))
+                 FRRigid e -> throw (FRRigid (LocalError ns (UELocalSolution x vsp v e)))
 
     registerSolution x rhs
 
@@ -340,14 +331,14 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
       (GNe (HTop x)   gsp vsp, GNe (HTop x')   gsp' vsp') | x == x' -> goSp l ns gsp gsp' vsp vsp'
       (GNe (HLocal x) gsp vsp, GNe (HLocal x') gsp' vsp') | x == x' -> goSp l ns gsp gsp' vsp vsp'
       (g@(GNe (HMeta x) gsp vsp), g'@(GNe (HMeta x')  gsp' vsp')) -> case compare x x' of
-        LT -> solve l ns x' gsp' (GV g v)
-        GT -> solve l ns x gsp (GV g' v')
+        LT -> solve l ns x' vsp' gsp' (GV g v)
+        GT -> solve l ns x vsp gsp (GV g' v')
         EQ -> goSp l ns gsp gsp' vsp vsp'
 
-      (GNe (HMeta x) gsp vsp, g') -> solve l ns x gsp (GV g' v')
-      (g, GNe (HMeta x') gsp' vsp') -> solve l ns x' gsp' (GV g v)
+      (GNe (HMeta x) gsp vsp, g') -> solve l ns x vsp gsp (GV g' v')
+      (g, GNe (HMeta x') gsp' vsp') -> solve l ns x' vsp' gsp' (GV g v)
 
-      (g, g') -> throw (LocalError l ns (UEGluedUnify (GV g v) (GV g' v')))
+      (g, g') -> throw (LocalError ns (UEGluedUnify (GV g v) (GV g' v')))
 
     goSp :: Lvl -> Names -> GSpine -> GSpine -> VSpine -> VSpine -> IO ()
     goSp l ns (SAppI gsp g) (SAppI gsp' g')
@@ -359,24 +350,24 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
     goSp d ns SNil SNil SNil SNil = pure ()
     goSp _ _  _    _    _    _    = error "gvUnify.goSp: impossible"
 
-    solve :: Lvl -> Names -> Meta -> GSpine -> GV -> IO ()
-    solve l ns x gsp gv = do
+    solve :: Lvl -> Names -> Meta -> VSpine -> GSpine -> GV -> IO ()
+    solve l ns x vsp gsp gv = do
 
       let checkSp SNil          = T2 0 RNil
           checkSp (SAppI gsp g) = case gForce g of
             GLocal x -> case checkSp gsp of
               T2 l ren -> T2 (l + 1) (RCons x l ren)
-            g        -> throw (LocalError l ns (UEGluedSpine x gsp gv g))
+            g        -> throw (LocalError ns (UEGluedSpine x vsp gsp gv g))
           checkSp (SAppE gsp g) = case gForce g of
             GLocal x -> case checkSp gsp of
               T2 l ren -> T2 (l + 1) (RCons x l ren)
-            _        -> throw (LocalError l ns (UEGluedSpine x gsp gv g))
+            _        -> throw (LocalError ns (UEGluedSpine x vsp gsp gv g))
 
       let ren = checkSp gsp
 
       rhs <- lams l ns (proj2 ren) <$> gvQuoteSolution l x ren gv
              `catch`
-             \case e -> throw (LocalError l ns (UEGluedSolution x gsp gv e))
+             \case e -> throw (LocalError ns (UEGluedSolution x vsp gsp gv e))
 
       registerSolution x rhs
 
@@ -436,7 +427,9 @@ check cxt (Posed pos t) (GV gwant vwant) = updPos pos >> case (t, gForce gwant) 
     T2 t gvhas <- infer MIYes cxt (Posed pos t)
     gvUnify cxt gvhas (GV gwant vwant)
       `catch`
-      \e -> throw (TopError cxt (EECheck t (GV gwant vwant) gvhas e))
+      \e -> do
+        updPos pos
+        throw (TopError cxt (EECheck t (GV gwant vwant) gvhas e))
     pure t
 
 insertMetas :: MetaInsertion -> Cxt -> IO (T2 Tm GVTy) -> IO (T2 Tm GVTy)
@@ -553,7 +546,7 @@ checkTopEntry ntbl e = do
         arr <- UA.last metas
         i   <- subtract 1 <$> UA.size metas
         A.forMIx_ arr $ \j -> \case
-          MEUnsolved _ -> throw (TopError cxt (EEUnsolvedMeta (Meta i j)))
+          MEUnsolved p -> updPos p >> throw (TopError cxt (EEUnsolvedMeta (Meta i j)))
           _            -> pure ()
   x <- A.size top
   case e of
@@ -591,8 +584,8 @@ checkProgram es = reset >> go mempty es where
 
 -- | Render elaboration output. Just for demo purposes. Serialization proper is TODO,
 --   but this should already contain all to-be-serialized information.
-renderElabOutput :: IO String
-renderElabOutput = do
+renderElabOutput :: NameTable -> IO String
+renderElabOutput ntbl = do
   es <- A.foldr'  (:) [] top
   ms <- UA.foldr' (:) [] metas
 
@@ -600,13 +593,13 @@ renderElabOutput = do
       go (i, TopEntry (Posed _ n)  def (EntryTy a _)) ms = do
         ms <- A.foldr' (:) [] ms
         let metaBlock = map
-              (\case (j, (MESolved _ t _)) -> printf "  %d.%d = %s" i j (showTm0 t)
-                     _                   -> error "renderElabOutput: impossible")
+              (\case (j, (MESolved _ t _)) -> printf "  %d.%d = %s" i j (showTm0 ntbl t)
+                     _                     -> error "renderElabOutput: impossible")
               (zip [(0 :: Int)..] ms)
             thisDef :: String
             thisDef = case def of
-              EDPostulate      -> printf "assume %s : %s" n (showTm0 a)
-              EDDefinition t _ -> printf "%s : %s\n = %s" n (showTm0 a) (showTm0 t)
+              EDPostulate      -> printf "assume %s : %s" n (showTm0 ntbl a)
+              EDDefinition t _ -> printf "%s : %s\n = %s" n (showTm0 ntbl a) (showTm0 ntbl t)
         pure $ if not (null metaBlock) then "mutual":metaBlock ++ [thisDef]
                                        else [thisDef]
 

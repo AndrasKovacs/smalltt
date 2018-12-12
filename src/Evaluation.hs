@@ -235,7 +235,7 @@ vQuoteMetaless = go where
                      HMeta x | MESolved (GV _ vt) _ _ <- lookupMeta x
                        -> go l (vAppSpine vt vsp)
                      HMeta x  -> goSp l (MetaVar x) vsp
-                     HLocal x -> goSp l (LocalVar x) vsp
+                     HLocal x -> goSp l (LocalVar (l - x - 1)) vsp
                      HTop   x -> goSp l (TopVar x) vsp
     VLam ni t   -> Lam ni (go (l + 1) (vInst t (VLocal l)))
     VPi ni a b  -> Pi ni (go l a) (go (l + 1) (vInst b (VLocal l)))

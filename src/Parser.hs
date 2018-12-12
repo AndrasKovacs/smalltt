@@ -141,17 +141,21 @@ pLam = withPos $ do
                     (char '.' *> pTm)
 
 -- | Parse a spine argument or meta insertion stopping.
-pArg :: Parser (Posed (Maybe (T2 Tm NameOrIcit)))
-pArg = withPos (
+pArg :: Parser (Maybe (T2 Tm (Posed NameOrIcit)))
+pArg =
       (Just <$> (
-            try (flip T2 NOImpl <$> braces pTm)
-        <|> braces ((\x t -> T2 t (NOName x)) <$> (pIdent <* char '=') <*> pTm)
-        <|> (flip T2 NOExpl <$> pAtom)))
-  <|> (Nothing <$ char '!'))
+            try (do {t <- braces pTm; pure (T2 t (Posed (posOf t) NOImpl))})
+        <|> braces (do
+              i <- withPos (NOName <$> (pIdent <* char '='))
+              t <- pTm
+              pure (T2 t i))
+        <|> (do {t <- pAtom; pure (T2 t (Posed (posOf t) NOExpl))})))
+  <|> (Nothing <$ char '!')
 
 pSpine :: Parser Tm
 pSpine = chainl
-  (\t (Posed p u) -> Posed p (maybe (StopMetaIns t) (\(T2 u ni) -> App t u ni) u))
+  (\t -> maybe (Posed (posOf t) (StopMetaIns t))
+               (\(T2 u (Posed p ni)) -> Posed (posOf t) (App t u ni)))
   pArg
   pAtom
 

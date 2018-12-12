@@ -46,12 +46,16 @@ load path = do
               Right ntbl -> pure (file, ntbl)
             putStrLn ("file \"" ++ path ++ "\" elaborated in " ++ show telab)
             pure (file, ntbl)
-
   putStrLn ("total load time: " ++ show ttotal)
   pure (file, ntbl)
 
+
 loop :: Maybe (T.Text, FilePath, NameTable) -> IO ()
 loop state = do
+
+  let whenLoaded state action =
+        maybe (putStrLn "No file loaded" >> loop state) action state
+
   putStr "λ> "
   l <- getLine
   case l of
@@ -60,47 +64,34 @@ loop state = do
       (file, ntbl) <- load path
       performGC
       loop (Just (file, path, ntbl))
-    ':':'r':_ -> do
-      case state of
-        Just (file, path, ntbl) -> do
-          (file, ntbl) <- load path
-          performGC
-          loop $ Just (file, path, ntbl)
-        Nothing -> do
-          putStrLn "No loaded file"
-          loop state
-    ':':'t':_:name -> do
-      case state of
-        Just (file, path, ntbl) -> do
-          updPos (initialPos "interactive")
-          try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
-            Left e                  -> displayTopError (T.pack name) e
-            Right (T2 _ (GV ga va)) -> putStrLn $ showTm0 (vQuote 0 va)
-        Nothing -> putStrLn "No loaded file"
-      loop state
-    ':':'n':'t':_:name -> do
-      case state of
-        Just (file, path, ntbl) -> do
-          updPos (initialPos "interactive")
-          try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
-            Left e                  -> displayTopError (T.pack name) e
-            Right (T2 _ (GV ga va)) -> putStrLn $ showTm0 (gQuote 0 ga)
-        _ -> putStrLn "No loaded file"
-      loop state
-    ':':'n':_:name -> do
-      case state of
-        Just (file, path, ntbl) -> do
-          updPos (initialPos "interactive")
-          try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
-            Left e -> displayTopError (T.pack name) e
-            Right (T2 t _) -> do
-              (_, t) <- timed (putStrLn $ showTm0 (gQuote 0 $ gEval ENil ENil t))
-              putStrLn ("evaluated in " ++ show t)
-        _ -> putStrLn "No loaded file"
+    ':':'r':_ -> whenLoaded state $ \(file, path, ntbl) -> do
+      (file, ntbl) <- load path
       performGC
+      loop $ Just (file, path, ntbl)
+    ':':'t':_:name -> whenLoaded state $ \(file, path, ntbl) -> do
+      updPos (initialPos "interactive")
+      try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
+        Left e                  -> displayTopError (T.pack name) e
+        Right (T2 _ (GV ga va)) -> putStrLn $ showValMetaless ntbl NNil va
       loop state
-    ':':'e':_ -> do
-      putStrLn =<< renderElabOutput
+    ':':'n':'t':_:name -> whenLoaded state $ \(file, path, ntbl) -> do
+      updPos (initialPos "interactive")
+      try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
+        Left e                  -> displayTopError (T.pack name) e
+        Right (T2 _ (GV ga va)) -> putStrLn $ showGlued ntbl NNil ga
+      loop state
+    ':':'n':_:name -> whenLoaded state $ \(file, path, ntbl) -> do
+      updPos (initialPos "interactive")
+      try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
+        Left e -> displayTopError (T.pack name) e
+        Right (T2 t _) -> do
+          (nt, time) <- timedPure (gQuote 0 (gEval ENil ENil t))
+          putStrLn (showTm0 ntbl nt)
+          putStrLn ("evaluated in " ++ show time)
+          performGC
+      loop state
+    ':':'e':_ -> whenLoaded state $ \(file, path, ntbl) -> do
+      putStrLn =<< renderElabOutput ntbl
       loop state
     ':':'q':_ -> pure ()
     ':':'?':_ -> do

@@ -5,23 +5,54 @@ Preliminary pretty printing, to be replaced with more sophisticated solutions.
 -}
 
 module Pretty (
-    prettyTm
-  , showTm
+    showTm
   , showTm0
+  , showTmCxt
+  , showVal
+  , showValMetaless
+  , showValCxt
+  , showValCxtMetaless
+  , showGlued
+  , showGluedCxt
   ) where
 
 import qualified Data.Array.Dynamic as A
 import qualified Data.Text.Short as T
+import qualified Data.HashMap.Strict as HM
 
 import Common
 import ElabState
 import Syntax
+import Cxt
+import Values
+import Evaluation
 
-showTm0 :: Tm -> String
-showTm0 = showTm NNil
+showTm0 :: NameTable -> Tm -> String
+showTm0 ntbl = showTm ntbl NNil
 
-showTm :: Names -> Tm -> String
-showTm ns t = prettyTm 0 ns t ""
+showTm :: NameTable -> Names -> Tm -> String
+showTm ntbl ns t = prettyTm 0 ntbl ns t ""
+
+showTmCxt :: Cxt -> Tm -> String
+showTmCxt Cxt{..} = showTm _nameTable _names
+
+showVal :: NameTable -> Names -> Val -> String
+showVal ntbl ns = showTm ntbl ns . vQuote (namesLength ns)
+
+showValMetaless :: NameTable -> Names -> Val -> String
+showValMetaless ntbl ns = showTm ntbl ns . vQuoteMetaless (namesLength ns)
+
+showValCxt :: Cxt -> Val -> String
+showValCxt Cxt{..} = showTm _nameTable _names . vQuote _size
+
+showValCxtMetaless :: Cxt -> Val -> String
+showValCxtMetaless Cxt{..} = showValMetaless _nameTable _names
+
+showGlued :: NameTable -> Names -> Glued -> String
+showGlued ntbl ns = showTm ntbl ns . gQuote (namesLength ns)
+
+showGluedCxt :: Cxt -> Glued -> String
+showGluedCxt Cxt{..} = showGlued _nameTable _names
 
 getApp :: Tm -> Maybe (Icit, Tm, Tm)
 getApp (AppI t u) = Just (Impl, t, u)
@@ -34,8 +65,8 @@ pattern App i t u <- (getApp -> Just (i, t, u)) where
   App Impl t u = AppI t u
   App Expl t u = AppE t u
 
-prettyTm :: Int -> Names -> Tm -> ShowS
-prettyTm prec = go (prec /= 0) where
+prettyTm :: Int -> NameTable -> Names -> Tm -> ShowS
+prettyTm prec ntbl = go (prec /= 0) where
 
   go :: Bool -> Names -> Tm -> ShowS
   go p ns = \case
@@ -47,7 +78,6 @@ prettyTm prec = go (prec /= 0) where
       . go False ns t  . ("\nin\n"++) . go False (NSnoc ns x) u
     App i' (App i t u) u' ->
       showParen p (go False ns t . (' ':) . goArg ns u i . (' ':) . goArg ns u' i')
-
     App i t u         -> showParen p (go True ns t . (' ':) . goArg ns u i)
     Lam (Named (disamb ns -> x) i) t ->
       showParen p (("λ "++) . goLamBind x i . goLam (NSnoc ns x) t)
@@ -87,10 +117,10 @@ prettyTm prec = go (prec /= 0) where
   disamb :: Names -> Name -> Name
   disamb ns n | T.null n = n
   disamb ns n = go (0 :: Int) where
-    go 0 | elem n ns = go 1
+    go 0 | elem n ns || HM.member n ntbl = go 1
          | otherwise = n
     go i = let n' = n <> T.pack (show i)
-           in if elem n' ns then go (i + 1) else n'
+           in if elem n' ns || HM.member n' ntbl then go (i + 1) else n'
     elem n NNil = False
     elem n (NSnoc ns n')
       | n == n'   = True

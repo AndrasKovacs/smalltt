@@ -1,18 +1,18 @@
+{-# LANGUAGE RecordWildCards #-}
 
 module Errors where
 
 import Control.Exception
-import qualified Data.Text as T
 import Text.Megaparsec.Pos
 import Text.Printf
+import qualified Data.Text as T
 
 import Common
 import Cxt
-import Syntax
-import Values
 import ElabState
 import Pretty
-import Evaluation
+import Syntax
+import Values
 
 data SolutionError
   = SEScope Ix
@@ -28,15 +28,15 @@ instance Exception a => Exception (FlexRigid a)
 data UnifyError
   = UELocalSolution Meta VSpine Val SolutionError
   | UELocalUnify Val Val
-  | UEGluedSolution Meta GSpine GV SolutionError
+  | UEGluedSolution Meta VSpine GSpine GV SolutionError
   | UEGluedUnify GV GV
   | UELocalSpine Meta VSpine Val Val
-  | UEGluedSpine Meta GSpine GV Glued
+  | UEGluedSpine Meta VSpine GSpine GV Glued
 
 instance Show UnifyError where show _ = "UnifyError"
 instance Exception UnifyError
 
-data LocalError = LocalError Lvl Names UnifyError
+data LocalError = LocalError Names UnifyError
 
 instance Show LocalError where show _ = "LocalError"
 instance Exception LocalError
@@ -72,29 +72,39 @@ reportWithLine file (SourcePos path (unPos -> linum) (unPos -> colnum)) msg = do
   printf msg
 
 displayTopError :: T.Text -> TopError -> IO ()
-displayTopError file (TopError cxt err) = do
+displayTopError file (TopError cxt@(Cxt{..}) err) = do
   report <- reportWithLine file <$> getPos
+
   case err of
     EECheck t want@(GV gwant vwant) has@(GV ghas vhas)
-              (LocalError l ns err) -> do
+              (LocalError ns err) -> do
+
+      let reportUnify v v' = report $ printf
+           "Can't unify\n\n  %s\n\nwith\n\n  %s\n\n\
+            \while unifying expected type:\n\n  %s\n\nwith inferred type:\n\n  %s\n\n"
+            (showValMetaless _nameTable ns v) (showValMetaless _nameTable ns v')
+            (showValCxtMetaless cxt vwant) (showValCxtMetaless cxt vhas)
+
+          reportSolutionErr x vsp v err = report (
+            printf
+              "Illegal (local) solution candidate when trying to solve\n\n\
+               \  %s\n\nwith\n\n  %s\n\n"
+              (showValMetaless _nameTable ns (VNe (HMeta x) vsp))
+              (showValMetaless _nameTable ns v)
+            ++
+            case err of
+              SEScope x' -> printf "Local variable \"%s\" is out of metavariable scope\n\n"
+                                   (showValMetaless _nameTable ns (VLocal x'))
+              SEOccurs   -> printf "To-be-solved metavariable occurs in solution candidate\n\n"
+            )
+
       case err of
-        UELocalUnify v v' ->
-          report $
-            printf
-              "Can't unify expected type:\n\n  %s\n\nwith inferred type:\n\n  %s\n\n"
-              (showTm ns (gQuote l gwant)) (showTm ns (gQuote l ghas))
-
-        UEGluedUnify gv gv' ->
-          report $
-            printf
-              "Can't unify expected type:\n\n  %s\n\nwith inferred type:\n\n  %s\n\n"
-              (showTm ns (gQuote l gwant)) (showTm ns (gQuote l ghas))
-
-        UELocalSolution x vsp v err  -> report "Illegal solution candidate"
-        UEGluedSolution x gsp gv err -> report "Illegal solution candidate"
-        UELocalSpine    x vsp rhs v  -> report "Non-variable in meta spine"
-        UEGluedSpine    x gsp rhs g  -> report "Non-variable in meta spine"
-
+        UELocalUnify v v'                      -> reportUnify v v'
+        UEGluedUnify (GV _ v) (GV _ v')        -> reportUnify v v'
+        UELocalSolution x vsp v err            -> reportSolutionErr x vsp v err
+        UEGluedSolution x vsp gsp (GV _ v) err -> reportSolutionErr x vsp v err
+        UELocalSpine x vsp rhs v               -> report "Non-variable in meta spine\n\n"
+        UEGluedSpine x vsp gsp rhs g           -> report "Non-variable in meta spine\n\n"
 
     EENoNamedArg t gva x ->
       report $ printf "No implicit argument with name: %s\n\n" x
@@ -112,7 +122,7 @@ displayTopError file (TopError cxt err) = do
       report $
         printf
           "Expected a function type for expression. Inferred type:\n\n  %s\n\n"
-          (showTm (_names cxt) (gQuote (_size cxt) ga))
+          (showValCxtMetaless cxt va)
 
     EENamedLambda ->
       report "Can't infer type for lambda with named implicit argument\n\n"

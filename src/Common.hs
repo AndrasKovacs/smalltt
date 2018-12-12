@@ -34,14 +34,15 @@ type Lvl = Int
 data NameOrIcit = NOName {-# unpack #-} Name | NOImpl | NOExpl deriving Show
 
 data Posed a = Posed SourcePos a
+  -- deriving Show
+
+instance Show a => Show (Posed a) where
+  showsPrec d (Posed _ b) = showsPrec d b
 
 posOf (Posed p _) = p
 unPosed (Posed _ a) = a
 {-# inline posOf #-}
 {-# inline unPosed #-}
-
-instance Show a => Show (Posed a) where
-  showsPrec d (Posed _ b) = showsPrec d b
 
 data Named a = Named {-# unpack #-} Name a deriving Show
 nameOf (Named x _) = x
@@ -81,6 +82,11 @@ lookupName = go where
   go 0 (NSnoc _ n) = n
   go n (NSnoc ns _) = go (n - 1) ns
   go _ _ = error "lookupName: impossible"
+
+namesLength :: Names -> Int
+namesLength = go 0 where
+  go l NNil = l
+  go l (NSnoc ns _) = go (l + 1) ns
 
 -- | The same as 'unsafeDupablePerformIO'.
 runIO :: IO a -> a
