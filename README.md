@@ -19,7 +19,7 @@ Setup:
 
 |  | Time | Space
 | --- | :--- | :--- |
-| smalltt | 3.7ms  | 6.3 MB  |
+| smalltt | 19ms  | 6.3 MB  |
 | Coq | 300ms | 280 MB  |
 | Agda | ~3s |  330 MB  |
 
@@ -56,7 +56,7 @@ Setup:
 
 | | Time | Space |
 | --- | :--- | :--- |
-| smalltt | 0.31s  | 6.2 MB |
+| smalltt | 0.27s  | 6.2 MB |
 | Agda    | 3.5s  | 1 GB |
 | Coq     | stack overflow  |
 
@@ -64,7 +64,7 @@ Setup:
 
 | | Time | Space |
 | --- | :--- | :--- |
-| smalltt | 2.7s  | 6.2 MB |
+| smalltt | 2.71s  | 6.2 MB |
 | Agda    | out of memory |
 | Coq     | stack overflow  |
 
@@ -72,7 +72,7 @@ Setup:
 
 | | Time | Space |
 | --- | :--- | :--- |
-| smalltt | 3.5ms  | 6 MB |
+| smalltt | 2.2ms  | 6 MB |
 | Coq     | 0.1s  | 220 MB |
 | Agda    | out of memory |
 
@@ -80,7 +80,7 @@ Setup:
 
 | | Time | Space |
 | --- | :--- | :--- |
-| smalltt | 0.31s  | 6 MB |
+| smalltt | 0.28s  | 6 MB |
 | Coq     | stack overflow |
 | Agda    | out of memory |
 

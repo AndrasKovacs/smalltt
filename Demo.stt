@@ -210,7 +210,7 @@ vec1 = vcons true (vcons false (vcons true vnil))
 
 
 -- Type checking vecStress:
--- smalltt : 3.8ms , 6.3 MB
+-- smalltt : 19ms  , 6.3 MB
 -- Coq     : 300ms , 280 MB
 -- Agda    : ~3s   , 330 MB
 vecStress [elaborate] =
@@ -446,7 +446,15 @@ idStress [elaborate] : {A} → A → A
  = id id id id id id id id id id id id id id id id id id id id
    id id id id id id id id id id id id id id id id id id id id
 
--- smalltt : instant
+
+-- An earlier version of smalltt used to do "pairStress" instantly, however that
+-- was because of an erroneous overly liberal occurs check. The newest smalltt
+-- version *is exponential*, but so fast that this example is still reasonably
+-- fast. I do know how to restore linear elaboration time here, but it requires
+-- some non-trivial changes to meta blocks; the simplest would be to have
+-- dependency-ordered meta blocks instead of fully mutual ones.
+
+-- smalltt : 1.55s
 -- Agda    : doesn't finish
 -- Coq     : doesn't finish
 pairStress [elaborate] : Top
@@ -528,22 +536,22 @@ localCBNtest [normalize] = localCBN n10
 -- Coq     : 1s    , 340 MB
 conv100k [elaborate] : Eq n100k n100kb = refl
 
--- smalltt : 0.31s , 6.2 MB
+-- smalltt : 0.27s , 6.2 MB
 -- Agda    : 3.5s  , 1 GB
 -- Coq     : stack overflow
 conv1M [elaborate] : Eq n1M n1MB = refl
 
--- smalltt : 2.7s, 6.2 MB
+-- smalltt : 2.71s, 6.2 MB
 -- Coq     : stack overflow
 -- Agda    : out of memory
 conv10M [elaborate] : Eq n10M n10MB = refl
 
--- smalltt : 3.5ms,  6 MB
+-- smalltt : 2.2ms,  6 MB
 -- Coq     : 0.1s ,  220 MB
 -- Agda    : out of memory
 conv10kmeta [elaborate] : Eq n10k (add n10kb _) = refl
 
--- smalltt : 0.31s, 6 MB
+-- smalltt : 0.28s, 6 MB
 -- Agda    : out of memory
 -- Coq     : stack overflow
 conv1Mmeta [elaborate] : Eq n1M (add n1M _) = refl
@@ -636,7 +644,7 @@ EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
 -- Large embedded STLC term
 --------------------------------------------------------------------------------
 
--- smalltt : 37ms  , 6   MB
+-- smalltt : 39ms  , 6   MB
 -- Coq     : 270ms , 240 MB
 -- Agda    : 2.5s  , 120 MB
 STLCStress [elaborate] : Tm nil (fun (fun ι ι) (fun ι ι))
@@ -712,7 +720,7 @@ STLCStress [elaborate] : Tm nil (fun (fun ι ι) (fun ι ι))
 
      ))
 
--- smalltt : 50 ms , 46 MB
+-- smalltt : 45 ms , 46 MB
 -- Coq, Agda : can't benchmark precisely (too fast to measure by hand)
 -- Coq seems subjectively as fast as smalltt, Agda a bit slower
 STLCEvalTest [normalize] = EvalTm STLCStress tt
