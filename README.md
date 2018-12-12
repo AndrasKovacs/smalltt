@@ -4,6 +4,8 @@ See [Demo.stt](Demo.stt) for notes on usage, goals and benchmarks.
 
 ## Some benchmarks
 
+Benchmarks are informal and unfortunately not yet automated or easily reproducible.
+
 Setup:
 - smalltt is compiled with GHC 8.6.2, with -O2 -fllvm
 - GHC 8.6.2 is likewise used for GHC/GHCI benchmarks.
