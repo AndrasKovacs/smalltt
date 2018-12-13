@@ -43,7 +43,9 @@ topRigidity x = case _entryDef (lookupTop x) of
 -- Meta state
 --------------------------------------------------------------------------------
 
-data MetaEntry = MEUnsolved SourcePos | MESolved {-# unpack #-} GV Tm SourcePos
+data MetaEntry
+  = MEUnsolved SourcePos
+  | MESolved {-# unpack #-} GV Unfoldable Tm SourcePos
 
 metas :: UA.Array (A.Array MetaEntry)
 metas = runIO UA.empty

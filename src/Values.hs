@@ -10,6 +10,12 @@ import Syntax
 data Spine a = SNil | SAppI (Spine a) ~a | SAppE (Spine a) ~a
 data Env a = ENil | EDef (Env a) ~a | ESkip (Env a)
 
+envLength :: Env a -> Int
+envLength = go 0 where
+  go acc ENil       = acc
+  go acc (EDef e _) = go (acc + 1) e
+  go acc (ESkip e)  = go (acc + 1) e
+
 type GEnv   = Env Glued
 type VEnv   = Env Val
 type GSpine = Spine Glued
@@ -18,10 +24,10 @@ type VTy    = Val
 type GTy    = Glued
 type GVTy   = GV
 
-data GV = GV ~Glued ~Val
-
+data GV  = GV ~Glued ~Val
 data GCl = GCl GEnv VEnv Tm
 data VCl = VCl VEnv Tm
+
 
 newtype Head = Head Int deriving (Eq, Ord)
 

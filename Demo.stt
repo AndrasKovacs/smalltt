@@ -427,7 +427,7 @@ synEqTest2 [elaborate] : Eq n1M n1M = refl
 assume Eq2   : {A} → A → A → U
 assume refl2 : {A x} → Eq2 {A} x x
 
--- smalltt : approx check succeeds
+-- smalltt : approx check fails (TODO: investigate)
 -- Agda    : approx check succeeds
 -- Coq     : approx check succeeds
 synEqTest3 [elaborate] : Eq2 n1M n1M = refl2
@@ -556,8 +556,8 @@ conv10kmeta [elaborate] : Eq n10k (add n10kb _) = refl
 -- Coq     : stack overflow
 conv1Mmeta [elaborate] : Eq n1M (add n1M _) = refl
 
--- smalltt : 0.9s, 900 MB
--- Agda    : 8.5s , 3.5 GB
+-- smalltt : 1.2s,  6.2 MB
+-- Agda    : 8.5s,  3.5 GB
 -- Coq     : stack overflow
 convNfun1M [elaborate] : Eq (nfun n1M) (nfun n1MB) = refl
 
@@ -644,7 +644,7 @@ EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
 -- Large embedded STLC term
 --------------------------------------------------------------------------------
 
--- smalltt : 39ms  , 6   MB
+-- smalltt : 22ms  , 6   MB
 -- Coq     : 270ms , 240 MB
 -- Agda    : 2.5s  , 120 MB
 STLCStress [elaborate] : Tm nil (fun (fun ι ι) (fun ι ι))
@@ -720,7 +720,7 @@ STLCStress [elaborate] : Tm nil (fun (fun ι ι) (fun ι ι))
 
      ))
 
--- smalltt : 45 ms , 46 MB
+-- smalltt : 10 ms , 46 MB
 -- Coq, Agda : can't benchmark precisely (too fast to measure by hand)
 -- Coq seems subjectively as fast as smalltt, Agda a bit slower
 STLCEvalTest [normalize] = EvalTm STLCStress tt

@@ -13,10 +13,9 @@ Enhancement:
   - Put things in Reader monads when it makes sense, use combinators to dive into scopes.
   - make Ix and Lvl newtype, do safer API
 
-Things to later benchmark:
+Things to perhaps benchmark:
   - IO Exception vs error codes in unification
   - Arrays vs lists in renaming
-  - Known call optimization.
   - Reader monads vs param passing.
 -}
 
@@ -37,10 +36,11 @@ import ElabState
 import Errors
 import Evaluation
 import Pretty
+import Simplify
 import Syntax
 import Values
-import qualified Presyntax as P
 import qualified LvlSet as LS
+import qualified Presyntax as P
 
 -- import Debug.Trace
 
@@ -79,11 +79,20 @@ Meta solution quotation:
 
 --------------------------------------------------------------------------------
 
+isUnfoldable :: Tm -> Bool
+isUnfoldable t = go t where
+  go LocalVar{} = True
+  go MetaVar{}  = True
+  go TopVar{}   = True
+  go (Lam _ t)  = go t
+  go U          = True
+  go _          = False
+
 registerSolution :: Meta -> Tm -> IO ()
 registerSolution (Meta i j) t = do
   arr <- UA.unsafeRead metas i
   pos <- getPos
-  A.unsafeWrite arr j (MESolved (gvEval ENil ENil t) t pos)
+  A.unsafeWrite arr j (MESolved (gvEval ENil ENil t) (isUnfoldable t) t pos)
 {-# inline registerSolution #-}
 
 disjointLvls :: LS.LvlSet -> Renaming -> Bool
@@ -110,9 +119,9 @@ lams l ns = go where
 --  Generating meta solutions
 --------------------------------------------------------------------------------
 
--- | Throws FlexRigid LocalError
+-- | Throws (FlexRigid LocalError).
 --   Always throws flex because in a rigid case the glued check immediately throws
---   afterwards anyway, and error messages aren't worse in glued.
+--   afterwards anyway, and error messages aren't worse in glued mode.
 vQuoteSolution ::
   (FlexRigid LocalError -> IO ()) -> Lvl -> Names -> Meta -> (Lvl, Renaming) -> Val -> IO Tm
 vQuoteSolution throwAction = \l ns occurs ren v ->
@@ -152,10 +161,12 @@ vQuoteSolution throwAction = \l ns occurs ren v ->
   in lams l ns (snd ren) <$> scopeCheck l ren v
 {-# inline vQuoteSolution #-}
 
+-- | Abort quoting on error.
 vQuoteSolutionShortCut :: Lvl -> Names -> Meta -> (Lvl, Renaming) -> Val -> IO Tm
 vQuoteSolutionShortCut = vQuoteSolution throw
 {-# inline vQuoteSolutionShortCut #-}
 
+-- | On error, write error to IORef then continue quoting.
 vQuoteSolutionRefError ::
      IORef (Maybe (FlexRigid LocalError))
   -> Lvl -> Names -> Meta -> (Lvl, Renaming) -> Val -> IO Tm
@@ -217,14 +228,14 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
     -- meta sides
     (v@(VNe (HMeta x) vsp), v')
-      | MESolved (GV _ v) _ _ <- lookupMeta x ->
+      | MESolved (GV _ v) _ _ _ <- lookupMeta x ->
         if u > 0 then go l (u - 1) ns r (vAppSpine v vsp) v'
                  else cantUnify l ns Flex v v'
       | MEUnsolved _ <- lookupMeta x, Rigid <- r ->
         solve l ns x vsp v'
 
     (v, v'@(VNe (HMeta x') vsp'))
-      | MESolved (GV _ v') _ _ <- lookupMeta x' ->
+      | MESolved (GV _ v') _ _ _ <- lookupMeta x' ->
         if u > 0 then go l (u - 1) ns r v (vAppSpine v' vsp')
                  else cantUnify l ns Flex v v'
       | MEUnsolved _ <- lookupMeta x', Rigid <- r ->
@@ -435,7 +446,7 @@ newMeta cxt = do
       go (BISnoc bis x) = AppE (go bis) (LocalVar (l - x - 1))
   pure (go bis)
 
--- throws TopError
+-- | Throws TopError.
 check :: Cxt -> P.Tm -> GVTy -> IO Tm
 check cxt (Posed pos t) (GV gwant vwant) = updPos pos >> case (t, gForce gwant) of
   (P.Lam x ni t, GPi (Named x' i') a b) | (case ni of NOName y -> y == x'
@@ -581,39 +592,37 @@ checkTopEntry ntbl e = do
   UA.push metas =<< A.empty
   let cxt = initCxt ntbl
 
-  let guardUnsolvedMetas = do
-        arr <- UA.last metas
-        i   <- subtract 1 <$> UA.size metas
-        A.forMIx_ arr $ \j -> \case
-          MEUnsolved p -> updPos p >> throw (TopError cxt (EEUnsolvedMeta (Meta i j)))
-          _            -> pure ()
-
-  let compressMetas = do
+  let simplMetas = do
         arr  <- UA.last metas
         i    <- subtract 1 <$> UA.size metas
-        jmax <- A.size arr
-        let go j | j == jmax = pure ()
-            go j = gvMetaIO (Meta i j) >> go (j + 1)
-        go 0
+        A.forMIx_ arr $ \j -> \case
+          MESolved gv uf t pos -> do
+            let t' = zonk 0 ENil t
+            A.unsafeWrite arr j (MESolved (gvEval ENil ENil t') uf t' pos)
+          MEUnsolved p -> do
+            updPos p
+            throw (TopError cxt (EEUnsolvedMeta (Meta i j)))
 
   x <- A.size top
   case e of
     P.TEPostulate (Posed pos n) a -> updPos pos >> do
       ((), time) <- timed $ do
         a <- check cxt a gvU
-        guardUnsolvedMetas
-        compressMetas
-        A.push top (TopEntry (Posed pos n) EDPostulate (EntryTy a (gvEval' cxt a)))
+        simplMetas
+        let a' = zonk 0 ENil a
+        A.push top (TopEntry (Posed pos n) EDPostulate (EntryTy a' (gvEval' cxt a')))
       pure (addName n (NITop pos x) ntbl)
     P.TEDefinition (Posed pos n) prof a t -> updPos pos >> do
       (GV gt _, time) <- timed $ do
         a <- check cxt a gvU
         let gva = gvEval' cxt a
         t <- check cxt t gva
-        guardUnsolvedMetas
-        compressMetas
-        let gvt = gvEval' cxt t
-        A.push top (TopEntry (Posed pos n) (EDDefinition t gvt) (EntryTy a gva))
+        simplMetas
+        let a'   = zonk 0 ENil a
+            t'   = zonk 0 ENil t
+            gva' = gvEval' cxt a'
+            gvt  = gvEval' cxt t'
+        A.push top (TopEntry (Posed pos n) (EDDefinition t' gvt) (EntryTy a' gva'))
         pure gvt
       case prof of
         Nothing -> pure ()
@@ -642,9 +651,11 @@ renderElabOutput ntbl = do
   let go :: (Int, TopEntry) -> A.Array MetaEntry -> IO [String]
       go (i, TopEntry (Posed _ n)  def (EntryTy a _)) ms = do
         ms <- A.foldr' (:) [] ms
-        let metaBlock = map
-              (\case (j, (MESolved _ t _)) -> printf "  %d.%d = %s" i j (showTm0 ntbl t)
-                     _                     -> error "renderElabOutput: impossible")
+        let metaBlock = filter (not . null) $ map
+              (\case (j, (MESolved _ uf t _))
+                         -> if uf then ""
+                                  else printf "  %d.%d = %s" i j (showTm0 ntbl t)
+                     _   -> error "renderElabOutput: impossible")
               (zip [(0 :: Int)..] ms)
             thisDef :: String
             thisDef = case def of

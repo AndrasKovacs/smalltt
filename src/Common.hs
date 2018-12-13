@@ -11,6 +11,8 @@ import GHC.Magic (runRW#)
 import GHC.Types (IO(..))
 import Text.Megaparsec.Pos (SourcePos)
 
+type Unfoldable = Bool
+
 data Icit = Expl | Impl deriving (Eq, Show)
 
 -- | If-then-else for 'Icit'.

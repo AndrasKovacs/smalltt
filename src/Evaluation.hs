@@ -1,26 +1,10 @@
 
 module Evaluation where
 
-{-|
-TODO:
-  - known call optimization for syntax
-  - environment trimming
-  - meta solution lowering, inlining and arg trimming
-    - (general optimization, after top-level group elaboration)
--}
-
 import Common
 import ElabState
 import Syntax
 import Values
-
---------------------------------------------------------------------------------
-
-envLength :: Env a -> Int
-envLength = go 0 where
-  go acc ENil       = acc
-  go acc (EDef e _) = go (acc + 1) e
-  go acc (ESkip e)  = go (acc + 1) e
 
 --------------------------------------------------------------------------------
 
@@ -44,7 +28,7 @@ gEvalBox :: GEnv -> VEnv -> Tm -> Box Glued
 gEvalBox gs vs = \case
   LocalVar x  -> gLocal gs x
   TopVar   x  -> gTop x
-  MetaVar  x  -> case lookupMeta x of MESolved (GV g _) _ _ -> Box g; _ -> Box (GMeta x)
+  MetaVar  x  -> case lookupMeta x of MESolved (GV g _) _ _ _ -> Box g; _ -> Box (GMeta x)
   t           -> Box (gEval gs vs t)
 {-# inline gEvalBox #-}
 
@@ -52,7 +36,7 @@ gEval :: GEnv -> VEnv -> Tm -> Glued
 gEval gs vs = \case
   LocalVar x  -> let Box g = gLocal gs x in g
   TopVar   x  -> let Box g = gTop x in g
-  MetaVar  x  -> case lookupMeta x of MESolved (GV g _) _ _ -> g; _ -> GMeta x
+  MetaVar  x  -> case lookupMeta x of MESolved (GV g _) _ _ _ -> g; _ -> GMeta x
   AppI t u    -> let Box gu = gEvalBox gs vs u
                  in gAppI (gEval gs vs t) (GV gu (vEval vs u))
   AppE t u    -> let Box gu = gEvalBox gs vs u
@@ -91,7 +75,7 @@ gAppSpine _ _              _           = error "gAppSpine: impossible"
 
 gForce :: Glued -> Glued
 gForce = \case
-  GNe (HMeta x) gs vs | MESolved (GV g v) _ _ <- lookupMeta x -> gForce (gAppSpine g gs vs)
+  GNe (HMeta x) gs vs | MESolved (GV g v) _ _ _ <- lookupMeta x -> gForce (gAppSpine g gs vs)
   g -> g
 
 --------------------------------------------------------------------------------
@@ -118,7 +102,7 @@ vEval :: VEnv -> Tm -> Val
 vEval vs = \case
   LocalVar x  -> let Box v = vLocal vs x in v
   TopVar x    -> VTop x
-  MetaVar x   -> case gvMeta x of (_, GV _ v) -> v
+  MetaVar x   -> case lookupMeta x of MESolved (GV _ v) True _ _ -> v; _ -> VMeta x
   AppI t u    -> let Box vu = vEvalBox vs u in vAppI (vEval vs t) vu
   AppE t u    -> let Box vu = vEvalBox vs u in vAppE (vEval vs t) vu
   Lam x t     -> VLam x (VCl vs t)
@@ -159,21 +143,6 @@ vAppSpine v (SAppE vs v') = vAppE (vAppSpine v vs) v'
 vAppSpine v SNil          = v
 
 --------------------------------------------------------------------------------
-
--- | Lookup meta with path compression.
-gvMetaIO :: Meta -> IO (Meta, GV)
-gvMetaIO x =
-  lookupMetaIO x >>= \case
-    MESolved gv (MetaVar y) p -> do
-      (z, gv) <- gvMetaIO y
-      writeMeta x (MESolved gv (MetaVar z) p)
-      pure (z, gv)
-    MESolved gv _ _    -> pure (x, gv)
-    MEUnsolved _       -> pure (x, GV (GMeta x) (VMeta x))
-
-gvMeta :: Meta -> (Meta, GV)
-gvMeta x = runIO (gvMetaIO x)
-{-# inline gvMeta #-}
 
 gvEval :: GEnv -> VEnv -> Tm -> GV
 gvEval gs vs t = GV (gEval gs vs t) (vEval vs t)
@@ -247,7 +216,7 @@ vQuoteMetaless :: Lvl -> Val -> Tm
 vQuoteMetaless = go where
   go l = \case
     VNe h vsp   -> case h of
-                     HMeta x | MESolved (GV _ vt) _ _ <- lookupMeta x
+                     HMeta x | MESolved (GV _ vt) _ _ _ <- lookupMeta x
                        -> go l (vAppSpine vt vsp)
                      HMeta x  -> goSp l (MetaVar x) vsp
                      HLocal x -> goSp l (LocalVar (l - x - 1)) vsp
