@@ -60,6 +60,16 @@ metaRigidity :: Meta -> Rigidity
 metaRigidity x = case lookupMeta x of MESolved{} -> Flex; _ -> Rigid
 {-# inline metaRigidity #-}
 
+
+--------------------------------------------------------------------------------
+
+headRigidity :: Head -> Rigidity
+headRigidity = \case
+  HMeta x -> metaRigidity x
+  HTop x  -> topRigidity x
+  _       -> Rigid
+{-# inline headRigidity #-}
+
 -- Source position state
 --------------------------------------------------------------------------------
 

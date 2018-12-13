@@ -11,10 +11,6 @@ Roadmap:
 
 Enhancement:
   - Put things in Reader monads when it makes sense, use combinators to dive into scopes.
-  - Fix buggy source location reporting, probably move source positions into elab reader monad.
-  - Have proper error messages
-    - Throw informative Rigid errors from local operations
-    - maybe even implement a simple error tracing, by adding more catch-es.
   - make Ix and Lvl newtype, do safer API
 
 Things to later benchmark:
@@ -44,13 +40,44 @@ import Pretty
 import Syntax
 import Values
 import qualified Presyntax as P
+import qualified LvlSet as LS
 
+-- import Debug.Trace
+
+
+-- Unification
 --------------------------------------------------------------------------------
 
-lams :: Lvl -> Names -> Renaming -> Tm -> Tm
-lams l ns = go where
-  go RNil            t = t
-  go (RCons x y ren) t = go ren (Lam (Named (lookupName (l - x - 1) ns) Expl) t)
+{-
+Currently, we don't track meta types, hence don't do pruning on metas at all.
+Two basic operations: unification, meta solution quotation
+
+Unification:
+  1. Check local conversion; track rigidity of conversion context, solve
+     metas in rigid context but throw error when encountering metas
+     in flex context.
+
+  2. If local unification throws flex error, do full glued unification.
+
+Meta solution quotation:
+  1. Quote solution candidate:
+     - 1.1: attempt eta contraction of pattern, based on glued spines whenever available
+            but local rhs. Only contract if rhs is locally neutral, abort
+            contraction attempt at non-linear variables.
+     - 1.2: check glued spine validity, throw rigid error on failure
+     - 1.3: quote scope-checked solution candidate; may throw flex or
+            rigid error.
+  2. If 1. returns without error, solve.
+     If 1. returns with rigid error, rethrow.
+     If 1. returns with flex error, the solution candidate can be
+        a) eta-convertible to lhs: return without solving
+        b) ill-scoped: throw error
+        c) fine: solve meta
+
+-}
+
+
+--------------------------------------------------------------------------------
 
 registerSolution :: Meta -> Tm -> IO ()
 registerSolution (Meta i j) t = do
@@ -59,85 +86,81 @@ registerSolution (Meta i j) t = do
   A.unsafeWrite arr j (MESolved (gvEval ENil ENil t) t pos)
 {-# inline registerSolution #-}
 
+disjointLvls :: LS.LvlSet -> Renaming -> Bool
+disjointLvls xs RNil            = True
+disjointLvls xs (RCons x _ ren) = not (LS.member x xs) && disjointLvls xs ren
 
--- Unification
+contract :: (Lvl, Renaming) -> Val -> ((Lvl, Renaming), Val)
+contract topRen topV@(VNe h topVsp) = go (mempty @LS.LvlSet) topRen topVsp where
+  go xs (!l, ren) SNil
+    | disjointLvls xs ren = ((l, ren), VNe h SNil)
+  go xs (!l, RCons x _ ren) (SAppI vsp (VLocal x'))
+    | x == x', not (LS.member x xs) = go (LS.insert x xs) (l - 1, ren) vsp
+  go xs (!l, RCons x _ ren) (SAppE vsp (VLocal x'))
+    | x == x', not (LS.member x xs) = go (LS.insert x xs) (l - 1, ren) vsp
+  go _ _ _ = (topRen, topV)
+contract ren v = (ren, v)
+
+lams :: Lvl -> Names -> Renaming -> Tm -> Tm
+lams l ns = go where
+  go RNil            t = t
+  go (RCons x y ren) t = go ren (Lam (Named (lookupName (l - x - 1) ns) Expl) t)
+
+
+--  Generating meta solutions
 --------------------------------------------------------------------------------
 
-{-
-Currently, we don't track meta types, hence don't do pruning on metas at all.
-
-
-Two basic operations: conversion, scope check.
-
-Conversion:
-  1. Check local conversion; track rigidity of conversion context, solve
-     metas in rigid context but throw error when encountering metas
-     in flex context.
-
-  2. If local conversion throws flex error, we do full conversion.
-
-Scope check:
-  1. Do scope check on local value. This operation can be viewed as
-     a variant of quoting which returns a scope-checked solution candidate.
-
-     Illegal variable occurrences are possible in these solution candidates, but
-     we replace them with Irrelevant during scope checking, so evaluation will
-     never encounter ill-scoped variables.
-
-  2. We always use the local solution candidate. If local scope check fails
-     flexibly we have to do full scope check, which (in the case of success)
-     tells us that illegal occurences in the local solution candidate actually
-     disappear during evaluation.
-
--}
-
-
--- throws (FlexRigid SolutionError)
+-- | Throws (FlexRigid SolutionError).
+--   CONSIDER: throwing only flex errors here and not caring about rigidity is
+--   also a good option, because rigid errors are immediately after caught by glued
+--   solution check, and error messages are not worse at all there.
 vQuoteSolution ::
-  (FlexRigid SolutionError -> IO ()) -> Lvl -> Meta -> T2 Lvl Renaming -> Val -> IO Tm
-vQuoteSolution throwAction = \l occurs (T2 renl ren) ->
+  (FlexRigid SolutionError -> IO ()) -> Lvl -> Names -> Meta -> (Lvl, Renaming) -> Val -> IO Tm
+vQuoteSolution throwAction = \l ns occurs ren v ->
   let
-    shift = l - renl
+    scopeCheck :: Lvl -> (Lvl, Renaming) -> Val -> IO Tm
+    scopeCheck l (renl, ren) v = go l Rigid ren v  where
+      shift = l - renl
+      go :: Lvl -> Rigidity -> Renaming -> Val -> IO Tm
+      go l r ren = \case
+        VNe h vsp -> case h of
+          HLocal x -> case applyRen ren x of
+            (-1)   -> do
+                        throwAction (makeFR r (SEScope x))
+                        pure Irrelevant
+            y      -> goSp l r ren (LocalVar (l - shift - y - 1)) vsp
+          HTop   x -> goSp l (topRigidity x `meld` r) ren (TopVar x) vsp
+          HMeta  x | x == occurs -> do
+                       throwAction (makeFR r SEOccurs)
+                       pure Irrelevant
+                   | otherwise -> do
+                       let xr = metaRigidity x
+                       case metaTopLvl x == metaTopLvl occurs of
+                         True | Flex <- xr -> throwAction FRFlex
+                         _ -> pure ()
+                       goSp l (xr `meld` r) ren (MetaVar x) vsp
+        VLam x t    -> Lam x <$> go (l + 1) r (RCons l (l - shift) ren) (vInst t (VLocal l))
+        VPi x a b   -> Pi x <$> go l r ren a
+                            <*> go (l + 1) r (RCons l (l - shift) ren) (vInst b (VLocal l))
+        VFun a b    -> Fun <$> go l r ren a <*> go l r ren b
+        VU          -> pure U
+        VIrrelevant -> pure Irrelevant
 
-    go :: Lvl -> Rigidity -> Renaming -> Val -> IO Tm
-    go l r ren = \case
-      VNe h vsp -> case h of
-        HLocal x -> case applyRen ren x of
-          (-1)   -> do
-                      throwAction (makeFR r (SEScope x))
-                      pure Irrelevant
-          y      -> goSp l r ren (LocalVar (l - shift - y - 1)) vsp
-        HTop   x -> goSp l (topRigidity x `meld` r) ren (TopVar x) vsp
-        HMeta  x | x == occurs -> do
-                     throwAction (makeFR r SEOccurs)
-                     pure Irrelevant
-                 | otherwise -> do
-                     let xr = metaRigidity x
-                     case metaTopLvl x == metaTopLvl occurs of
-                       True | Flex <- xr -> throwAction FRFlex
-                       _ -> pure ()
-                     goSp l (xr `meld` r) ren (MetaVar x) vsp
-      VLam x t    -> Lam x <$> go (l + 1) r (RCons l (l - shift) ren) (vInst t (VLocal l))
-      VPi x a b   -> Pi x <$> go l r ren a <*> go (l + 1) r (RCons l (l - shift) ren) (vInst b (VLocal l))
-      VFun a b    -> Fun <$> go l r ren a <*> go l r ren b
-      VU          -> pure U
-      VIrrelevant -> pure Irrelevant
+      goSp :: Lvl -> Rigidity -> Renaming -> Tm -> VSpine -> IO Tm
+      goSp l r ren t (SAppI vsp v) = AppI <$> goSp l r ren t vsp <*> go l Flex ren v
+      goSp l r ren t (SAppE vsp v) = AppE <$> goSp l r ren t vsp <*> go l Flex ren v
+      goSp l r ren t SNil          = pure t
 
-    goSp :: Lvl -> Rigidity -> Renaming -> Tm -> VSpine -> IO Tm
-    goSp l r ren t (SAppI vsp v) = AppI <$> goSp l r ren t vsp <*> go l Flex ren v
-    goSp l r ren t (SAppE vsp v) = AppE <$> goSp l r ren t vsp <*> go l Flex ren v
-    goSp l r ren t SNil          = pure t
-
-  in go l Rigid ren
+  in lams l ns (snd ren) <$> scopeCheck l ren v
 {-# inline vQuoteSolution #-}
 
-vQuoteSolutionShortCut :: Lvl -> Meta -> T2 Lvl Renaming -> Val -> IO Tm
+vQuoteSolutionShortCut :: Lvl -> Names -> Meta -> (Lvl, Renaming) -> Val -> IO Tm
 vQuoteSolutionShortCut = vQuoteSolution throw
 {-# inline vQuoteSolutionShortCut #-}
 
 vQuoteSolutionRefError ::
      IORef (Maybe (FlexRigid SolutionError))
-  -> Lvl -> Meta -> T2 Lvl Renaming -> Val -> IO Tm
+  -> Lvl -> Names -> Meta -> (Lvl, Renaming) -> Val -> IO Tm
 vQuoteSolutionRefError ref = vQuoteSolution (\e -> writeIORef ref (Just e))
 {-# inline vQuoteSolutionRefError #-}
 
@@ -151,7 +174,7 @@ unfoldLimit :: Unfolding
 unfoldLimit = 2
 {-# inline unfoldLimit #-}
 
--- throws (FlexRigid LocalError)
+-- | Throws (FlexRigid LocalError).
 vUnify :: Cxt -> Val -> Val -> IO ()
 vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
@@ -226,27 +249,27 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
   {-# inline cantUnify #-}
 
   solve :: Lvl -> Names -> Meta -> VSpine -> Val -> IO ()
-  solve l ns x vsp ~v = do
+  solve l ns x vsp v =
 
-    -- TODO: checkSp can throw Rigid as well
-    let checkSp SNil = T2 0 RNil
-        checkSp (SAppI vsp v) = case v of
-          VLocal x -> case checkSp vsp of
-            T2 l ren -> T2 (l + 1) (RCons x l ren)
-          _        -> throw (FRFlex @LocalError)
-        checkSp (SAppE vsp v) = case v of
-          VLocal x -> case checkSp vsp of
-            T2 l ren -> T2 (l + 1) (RCons x l ren)
-          _        -> throw (FRFlex @LocalError)
+    let checkVSp :: VSpine -> (Lvl, Renaming)
+        checkVSp = go where
+          go SNil = (0, RNil)
+          go (SAppI vsp v) = case v of
+            VLocal x -> case go vsp of
+              (l, ren) -> (l + 1, RCons x l ren)
+            _        -> throw (FRFlex @LocalError)
+          go (SAppE vsp v) = case v of
+            VLocal x -> case go vsp of
+              (l, ren) -> (l + 1, RCons x l ren)
+            _        -> throw (FRFlex @LocalError)
 
-    let ren = checkSp vsp
-
-    rhs <- (lams l ns (proj2 ren) <$> vQuoteSolutionShortCut l x ren v)
-           `catch`
-           \case FRFlex    -> throw (FRFlex @LocalError)
-                 FRRigid e -> throw (FRRigid (LocalError ns (UELocalSolution x vsp v e)))
-
-    registerSolution x rhs
+    in case contract (checkVSp vsp) v of
+         (ren, v) -> do
+           rhs <- vQuoteSolutionShortCut l ns x ren v
+                  `catch`
+                  \case FRFlex    -> throw (FRFlex @LocalError)
+                        FRRigid e -> throw (FRRigid (LocalError ns (UELocalSolution x vsp v e)))
+           registerSolution x rhs
 
   goSp :: Lvl -> Unfolding -> Names -> Rigidity -> VSpine -> VSpine -> IO ()
   goSp l u ns r (SAppI vsp v) (SAppI vsp' v') = goSp l u ns r vsp vsp' >> go l u ns r v v'
@@ -255,40 +278,47 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
   goSp _ _ _  r _               _             = error "vUnify.goSp: impossible"
 
 
--- throws SolutionError
-gvQuoteSolution :: Lvl -> Meta -> T2 Lvl Renaming -> GV -> IO Tm
-gvQuoteSolution l occurs (T2 renl ren) (GV g v) = do
-  err <- newIORef Nothing
-  rhs <- vQuoteSolutionRefError err l occurs (T2 renl ren) v
-  let shift = l - renl
-  readIORef err >>= \case
-    Nothing          -> pure rhs
-    Just (FRRigid e) -> throw e
-    Just FRFlex      -> go l ren g >> pure rhs where
+-- | Throws SolutionError, returns True if rhs is eta-convertible to lhs.
+gCheckSolution :: Lvl -> Meta -> (Lvl, Renaming) -> Glued -> IO Bool
+gCheckSolution topLvl occurs (renl, ren) g = contr topLvl ren g where
 
-      go :: Lvl -> Renaming -> Glued -> IO ()
-      go l ren g = case gForce g of
-        GNe h gsp _ -> do
-          case h of
-            HLocal x -> case applyRen ren x of
-              (-1)   -> throw (SEScope x)
-              _      -> pure ()
-            HTop{} -> pure ()
-            HMeta x | x == occurs -> throw SEOccurs
-                    | otherwise   -> pure ()
-          goSp l ren gsp
-        GLam x t               -> go (l + 1) (RCons l (l - shift) ren) (gInst t (gvLocal l))
-        GPi x (GV a _) b       -> go l ren a >> go (l + 1) (RCons l (l - shift) ren) (gInst b (gvLocal l))
-        GFun (GV a _) (GV b _) -> go l ren a >> go l ren b
-        GU                     -> pure ()
-        GIrrelevant            -> pure ()
+  shift :: Int
+  shift = topLvl - renl
 
-      goSp :: Lvl -> Renaming -> GSpine -> IO ()
-      goSp l ren SNil          = pure ()
-      goSp l ren (SAppI gsp g) = goSp l ren gsp >> go l ren g
-      goSp l ren (SAppE gsp g) = goSp l ren gsp >> go l ren g
+  contr :: Lvl -> Renaming -> Glued -> IO Bool
+  contr l ren (GLam _ t) = contr (l + 1) (RCons l (l - shift) ren) (gInst t (gvLocal l))
+  contr l ren (GNe (HMeta x) gsp _) | occurs == x, strip l gsp = pure True where
+    strip l SNil                   = l == topLvl
+    strip l (SAppI gs (GLocal l')) = (l' == l - 1) && strip (l - 1) gs
+    strip l (SAppE gs (GLocal l')) = (l' == l - 1) && strip (l - 1) gs
+    strip _ _                      = False
+  contr l ren g = False <$ scopeCheck l ren g
 
--- throws LocalError
+  scopeCheck :: Lvl -> Renaming -> Glued -> IO ()
+  scopeCheck = go where
+    go l ren g = case gForce g of
+      GNe h gsp _ -> do
+        case h of
+          HLocal x -> case applyRen ren x of
+            (-1)   -> throw (SEScope x)
+            _      -> pure ()
+          HTop{} -> pure ()
+          HMeta x | x == occurs -> throw SEOccurs
+                  | otherwise   -> pure ()
+        goSp l ren gsp
+      GLam x t               -> go (l + 1) (RCons l (l - shift) ren) (gInst t (gvLocal l))
+      GPi x (GV a _) b       -> go l ren a >> go (l + 1) (RCons l (l - shift) ren) (gInst b (gvLocal l))
+      GFun (GV a _) (GV b _) -> go l ren a >> go l ren b
+      GU                     -> pure ()
+      GIrrelevant            -> pure ()
+
+    goSp :: Lvl -> Renaming -> GSpine -> IO ()
+    goSp l ren SNil          = pure ()
+    goSp l ren (SAppI gsp g) = goSp l ren gsp >> go l ren g
+    goSp l ren (SAppE gsp g) = goSp l ren gsp >> go l ren g
+
+
+-- | Throws LocalError.
 gvUnify :: Cxt -> GV -> GV -> IO ()
 gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
   vUnify cxt v v'
@@ -303,6 +333,14 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
       (_, GIrrelevant) -> pure ()
 
       (GU, GU) -> pure ()
+
+      (g@(GNe (HMeta x) gsp vsp), g'@(GNe (HMeta x')  gsp' vsp')) -> case compare x x' of
+        LT -> solve l ns x' vsp' gsp' (GV g v)
+        GT -> solve l ns x vsp gsp (GV g' v')
+        EQ -> goSp l ns gsp gsp' vsp vsp'
+
+      (GNe (HMeta x) gsp vsp, g') -> solve l ns x vsp gsp (GV g' v')
+      (g, GNe (HMeta x') gsp' vsp') -> solve l ns x' vsp' gsp' (GV g v)
 
       (GLam (Named n i) t, GLam _ t') -> let var = gvLocal l in
         go (l + 1) (NSnoc ns n) (gvInst t var) (gvInst t' var)
@@ -330,13 +368,6 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
 
       (GNe (HTop x)   gsp vsp, GNe (HTop x')   gsp' vsp') | x == x' -> goSp l ns gsp gsp' vsp vsp'
       (GNe (HLocal x) gsp vsp, GNe (HLocal x') gsp' vsp') | x == x' -> goSp l ns gsp gsp' vsp vsp'
-      (g@(GNe (HMeta x) gsp vsp), g'@(GNe (HMeta x')  gsp' vsp')) -> case compare x x' of
-        LT -> solve l ns x' vsp' gsp' (GV g v)
-        GT -> solve l ns x vsp gsp (GV g' v')
-        EQ -> goSp l ns gsp gsp' vsp vsp'
-
-      (GNe (HMeta x) gsp vsp, g') -> solve l ns x vsp gsp (GV g' v')
-      (g, GNe (HMeta x') gsp' vsp') -> solve l ns x' vsp' gsp' (GV g v)
 
       (g, g') -> throw (LocalError ns (UEGluedUnify (GV g v) (GV g' v')))
 
@@ -350,26 +381,35 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
     goSp d ns SNil SNil SNil SNil = pure ()
     goSp _ _  _    _    _    _    = error "gvUnify.goSp: impossible"
 
+
     solve :: Lvl -> Names -> Meta -> VSpine -> GSpine -> GV -> IO ()
-    solve l ns x vsp gsp gv = do
+    solve l ns x vspTop gspTop gvTop@(GV g v) = do
 
-      let checkSp SNil          = T2 0 RNil
-          checkSp (SAppI gsp g) = case gForce g of
-            GLocal x -> case checkSp gsp of
-              T2 l ren -> T2 (l + 1) (RCons x l ren)
-            g        -> throw (LocalError ns (UEGluedSpine x vsp gsp gv g))
-          checkSp (SAppE gsp g) = case gForce g of
-            GLocal x -> case checkSp gsp of
-              T2 l ren -> T2 (l + 1) (RCons x l ren)
-            _        -> throw (LocalError ns (UEGluedSpine x vsp gsp gv g))
+      let checkGSp :: GSpine -> (Lvl, Renaming)
+          checkGSp = go where
+            go SNil = (0, RNil)
+            go (SAppI gsp g) = case g of
+              GLocal x -> case go gsp of
+                (l, ren) -> (l + 1, RCons x l ren)
+              _        -> throw (LocalError ns (UEGluedSpine x vspTop gspTop gvTop g))
+            go (SAppE gsp v) = case v of
+              GLocal x -> case go gsp of
+                (l, ren) -> (l + 1, RCons x l ren)
+              _        -> throw (LocalError ns (UEGluedSpine x vspTop gspTop gvTop g))
 
-      let ren = checkSp gsp
+          ren        = checkGSp gspTop
+          (ren', v') = contract ren v
 
-      rhs <- lams l ns (proj2 ren) <$> gvQuoteSolution l x ren gv
-             `catch`
-             \case e -> throw (LocalError ns (UEGluedSolution x vsp gsp gv e))
-
-      registerSolution x rhs
+      err <- newIORef Nothing
+      rhs <- vQuoteSolutionRefError err l ns x ren' v'
+      readIORef err >>= \case
+        Nothing          -> registerSolution x rhs
+        Just (FRRigid e) -> throw e
+        Just FRFlex      -> do
+          chk <- gCheckSolution l x ren g
+                 `catch`
+                 (\e -> throw (LocalError ns (UEGluedSolution x vspTop gspTop gvTop e)))
+          if chk then pure () else registerSolution x rhs
 
 -- Elaboration
 ------------------------------------------------------------------------------------------
