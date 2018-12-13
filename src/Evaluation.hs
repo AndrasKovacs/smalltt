@@ -118,7 +118,7 @@ vEval :: VEnv -> Tm -> Val
 vEval vs = \case
   LocalVar x  -> let Box v = vLocal vs x in v
   TopVar x    -> VTop x
-  MetaVar x   -> VMeta x
+  MetaVar x   -> case gvMeta x of (_, GV _ v) -> v
   AppI t u    -> let Box vu = vEvalBox vs u in vAppI (vEval vs t) vu
   AppE t u    -> let Box vu = vEvalBox vs u in vAppE (vEval vs t) vu
   Lam x t     -> VLam x (VCl vs t)
@@ -159,6 +159,21 @@ vAppSpine v (SAppE vs v') = vAppE (vAppSpine v vs) v'
 vAppSpine v SNil          = v
 
 --------------------------------------------------------------------------------
+
+-- | Lookup meta with path compression.
+gvMetaIO :: Meta -> IO (Meta, GV)
+gvMetaIO x =
+  lookupMetaIO x >>= \case
+    MESolved gv (MetaVar y) p -> do
+      (z, gv) <- gvMetaIO y
+      writeMeta x (MESolved gv (MetaVar z) p)
+      pure (z, gv)
+    MESolved gv _ _    -> pure (x, gv)
+    MEUnsolved _       -> pure (x, GV (GMeta x) (VMeta x))
+
+gvMeta :: Meta -> (Meta, GV)
+gvMeta x = runIO (gvMetaIO x)
+{-# inline gvMeta #-}
 
 gvEval :: GEnv -> VEnv -> Tm -> GV
 gvEval gs vs t = GV (gEval gs vs t) (vEval vs t)

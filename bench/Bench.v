@@ -42,6 +42,8 @@ Definition vnil : ∀{a}, Vec a zero
 Definition vcons {a n} : a → Vec a n → Vec a (suc n)
   := λ a xs V n c, c _ a (xs V n c).
 
+Definition vec1 := vcons true (vcons true (vcons true vnil)).
+
 Definition Eq : ∀{A}, A → A → U
  := λ A x y, ∀(P : A → U), P x → P y.
 

@@ -49,17 +49,26 @@ metas :: UA.Array (A.Array MetaEntry)
 metas = runIO UA.empty
 {-# noinline metas #-}
 
-lookupMeta :: Meta -> MetaEntry
-lookupMeta (Meta i j) = runIO $ do
+lookupMetaIO :: Meta -> IO MetaEntry
+lookupMetaIO (Meta i j) = do
   arr <- UA.unsafeRead metas i
   res <- A.unsafeRead arr j
   pure res
+{-# inline lookupMetaIO #-}
+
+lookupMeta :: Meta -> MetaEntry
+lookupMeta x = runIO (lookupMetaIO x)
 {-# inline lookupMeta #-}
 
 metaRigidity :: Meta -> Rigidity
 metaRigidity x = case lookupMeta x of MESolved{} -> Flex; _ -> Rigid
 {-# inline metaRigidity #-}
 
+writeMeta :: Meta -> MetaEntry -> IO ()
+writeMeta (Meta i j) e = do
+  arr <- UA.unsafeRead metas i
+  A.unsafeWrite arr j e
+{-# inline writeMeta #-}
 
 --------------------------------------------------------------------------------
 

@@ -110,46 +110,44 @@ lams l ns = go where
 --  Generating meta solutions
 --------------------------------------------------------------------------------
 
--- | Throws (FlexRigid SolutionError).
---   CONSIDER: throwing only flex errors here and not caring about rigidity is
---   also a good option, because rigid errors are immediately after caught by glued
---   solution check, and error messages are not worse at all there.
+-- | Throws FlexRigid LocalError
+--   Always throws flex because in a rigid case the glued check immediately throws
+--   afterwards anyway, and error messages aren't worse in glued.
 vQuoteSolution ::
-  (FlexRigid SolutionError -> IO ()) -> Lvl -> Names -> Meta -> (Lvl, Renaming) -> Val -> IO Tm
+  (FlexRigid LocalError -> IO ()) -> Lvl -> Names -> Meta -> (Lvl, Renaming) -> Val -> IO Tm
 vQuoteSolution throwAction = \l ns occurs ren v ->
   let
     scopeCheck :: Lvl -> (Lvl, Renaming) -> Val -> IO Tm
-    scopeCheck l (renl, ren) v = go l Rigid ren v  where
+    scopeCheck l (renl, ren) v = go l ren v  where
       shift = l - renl
-      go :: Lvl -> Rigidity -> Renaming -> Val -> IO Tm
-      go l r ren = \case
+      go :: Lvl -> Renaming -> Val -> IO Tm
+      go l ren = \case
         VNe h vsp -> case h of
           HLocal x -> case applyRen ren x of
             (-1)   -> do
-                        throwAction (makeFR r (SEScope x))
+                        throwAction (FRFlex @LocalError)
                         pure Irrelevant
-            y      -> goSp l r ren (LocalVar (l - shift - y - 1)) vsp
-          HTop   x -> goSp l (topRigidity x `meld` r) ren (TopVar x) vsp
+            y      -> goSp l ren (LocalVar (l - shift - y - 1)) vsp
+          HTop   x -> goSp l ren (TopVar x) vsp
           HMeta  x | x == occurs -> do
-                       throwAction (makeFR r SEOccurs)
+                       throwAction (FRFlex @LocalError)
                        pure Irrelevant
                    | otherwise -> do
-                       let xr = metaRigidity x
                        case metaTopLvl x == metaTopLvl occurs of
-                         True | Flex <- xr -> throwAction FRFlex
+                         True | Flex <- metaRigidity x -> throwAction (FRFlex @LocalError)
                          _ -> pure ()
-                       goSp l (xr `meld` r) ren (MetaVar x) vsp
-        VLam x t    -> Lam x <$> go (l + 1) r (RCons l (l - shift) ren) (vInst t (VLocal l))
-        VPi x a b   -> Pi x <$> go l r ren a
-                            <*> go (l + 1) r (RCons l (l - shift) ren) (vInst b (VLocal l))
-        VFun a b    -> Fun <$> go l r ren a <*> go l r ren b
+                       goSp l ren (MetaVar x) vsp
+        VLam x t    -> Lam x <$> go (l + 1) (RCons l (l - shift) ren) (vInst t (VLocal l))
+        VPi x a b   -> Pi x <$> go l ren a
+                            <*> go (l + 1) (RCons l (l - shift) ren) (vInst b (VLocal l))
+        VFun a b    -> Fun <$> go l ren a <*> go l ren b
         VU          -> pure U
         VIrrelevant -> pure Irrelevant
 
-      goSp :: Lvl -> Rigidity -> Renaming -> Tm -> VSpine -> IO Tm
-      goSp l r ren t (SAppI vsp v) = AppI <$> goSp l r ren t vsp <*> go l Flex ren v
-      goSp l r ren t (SAppE vsp v) = AppE <$> goSp l r ren t vsp <*> go l Flex ren v
-      goSp l r ren t SNil          = pure t
+      goSp :: Lvl -> Renaming -> Tm -> VSpine -> IO Tm
+      goSp l ren t (SAppI vsp v) = AppI <$> goSp l ren t vsp <*> go l ren v
+      goSp l ren t (SAppE vsp v) = AppE <$> goSp l ren t vsp <*> go l ren v
+      goSp l ren t SNil          = pure t
 
   in lams l ns (snd ren) <$> scopeCheck l ren v
 {-# inline vQuoteSolution #-}
@@ -159,7 +157,7 @@ vQuoteSolutionShortCut = vQuoteSolution throw
 {-# inline vQuoteSolutionShortCut #-}
 
 vQuoteSolutionRefError ::
-     IORef (Maybe (FlexRigid SolutionError))
+     IORef (Maybe (FlexRigid LocalError))
   -> Lvl -> Names -> Meta -> (Lvl, Renaming) -> Val -> IO Tm
 vQuoteSolutionRefError ref = vQuoteSolution (\e -> writeIORef ref (Just e))
 {-# inline vQuoteSolutionRefError #-}
@@ -582,18 +580,29 @@ checkTopEntry :: NameTable -> P.TopEntry -> IO NameTable
 checkTopEntry ntbl e = do
   UA.push metas =<< A.empty
   let cxt = initCxt ntbl
+
   let guardUnsolvedMetas = do
         arr <- UA.last metas
         i   <- subtract 1 <$> UA.size metas
         A.forMIx_ arr $ \j -> \case
           MEUnsolved p -> updPos p >> throw (TopError cxt (EEUnsolvedMeta (Meta i j)))
           _            -> pure ()
+
+  let compressMetas = do
+        arr  <- UA.last metas
+        i    <- subtract 1 <$> UA.size metas
+        jmax <- A.size arr
+        let go j | j == jmax = pure ()
+            go j = gvMetaIO (Meta i j) >> go (j + 1)
+        go 0
+
   x <- A.size top
   case e of
     P.TEPostulate (Posed pos n) a -> updPos pos >> do
       ((), time) <- timed $ do
         a <- check cxt a gvU
         guardUnsolvedMetas
+        compressMetas
         A.push top (TopEntry (Posed pos n) EDPostulate (EntryTy a (gvEval' cxt a)))
       pure (addName n (NITop pos x) ntbl)
     P.TEDefinition (Posed pos n) prof a t -> updPos pos >> do
@@ -602,6 +611,7 @@ checkTopEntry ntbl e = do
         let gva = gvEval' cxt a
         t <- check cxt t gva
         guardUnsolvedMetas
+        compressMetas
         let gvt = gvEval' cxt t
         A.push top (TopEntry (Posed pos n) (EDDefinition t gvt) (EntryTy a gva))
         pure gvt

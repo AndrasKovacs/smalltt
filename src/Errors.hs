@@ -87,7 +87,7 @@ displayTopError file (TopError cxt@(Cxt{..}) err) = do
 
           reportSolutionErr x vsp v err = report (
             printf
-              "Illegal (local) solution candidate when trying to solve\n\n\
+              "Illegal solution candidate when trying to solve\n\n\
                \  %s\n\nwith\n\n  %s\n\n"
               (showValMetaless _nameTable ns (VNe (HMeta x) vsp))
               (showValMetaless _nameTable ns v)
