@@ -24,12 +24,13 @@ dependent type indexing. A simple example for the latter is length-indexed
 vectors, where the implicit natural number indices make normal forms of vector
 expressions quadratic-sized in the length.
 
-Project is very WIP, implementation is ugly, CLI is crap and error reporting
-is currently trash. Source locations in errors are also bugged out.
+Project is WIP currently. I have not yet decided when to stop tinkering with
+this version, or what the goals are, but I would love to see enough features and
+usabililty so that larger benchmarks would become possible, and I should write
+some exposition about implementation principles.
 
 Although there are lots of unimplemented optimizations currently, the system is
-already *very* fast. This file is elaborated in 43 ms on my system, and if we
-remove the crazier "vecStress" and "t1" definitions, this goes down to *1* ms.
+already *very* fast.
 
 I have done preliminary (informal, manual) bechmarking comparing raw evaluation
 and conversion performance and asymptotics to Agda, Coq and GHC. You can find
@@ -423,11 +424,12 @@ synEqTest2 [elaborate] : Eq n1M n1M = refl
    comparison would be too muddled by asymptotic differences.
 -}
 
--- approximate equality works in smallt if Eq is postulated:
+-- approximate equality should work in smallt if Eq is postulated, although
+-- it currently does not work for unknown reasons (TODO: fix)
 assume Eq2   : {A} → A → A → U
 assume refl2 : {A x} → Eq2 {A} x x
 
--- smalltt : approx check fails (TODO: investigate)
+-- smalltt : approx check fails
 -- Agda    : approx check succeeds
 -- Coq     : approx check succeeds
 synEqTest3 [elaborate] : Eq2 n1M n1M = refl2
