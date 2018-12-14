@@ -102,7 +102,7 @@ vEval :: VEnv -> Tm -> Val
 vEval vs = \case
   LocalVar x  -> let Box v = vLocal vs x in v
   TopVar x    -> VTop x
-  MetaVar x   -> case lookupMeta x of MESolved (GV _ v) True _ _ -> v; _ -> VMeta x
+  MetaVar x   -> case lookupMeta x of MESolved (GV _ v) True t _ -> v; _ -> VMeta x
   AppI t u    -> let Box vu = vEvalBox vs u in vAppI (vEval vs t) vu
   AppE t u    -> let Box vu = vEvalBox vs u in vAppE (vEval vs t) vu
   Lam x t     -> VLam x (VCl vs t)
@@ -141,6 +141,11 @@ vAppSpine :: Val -> VSpine -> Val
 vAppSpine v (SAppI vs v') = vAppI (vAppSpine v vs) v'
 vAppSpine v (SAppE vs v') = vAppE (vAppSpine v vs) v'
 vAppSpine v SNil          = v
+
+vForce :: Val -> Val
+vForce = \case
+  VNe (HMeta x) vs | MESolved (GV _ v) True _ _ <- lookupMeta x -> vForce (vAppSpine v vs)
+  v -> v
 
 --------------------------------------------------------------------------------
 

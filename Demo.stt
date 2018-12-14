@@ -424,12 +424,11 @@ synEqTest2 [elaborate] : Eq n1M n1M = refl
    comparison would be too muddled by asymptotic differences.
 -}
 
--- approximate equality should work in smallt if Eq is postulated, although
--- it currently does not work for unknown reasons (TODO: fix)
+-- approximate equality works in smallt if Eq is postulated
 assume Eq2   : {A} → A → A → U
 assume refl2 : {A x} → Eq2 {A} x x
 
--- smalltt : approx check fails
+-- smalltt : approx check succeeds
 -- Agda    : approx check succeeds
 -- Coq     : approx check succeeds
 synEqTest3 [elaborate] : Eq2 n1M n1M = refl2

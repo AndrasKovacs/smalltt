@@ -130,22 +130,19 @@ vQuoteSolution throwAction = \l ns occurs ren v ->
     scopeCheck l (renl, ren) v = go l ren v  where
       shift = l - renl
       go :: Lvl -> Renaming -> Val -> IO Tm
-      go l ren = \case
+      go l ren v = case vForce v of
         VNe h vsp -> case h of
           HLocal x -> case applyRen ren x of
-            (-1)   -> do
-                        throwAction (FRFlex @LocalError)
-                        pure Irrelevant
+            (-1)   -> Irrelevant <$ throwAction (FRFlex @LocalError)
             y      -> goSp l ren (LocalVar (l - shift - y - 1)) vsp
           HTop   x -> goSp l ren (TopVar x) vsp
-          HMeta  x | x == occurs -> do
-                       throwAction (FRFlex @LocalError)
-                       pure Irrelevant
-                   | otherwise -> do
-                       case metaTopLvl x == metaTopLvl occurs of
-                         True | Flex <- metaRigidity x -> throwAction (FRFlex @LocalError)
-                         _ -> pure ()
-                       goSp l ren (MetaVar x) vsp
+          HMeta  x | x == occurs -> Irrelevant <$ throwAction (FRFlex @LocalError)
+                   | otherwise   -> lookupMetaIO x >>= \case
+                       MEUnsolved{} -> goSp l ren (MetaVar x) vsp
+                       MESolved{}   -> do
+                         throwAction (FRFlex @LocalError)
+                         goSp l ren (MetaVar x) vsp
+
         VLam x t    -> Lam x <$> go (l + 1) (RCons l (l - shift) ren) (vInst t (VLocal l))
         VPi x a b   -> Pi x <$> go l ren a
                             <*> go (l + 1) (RCons l (l - shift) ren) (vInst b (VLocal l))
@@ -187,7 +184,8 @@ vUnify :: Cxt -> Val -> Val -> IO ()
 vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
   go :: Lvl -> Unfolding -> Names -> Rigidity -> Val -> Val -> IO ()
-  go l u ns r v v' = case (v, v') of
+  go l u ns r v v' = case (vForce v, vForce v') of
+
     (VIrrelevant, _) -> pure ()
     (_, VIrrelevant) -> pure ()
 
@@ -257,27 +255,23 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
   {-# inline cantUnify #-}
 
   solve :: Lvl -> Names -> Meta -> VSpine -> Val -> IO ()
-  solve l ns x vsp v =
-
+  solve l ns x vsp v = do
     let checkVSp :: VSpine -> (Lvl, Renaming)
         checkVSp = go where
           go SNil = (0, RNil)
-          go (SAppI vsp v) = case v of
+          go (SAppI vsp v) = case vForce v of
             VLocal x -> case go vsp of
               (l, ren) -> (l + 1, RCons x l ren)
             _        -> throw (FRFlex @LocalError)
-          go (SAppE vsp v) = case v of
+          go (SAppE vsp v) = case vForce v of
             VLocal x -> case go vsp of
               (l, ren) -> (l + 1, RCons x l ren)
             _        -> throw (FRFlex @LocalError)
 
-    in case contract (checkVSp vsp) v of
-         (ren, v) -> do
-           rhs <- vQuoteSolutionShortCut l ns x ren v
-                  `catch`
-                  \case FRFlex    -> throw (FRFlex @LocalError)
-                        FRRigid e -> throw (FRRigid (LocalError ns (UELocalSolution x vsp v e)))
-           registerSolution x rhs
+    case contract (checkVSp vsp) v of
+      (ren, v) -> do
+        rhs <- vQuoteSolutionShortCut l ns x ren v
+        registerSolution x rhs
 
   goSp :: Lvl -> Unfolding -> Names -> Rigidity -> VSpine -> VSpine -> IO ()
   goSp l u ns r (SAppI vsp v) (SAppI vsp' v') = goSp l u ns r vsp vsp' >> go l u ns r v v'
@@ -294,13 +288,14 @@ gCheckSolution topLvl occurs (renl, ren) g = contr topLvl ren g where
   shift = topLvl - renl
 
   contr :: Lvl -> Renaming -> Glued -> IO Bool
-  contr l ren (GLam _ t) = contr (l + 1) (RCons l (l - shift) ren) (gInst t (gvLocal l))
-  contr l ren (GNe (HMeta x) gsp _) | occurs == x, strip l gsp = pure True where
-    strip l SNil                   = l == topLvl
-    strip l (SAppI gs (GLocal l')) = (l' == l - 1) && strip (l - 1) gs
-    strip l (SAppE gs (GLocal l')) = (l' == l - 1) && strip (l - 1) gs
-    strip _ _                      = False
-  contr l ren g = False <$ scopeCheck l ren g
+  contr l ren g = case gForce g of
+    GLam _ t -> contr (l + 1) (RCons l (l - shift) ren) (gInst t (gvLocal l))
+    GNe (HMeta x) gsp _ | occurs == x, strip l gsp -> pure True where
+       strip l SNil                   = l == topLvl
+       strip l (SAppI gs (GLocal l')) = (l' == l - 1) && strip (l - 1) gs
+       strip l (SAppE gs (GLocal l')) = (l' == l - 1) && strip (l - 1) gs
+       strip _ _                      = False
+    g -> False <$ scopeCheck l ren g
 
   scopeCheck :: Lvl -> Renaming -> Glued -> IO ()
   scopeCheck = go where
