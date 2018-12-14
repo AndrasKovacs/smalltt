@@ -177,8 +177,7 @@ type Unfolding = Int
 
 -- | Try to unify local values. May succeed with () or throw ElabError. A rigid
 --   error is unrecoverable and will be reported, a flex error can be rectified
---   if full unification succeeds later. TODO: annotate rigid errors with
---   information.
+--   if full unification succeeds later.
 unfoldLimit :: Unfolding
 unfoldLimit = 2
 {-# inline unfoldLimit #-}
@@ -591,25 +590,13 @@ checkTopEntry :: NameTable -> P.TopEntry -> IO NameTable
 checkTopEntry ntbl e = do
   UA.push metas =<< A.empty
   let cxt = initCxt ntbl
-
-  let simplMetas = do
-        arr  <- UA.last metas
-        i    <- subtract 1 <$> UA.size metas
-        A.forMIx_ arr $ \j -> \case
-          MESolved gv uf t pos -> do
-            let t' = zonk 0 ENil t
-            A.unsafeWrite arr j (MESolved (gvEval ENil ENil t') uf t' pos)
-          MEUnsolved p -> do
-            updPos p
-            throw (TopError cxt (EEUnsolvedMeta (Meta i j)))
-
   x <- A.size top
   case e of
     P.TEPostulate (Posed pos n) a -> updPos pos >> do
       ((), time) <- timed $ do
         a <- check cxt a gvU
-        simplMetas
-        let a' = zonk 0 ENil a
+        simplifyMetaBlock cxt
+        let a' = inline0 a
         A.push top (TopEntry (Posed pos n) EDPostulate (EntryTy a' (gvEval' cxt a')))
       pure (addName n (NITop pos x) ntbl)
     P.TEDefinition (Posed pos n) prof a t -> updPos pos >> do
@@ -617,9 +604,9 @@ checkTopEntry ntbl e = do
         a <- check cxt a gvU
         let gva = gvEval' cxt a
         t <- check cxt t gva
-        simplMetas
-        let a'   = zonk 0 ENil a
-            t'   = zonk 0 ENil t
+        simplifyMetaBlock cxt
+        let a'   = inline0 a
+            t'   = inline0 t
             gva' = gvEval' cxt a'
             gvt  = gvEval' cxt t'
         A.push top (TopEntry (Posed pos n) (EDDefinition t' gvt) (EntryTy a' gva'))

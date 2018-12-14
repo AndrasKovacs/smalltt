@@ -114,103 +114,103 @@ vcons = λ a as V n c → c a (as V n c)
 vec1 = vcons true (vcons false (vcons true vnil))
 
 
--- vecStress =
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
---    (vcons true (vcons true
---    vnil))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
---        ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
---        ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
---        ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
---        ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
---        ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
---        ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
---        ))))))))))))))))))))))))))))))))))))
+vecStress =
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true
+   vnil))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+       ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+       ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+       ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+       ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+       ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+       ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+       ))))))))))))))))))))))))))))))))))))
 
 
 -- Leibniz (Church) propositional equality, useful for testing conversion.
@@ -465,78 +465,78 @@ EvalTm
 -- Large embedded STLC term
 --------------------------------------------------------------------------------
 
--- t1 : Tm nil (fun (fun ι ι) (fun ι ι))
--- t1
---  = lam (lam (
---       app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
---      (var vz))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
---      )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
---      )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
---      ))))))))))))))))))))))))))))))))))))))
---      ))
+t1 : Tm nil (fun (fun ι ι) (fun ι ι))
+t1
+ = lam (lam (
+      app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz)) (app (var (vs vz))
+     (var vz))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+     )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+     )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+     ))))))))))))))))))))))))))))))))))))))
+     ))
 
--- -- test evaluation
--- evalTest = EvalTm t1 tt
+-- test evaluation
+evalTest = EvalTm t1 tt

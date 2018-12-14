@@ -79,103 +79,103 @@ Definition Bot : U
  := ∀ (Bot : U), Bot.
 
 
-(* Definition vecStress := *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true *)
-(*    (vcons true (vcons true *)
-(*    vnil))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) *)
-(*    ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) *)
-(*    ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) *)
-(*    ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) *)
-(*    ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) *)
-(*    ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) *)
-(*    ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) *)
-(*    ))))))))))))))))))). *)
+Definition vecStress :=
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true (vcons true (vcons true (vcons true (vcons true
+   (vcons true (vcons true
+   vnil)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+   )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+   )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+   )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+   )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+   )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+   )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+   ))))))))))))))))))).
 
 
 

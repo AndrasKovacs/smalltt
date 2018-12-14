@@ -56,15 +56,16 @@ library:
   source-dirs:
       src
   dependencies:
-    - dynamic-array
     - containers
+    - dynamic-array
     - ghc-prim
     - megaparsec
     - mtl
+    - primitive
     - text
     - text-short
-    - unordered-containers
     - time
+    - unordered-containers
   ghc-options:
     - -Wall
     - -Wno-missing-signatures
