@@ -140,7 +140,8 @@ vQuoteSolution throwAction = \l ns occurs ren v ->
                    | otherwise   -> lookupMetaIO x >>= \case
                        MEUnsolved{} -> goSp l ren (MetaVar x) vsp
                        MESolved{}   -> do
-                         throwAction (FRFlex @LocalError)
+                         when (metaTopLvl x == metaTopLvl occurs) $
+                           throwAction (FRFlex @LocalError)
                          goSp l ren (MetaVar x) vsp
 
         VLam x t    -> Lam x <$> go (l + 1) (RCons l (l - shift) ren) (vInst t (VLocal l))
@@ -332,8 +333,6 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
   where
     go :: Lvl -> Names -> GV -> GV -> IO ()
     go l ns (GV g v) (GV g' v') = case (gForce g, gForce g') of
-      (GIrrelevant, _) -> pure ()
-      (_, GIrrelevant) -> pure ()
 
       (GU, GU) -> pure ()
 
