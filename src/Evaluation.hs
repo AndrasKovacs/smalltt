@@ -1,11 +1,145 @@
 
 module Evaluation where
 
+import qualified SmallArray as SA
+import Control.Monad.Except
+import Data.IORef
+
 import Common
 import ElabState
 import Syntax
 import Values
+import Pretty
+import Cxt
 
+-- Rule rewriting
+--------------------------------------------------------------------------------
+
+data MatchFailure = MFRigid | MFFlex Meta
+
+matchLHS :: Lvl -> RewriteRule -> GSpine -> VSpine -> ExceptT MatchFailure IO Glued
+matchLHS topLvl (RewriteRule varNum vars gvlhs lhs rhs) gsp vsp = do
+  buffer <- SA.new varNum REUnsolved
+
+  let match :: GV -> GV -> ExceptT MatchFailure IO ()
+      match = go topLvl where
+
+        goSp :: Lvl -> GSpine -> GSpine -> VSpine -> VSpine -> ExceptT MatchFailure IO ()
+        goSp l (SAppI gsp g) (SAppI gsp' g')
+               (SAppI vsp v) (SAppI vsp' v') = goSp l gsp gsp' vsp vsp'
+                                               >> go l (GV g v) (GV g' v')
+        goSp l (SAppE gsp g) (SAppE gsp' g')
+               (SAppE vsp v) (SAppE vsp' v') = goSp l gsp gsp' vsp vsp'
+                                               >> go l (GV g v) (GV g' v')
+        goSp d SNil SNil SNil SNil = pure ()
+        goSp _ _    _    _    _    = error "gvUnify.goSp: impossible"
+
+        go :: Lvl -> GV -> GV -> ExceptT MatchFailure IO ()
+        go l (GV g v) (GV g' v') = case (gForce l g, gForce l g') of
+          (GNe (HRuleVar x) gsp vsp, g') -> solve l x gsp (GV g' v')
+          (GNe (HMeta x) gsp vsp, g')    -> throwError (MFFlex x)
+          (g, GNe (HMeta x') gsp' vsp')  -> throwError (MFFlex x')
+          (GNe h gsp vsp, GNe h' gsp' vsp') | h == h' -> goSp l gsp gsp' vsp vsp'
+
+          (GU, GU) -> pure ()
+
+          (GLam (Named n i) t, GLam _ t') -> let var = gvLocal l in
+            go (l + 1) (gvInst l t var) (gvInst l t' var)
+
+          (GLam (Named n i) t, t'       ) -> let var = gvLocal l in
+            go (l + 1) (gvInst l t var) (gvApp i l t' var)
+
+          (t     , GLam (Named n' i') t') -> let var = gvLocal l in
+            go (l + 1) (gvApp i' l t var) (gvInst l t' var)
+
+          (GPi (Named n i) a b, GPi (Named _ i') a' b') | i == i' -> do
+            let var = gvLocal l
+            go l a a'
+            go (l + 1) (gvInst l b var) (gvInst l b' var)
+
+          (GPi (Named n i) a b, GFun a' b') -> do
+            go l a a'
+            go (l + 1) (gvInst l b (gvLocal l)) b'
+
+          (GFun a b, GPi (Named n' i') a' b') -> do
+            go l a a'
+            go (l + 1) b (gvInst l b' (gvLocal l))
+
+          (GFun a b, GFun a' b') -> go l a a' >> go l b b'
+
+          _ -> throwError MFRigid
+
+        solve :: Lvl -> Lvl -> GSpine -> GV -> ExceptT MatchFailure IO ()
+        solve l x gsp gv
+          | l == topLvl, SNil <- gsp = lift $ do
+              buffer <- readIORef rewriteLHS
+              SA.write buffer x (RESolved gv)
+          | otherwise = error "match.solve: higher-order rewrite rules not yet supported"
+        {-# inline solve #-}
+
+      matchLHS :: ExceptT MatchFailure IO ()
+      matchLHS = go (SA.size gvlhs - 1) gsp vsp where
+        go i (SAppI gsp g) (SAppI vsp v) = go (i - 1) gsp vsp
+                                        >> match (SA.index gvlhs i) (GV g v)
+        go i (SAppE gsp g) (SAppE vsp v) = go (i - 1) gsp vsp
+                                        >> match (SA.index gvlhs i) (GV g v)
+        go i SNil          SNil          = pure ()
+        go _ _             _             = error "matchSp: impossible"
+
+      finalize :: IO Glued
+      finalize = go 0 ENil ENil where
+        go i gs vs | i == SA.sizeM buffer =
+          pure (gEval topLvl gs vs rhs)
+        go i gs vs =
+          SA.read buffer i >>= \case
+            REUnsolved        -> error "non-deterministic rewrite rule"
+            RESolved (GV g v) -> go (i + 1) (EDef gs g) (EDef vs v)
+
+  oldBuffer <- lift $ readIORef rewriteLHS
+  lift $ writeIORef rewriteLHS buffer
+  matchLHS `finally` (lift $ writeIORef rewriteLHS oldBuffer)
+  lift finalize
+{-# inline matchLHS #-}
+
+gRewriteIO :: Lvl -> Lvl -> GSpine -> VSpine -> IO Glued
+gRewriteIO l x gsp vsp = lookupTopIO x >>= \case
+  TEPostulate numRules rules arity _ _ _ ->
+    let overapply = spineLength gsp - arity
+        gsp'      = dropSpine overapply gsp
+        vsp'      = dropSpine overapply vsp
+        gspRest   = takeSpine overapply gsp
+        vspRest   = takeSpine overapply vsp
+        go :: [RewriteRule] -> IO Glued
+        go (r:rs) = do
+          runExceptT (matchLHS l r gsp' vsp') >>= \case
+            Left (MFFlex (Meta _ j)) -> pure (GNe (HTopBlockedOnMeta (Int2 x j)) gsp vsp)
+            Left MFRigid             -> go rs
+            Right g                  -> pure (gAppSpine l g gspRest vspRest)
+        go []     = pure (GNe (HTopRigid (Int2 x numRules)) gsp vsp)
+    in go rules
+  _ -> error "gRewrite: impossible"
+
+gRewrite :: Lvl -> Lvl -> GSpine -> VSpine -> Glued
+gRewrite l x gsp vsp = runIO (gRewriteIO l x gsp vsp)
+
+gSaturatedRewriteIO :: Lvl -> Lvl -> GSpine -> VSpine -> IO Glued
+gSaturatedRewriteIO l x gsp vsp = lookupTopIO x >>= \case
+  TEPostulate numRules rules arity _ _ _ -> do
+    let go :: [RewriteRule] -> IO Glued
+        go (r:rs) = runExceptT (matchLHS l r gsp vsp) >>= \case
+          Left (MFFlex (Meta _ j)) -> pure (GNe (HTopBlockedOnMeta (Int2 x j)) gsp vsp)
+          Left MFRigid             -> go rs
+          Right g                  -> pure g
+        go []     = pure (GNe (HTopRigid (Int2 x numRules)) gsp vsp)
+    go rules
+  _ -> error "gRewrite: impossible"
+
+gSaturatedRewrite :: Lvl -> Lvl -> GSpine -> VSpine -> Glued
+gSaturatedRewrite l x gsp vsp = runIO (gSaturatedRewriteIO l x gsp vsp)
+
+
+
+-- Glued evaluation
 --------------------------------------------------------------------------------
 
 gLocal :: GEnv -> Ix -> Box Glued
@@ -17,68 +151,97 @@ gLocal = go where
   go ENil        x = error "gLocal: impossible"
 
 gTop :: Lvl -> Box Glued
-gTop x = case _entryDef (lookupTop x) of
-  EDPostulate             -> Box (GTop x)
-  EDDefinition _ (GV g _) -> Box g
+gTop x = case lookupTop x of
+  TEDefinition (GV g _) _ _ _ _  -> Box g
+  TEPostulate 0 _ _ _ _ _        -> Box (GNe (HTopRigid (Int2 x 0)) SNil SNil)
+  TEPostulate _ _ arity _ _ _    -> Box (GNe (HTopUnderapplied (Int2 x arity)) SNil SNil)
+  TERewriteRule{}                -> error "gTop: impossible"
 {-# inline gTop #-}
 
 -- | We use this to avoid allocating useless thunks for looking up variables
 --   from environments.
-gEvalBox :: GEnv -> VEnv -> Tm -> Box Glued
-gEvalBox gs vs = \case
+gEvalBox :: Lvl -> GEnv -> VEnv -> Tm -> Box Glued
+gEvalBox l gs vs = \case
   LocalVar x  -> gLocal gs x
   TopVar   x  -> gTop x
   MetaVar  x  -> case lookupMeta x of MESolved (GV g _) _ _ _ -> Box g; _ -> Box (GMeta x)
-  t           -> Box (gEval gs vs t)
+  t           -> Box (gEval l gs vs t)
 {-# inline gEvalBox #-}
 
-gEval :: GEnv -> VEnv -> Tm -> Glued
-gEval gs vs = \case
+gEval :: Lvl -> GEnv -> VEnv -> Tm -> Glued
+gEval l gs vs = \case
   LocalVar x  -> let Box g = gLocal gs x in g
   TopVar   x  -> let Box g = gTop x in g
   MetaVar  x  -> case lookupMeta x of MESolved (GV g _) _ _ _ -> g; _ -> GMeta x
-  AppI t u    -> let Box gu = gEvalBox gs vs u
-                 in gAppI (gEval gs vs t) (GV gu (vEval vs u))
-  AppE t u    -> let Box gu = gEvalBox gs vs u
-                 in gAppE (gEval gs vs t) (GV gu (vEval vs u))
+  RuleVar  x  -> case lookupRuleVar x of RESolved (GV g _) -> g; _ -> GRuleVar x
+  AppI t u    -> let Box gu = gEvalBox l gs vs u
+                 in gAppI l (gEval l gs vs t) (GV gu (vEval vs u))
+  AppE t u    -> let Box gu = gEvalBox l gs vs u
+                 in gAppE l (gEval l gs vs t) (GV gu (vEval vs u))
   Lam x t     -> GLam x (GCl gs vs t)
-  Pi x a b    -> let Box ga = gEvalBox gs vs a
+  Pi x a b    -> let Box ga = gEvalBox l gs vs a
                  in GPi x (GV ga (vEval vs a)) (GCl gs vs b)
-  Fun t u     -> let Box gt = gEvalBox gs vs t; Box gu = gEvalBox gs vs u
+  Fun t u     -> let Box gt = gEvalBox l gs vs t; Box gu = gEvalBox l gs vs u
                  in GFun (GV gt (vEval vs t)) (GV gu (vEval vs u))
   U           -> GU
-  Let _ t u   -> let Box gt = gEvalBox gs vs t
-                 in gEval (EDef gs gt) (EDef vs (vEval vs u)) u
+  Let _ t u   -> let Box gt = gEvalBox l gs vs t
+                 in gEval l (EDef gs gt) (EDef vs (vEval vs u)) u
   Irrelevant  -> GIrrelevant
 
-gInst :: GCl -> GV -> Glued
-gInst (GCl gs vs t) (GV g v) = gEval (EDef gs g) (EDef vs v) t
+gInst :: Lvl -> GCl -> GV -> Glued
+gInst l (GCl gs vs t) (GV g v) = gEval l (EDef gs g) (EDef vs v) t
 {-# inline gInst #-}
 
-gAppI :: Glued -> GV -> Glued
-gAppI (GLam _ t)    gv       = gInst t gv
-gAppI (GNe h gs vs) (GV g v) = GNe h (SAppI gs g) (SAppI vs v)
-gAppI _             _        = error "gAppI: impossible"
+gAppI :: Lvl -> Glued -> GV -> Glued
+gAppI l (GLam _ t) gv = gInst l t gv
+gAppI l (GNe (HTopUnderapplied (Int2 x arity)) gsp vsp) (GV g v) =
+  case arity of
+    1 -> gSaturatedRewrite l x (SAppI gsp g) (SAppI vsp v)
+    _ -> GNe (HTopUnderapplied (Int2 x (arity - 1))) (SAppI gsp g) (SAppI vsp v)
+gAppI l (GNe h gsp vsp) (GV g v) = GNe h (SAppI gsp g) (SAppI vsp v)
+gAppI _ _ _ = error "gvAppI : impossible"
 {-# inline gAppI #-}
 
-gAppE :: Glued -> GV -> Glued
-gAppE (GLam _ t)    gv       = gInst t gv
-gAppE (GNe h gs vs) (GV g v) = GNe h (SAppE gs g) (SAppE vs v)
-gAppE _             _        = error "gAppE: impossible"
+gAppE :: Lvl -> Glued -> GV -> Glued
+gAppE l g gv = case (g, gv) of
+  (GLam _ t, gv) -> gInst l t gv
+  (GNe h@(HTopUnderapplied (Int2 x arity)) gsp vsp, GV g v) ->
+    case arity of
+      1 -> gSaturatedRewrite l x (SAppE gsp g) (SAppE vsp v)
+      _ -> GNe (HTopUnderapplied (Int2 x (arity - 1))) (SAppE gsp g) (SAppE vsp v)
+  (GNe h gsp vsp, GV g v) -> GNe h (SAppE gsp g) (SAppE vsp v)
+  _ -> error "gvAppI : impossible"
 {-# inline gAppE #-}
 
-gAppSpine :: Glued -> GSpine -> VSpine -> Glued
-gAppSpine g (SAppI gs g') (SAppI vs v) = gAppI (gAppSpine g gs vs) (GV g' v)
-gAppSpine g (SAppE gs g') (SAppE vs v) = gAppE (gAppSpine g gs vs) (GV g' v)
-gAppSpine g SNil           SNil        = g
-gAppSpine _ _              _           = error "gAppSpine: impossible"
+gAppSpine :: Lvl -> Glued -> GSpine -> VSpine -> Glued
+gAppSpine l g (SAppI gsp g') (SAppI vsp v) = gAppI l (gAppSpine l g gsp vsp) (GV g' v)
+gAppSpine l g (SAppE gsp g') (SAppE vsp v) = gAppE l (gAppSpine l g gsp vsp) (GV g' v)
+gAppSpine l g SNil           SNil          = g
+gAppSpine l _ _              _             = error "gAppSpine: impossible"
 
-gForce :: Glued -> Glued
-gForce = \case
-  GNe (HMeta x) gs vs | MESolved (GV g v) _ _ _ <- lookupMeta x -> gForce (gAppSpine g gs vs)
+gForce :: Lvl -> Glued -> Glued
+gForce l g = case g of
+  GNe (HMeta x) gsp vsp
+    | MESolved (GV g _) _ _ _ <- lookupMeta x -> gForce l (gAppSpine l g gsp vsp)
+  GNe (HTopBlockedOnMeta (Int2 x mj)) gsp vsp
+    | MESolved{} <- lookupActiveMeta mj -> gForce l (gRewrite l x gsp vsp)
+  GNe (HRuleVar x) gsp vsp
+    | RESolved (GV g _) <- lookupRuleVar x -> gForce l (gAppSpine l g gsp vsp)
+  GNe (HTopRigid (Int2 x n)) gsp vsp
+    | TEPostulate n' _ _ _ _ _ <- lookupTop x, n' > n -> gForce l (gRewrite l x gsp vsp)
   g -> g
 
 --------------------------------------------------------------------------------
+
+topNumRulesIO :: Lvl -> IO Int
+topNumRulesIO x = lookupTopIO x >>= \case
+  TEPostulate num _ _ _ _ _ -> pure num
+  _                         -> pure 0
+{-# inline topNumRulesIO #-}
+
+topNumRules :: Lvl -> Int
+topNumRules x = runIO (topNumRulesIO x)
+{-# inline topNumRules #-}
 
 vLocal :: VEnv -> Ix -> Box Val
 vLocal = go where
@@ -93,7 +256,7 @@ vLocal = go where
 vEvalBox :: VEnv -> Tm -> Box Val
 vEvalBox vs = \case
   LocalVar x -> vLocal vs x
-  TopVar x   -> Box (VTop x)
+  TopVar x   -> Box (VTop (Int2 x (topNumRules x)))
   MetaVar x  -> Box (VMeta x)
   t          -> Box (vEval vs t)
 {-# inline vEvalBox #-}
@@ -101,8 +264,9 @@ vEvalBox vs = \case
 vEval :: VEnv -> Tm -> Val
 vEval vs = \case
   LocalVar x  -> let Box v = vLocal vs x in v
-  TopVar x    -> VTop x
+  TopVar x    -> VTop (Int2 x (topNumRules x))
   MetaVar x   -> case lookupMeta x of MESolved (GV _ v) True t _ -> v; _ -> VMeta x
+  RuleVar x   -> VRuleVar x
   AppI t u    -> let Box vu = vEvalBox vs u in vAppI (vEval vs t) vu
   AppE t u    -> let Box vu = vEvalBox vs u in vAppE (vEval vs t) vu
   Lam x t     -> VLam x (VCl vs t)
@@ -144,37 +308,55 @@ vAppSpine v SNil          = v
 
 vForce :: Val -> Val
 vForce = \case
-  VNe (HMeta x) vs | MESolved (GV _ v) True _ _ <- lookupMeta x -> vForce (vAppSpine v vs)
+  VNe (HMeta x) vs | MESolved (GV _ v) True _ _ <- lookupMeta x ->
+    vForce (vAppSpine v vs)
   v -> v
 
 --------------------------------------------------------------------------------
 
-gvEval :: GEnv -> VEnv -> Tm -> GV
-gvEval gs vs t = GV (gEval gs vs t) (vEval vs t)
+gvEval :: Lvl -> GEnv -> VEnv -> Tm -> GV
+gvEval l gs vs t = GV (gEval l gs vs t) (vEval vs t)
 {-# inline gvEval #-}
 
-gvInst :: GCl -> GV -> GV
-gvInst (GCl gs vs t) (GV g v) =
+gvInst :: Lvl -> GCl -> GV -> GV
+gvInst l (GCl gs vs t) (GV g v) =
   let vs' = EDef vs v
       gs' = EDef gs g
-  in GV (gEval gs' vs' t) (vEval vs' t)
+  in GV (gEval l gs' vs' t) (vEval vs' t)
 {-# inline gvInst #-}
 
-gvAppI :: Glued -> GV -> GV
-gvAppI (GLam _ t)      gv       = gvInst t gv
-gvAppI (GNe h gsp vsp) (GV g v) = let vsp' = SAppI vsp v
-                                  in GV (GNe h (SAppI gsp g) vsp') (VNe h vsp')
-gvAppI _ _ = error "gvAppI : impossible"
+gvAppI :: Lvl -> Glued -> GV -> GV
+gvAppI l (GLam _ t) gv = gvInst l t gv
+gvAppI l (GNe (HTopUnderapplied (Int2 x arity)) gsp vsp) (GV g v) =
+  let vsp' = SAppI vsp v
+  in case arity of
+       1 -> GV (gSaturatedRewrite l x (SAppI gsp g) vsp')
+               (VNe (HTopRigid (Int2 x 0)) vsp')
+       _ -> let h' = HTopUnderapplied (Int2 x (arity - 1))
+            in GV (GNe h' (SAppI gsp g) vsp') (VNe h' vsp')
+gvAppI l (GNe h gsp vsp) (GV g v) =
+  let vsp' = SAppI vsp v
+  in GV (GNe h (SAppI gsp g) vsp') (VNe h vsp')
+gvAppI _ _ _ = error "gvAppI : impossible"
 {-# inline gvAppI #-}
 
-gvAppE :: Glued -> GV -> GV
-gvAppE (GLam _ t)      gv       = gvInst t gv
-gvAppE (GNe h gsp vsp) (GV g v) = let vsp' = SAppE vsp v
-                                  in GV (GNe h (SAppE gsp g) vsp') (VNe h vsp')
-gvAppE _ _ = error "gvAppE : impossible"
+gvAppE :: Lvl -> Glued -> GV -> GV
+gvAppE l (GLam _ t) gv = gvInst l t gv
+gvAppE l (GNe (HTopUnderapplied (Int2 x arity)) gsp vsp) (GV g v) =
+  let vsp' = SAppE vsp v
+  in case arity of
+       1 -> GV (gSaturatedRewrite l x (SAppE gsp g) vsp')
+               (VNe (HTopRigid (Int2 x 0)) vsp')
+       _ -> let h' = HTopUnderapplied (Int2 x (arity - 1))
+            in GV (GNe h' (SAppE gsp g) vsp') (VNe h' vsp')
+gvAppE l (GNe h gsp vsp) (GV g v) =
+  let vsp' = SAppE vsp v
+  in GV (GNe h (SAppE gsp g) vsp') (VNe h vsp')
+gvAppE _ _ _ = error "gvAppI : impossible"
 {-# inline gvAppE #-}
 
-gvApp :: Icit -> Glued -> GV -> GV
+
+gvApp :: Icit -> Lvl -> Glued -> GV -> GV
 gvApp Impl = gvAppI
 gvApp Expl = gvAppE
 {-# inline gvApp #-}
@@ -185,12 +367,15 @@ gvApp Expl = gvAppE
 -- | Quote local value.
 vQuote :: Lvl -> Val -> Tm
 vQuote = go where
-  go l = \case
+  go l v = case vForce v of
     VNe h vsp   -> goSp vsp where
                      goSp SNil = case h of
-                       HMeta x  -> MetaVar x
-                       HLocal x -> LocalVar (l - x - 1)
-                       HTop x   -> TopVar x
+                       HMeta x                      -> MetaVar x
+                       HLocal x                     -> LocalVar (l - x - 1)
+                       HTopRigid (Int2 x _)         -> TopVar x
+                       HTopBlockedOnMeta (Int2 x _) -> TopVar x
+                       HTopUnderapplied (Int2 x _)  -> TopVar x
+                       HRuleVar x                   -> RuleVar x
                      goSp (SAppI vsp t) = AppI (goSp vsp) (go l t)
                      goSp (SAppE vsp t) = AppE (goSp vsp) (go l t)
     VLam ni t   -> Lam ni (go (l + 1) (vInst t (VLocal l)))
@@ -202,16 +387,19 @@ vQuote = go where
 -- | Quote glued value to full normal form.
 gQuote :: Lvl -> Glued -> Tm
 gQuote = go where
-  go l g = case gForce g of
+  go l g = case gForce l g of
     GNe h gsp vsp          -> goSp gsp where
                                 goSp SNil = case h of
-                                  HMeta x  -> MetaVar x
-                                  HLocal x -> LocalVar (l - x - 1)
-                                  HTop x   -> TopVar x
+                                  HMeta x                      -> MetaVar x
+                                  HLocal x                     -> LocalVar (l - x - 1)
+                                  HTopRigid (Int2 x _)         -> TopVar x
+                                  HTopBlockedOnMeta (Int2 x _) -> TopVar x
+                                  HTopUnderapplied (Int2 x _)  -> TopVar x
+                                  HRuleVar x                   -> RuleVar x
                                 goSp (SAppI vsp t) = AppI (goSp vsp) (go l t)
                                 goSp (SAppE vsp t) = AppE (goSp vsp) (go l t)
-    GLam ni t              -> Lam ni (go (l + 1) (gInst t (gvLocal l)))
-    GPi ni (GV a _) b      -> Pi ni (go l a) (go (l + 1) (gInst b (gvLocal l)))
+    GLam ni t              -> Lam ni (go (l + 1) (gInst l t (gvLocal l)))
+    GPi ni (GV a _) b      -> Pi ni (go l a) (go (l + 1) (gInst l b (gvLocal l)))
     GFun (GV a _) (GV b _) -> Fun (go l a) (go l b)
     GU                     -> U
     GIrrelevant            -> Irrelevant
@@ -223,9 +411,12 @@ vQuoteMetaless = go where
     VNe h vsp   -> case h of
                      HMeta x | MESolved (GV _ vt) _ _ _ <- lookupMeta x
                        -> go l (vAppSpine vt vsp)
-                     HMeta x  -> goSp l (MetaVar x) vsp
-                     HLocal x -> goSp l (LocalVar (l - x - 1)) vsp
-                     HTop   x -> goSp l (TopVar x) vsp
+                     HMeta x                      -> goSp l (MetaVar x) vsp
+                     HLocal x                     -> goSp l (LocalVar (l - x - 1)) vsp
+                     HTopRigid (Int2 x _)         -> goSp l (TopVar x) vsp
+                     HTopBlockedOnMeta (Int2 x _) -> goSp l (TopVar x) vsp
+                     HTopUnderapplied (Int2 x _)  -> goSp l (TopVar x) vsp
+                     HRuleVar x                   -> goSp l (RuleVar x) vsp
     VLam ni t   -> Lam ni (go (l + 1) (vInst t (VLocal l)))
     VPi ni a b  -> Pi ni (go l a) (go (l + 1) (vInst b (VLocal l)))
     VFun a b    -> Fun (go l a) (go l b)
@@ -235,3 +426,26 @@ vQuoteMetaless = go where
   goSp l h SNil          = h
   goSp l h (SAppI vsp t) = AppI (goSp l h vsp) (go l t)
   goSp l h (SAppE vsp t) = AppE (goSp l h vsp) (go l t)
+
+--------------------------------------------------------------------------------
+
+showVal :: NameTable -> Names -> Val -> String
+showVal ntbl ns = showTm ntbl ns . vQuote (namesLength ns)
+
+showValMetaless :: NameTable -> Names -> Val -> String
+showValMetaless ntbl ns = showTm ntbl ns . vQuoteMetaless (namesLength ns)
+
+showValCxt :: Cxt -> Val -> String
+showValCxt Cxt{..} = showTm _nameTable _names . vQuote _size
+
+showValCxtMetaless :: Cxt -> Val -> String
+showValCxtMetaless Cxt{..} = showValMetaless _nameTable _names
+
+showGlued :: NameTable -> Names -> Glued -> String
+showGlued ntbl ns = showTm ntbl ns . gQuote (namesLength ns)
+
+showGluedCxt :: Cxt -> Glued -> String
+showGluedCxt Cxt{..} = showGlued _nameTable _names
+
+showGluedLvl :: Lvl -> Glued -> String
+showGluedLvl l = showTm mempty NNil . gQuote l

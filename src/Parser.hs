@@ -70,12 +70,17 @@ nonIndented = indentedAt (mkPos 1)
 
 -- | Parse a reference value, then parse something else which must be
 --   more indented than the reference.
-indent :: Parser a -> (a -> Parser b) -> Parser b
-indent ref p = do
+indentMore :: Parser a -> (a -> Parser b) -> Parser b
+indentMore ref p = do
   lvl <- L.indentLevel
   a   <- ref
   local (const (lvl <> mkPos 1)) (p a)
 
+-- withColumn :: Parser a -> Parser (a, Pos)
+-- withColumn p = do
+--   lvl <- L.indentLevel
+--   a <- p
+--   pure (a, lvl)
 
 -- Lexing
 --------------------------------------------------------------------------------
@@ -165,7 +170,7 @@ pArrow = symbol "->" <|> symbol "→"
 pLet :: Parser Tm
 pLet = withPos $ do
   symbol "let"
-  T3 x a t <- indent (withPos pIdent) $ \(Posed pos x) -> do
+  T3 x a t <- indentMore (withPos pIdent) $ \(Posed pos x) -> do
     a <- optional (char ':' *> pTm)
     t <- char '=' *> pTm
     case a of
@@ -174,14 +179,18 @@ pLet = withPos $ do
   u <- symbol "in" *> pTm
   pure (Let x a t u)
 
-pPiBinder :: Parser (Posed (T3 [Posed Name] Tm Icit))
-pPiBinder = withPos (
+pBraceBinder =
       braces ((\x y -> T3 x y Impl)
-                <$> some (withPos pBind)
-                <*> ((char ':' *> pTm) <|> withPos (pure Hole)))
-  <|> parens ((\x y -> T3 x y Expl)
-                <$> some (withPos pBind)
-                <*> (char ':' *> pTm)))
+  <$> some (withPos pBind)
+  <*> ((char ':' *> pTm) <|> withPos (pure Hole)))
+
+pParenBinder =
+      parens ((\x y -> T3 x y Expl)
+  <$> some (withPos pBind)
+  <*> (char ':' *> pTm))
+
+pPiBinder :: Parser (Posed (T3 [Posed Name] Tm Icit))
+pPiBinder = withPos (pBraceBinder <|> pParenBinder)
 
 pPi :: Parser Tm
 pPi =
@@ -206,26 +215,38 @@ pAtom = pU <|> pVar <|> pHole <|> parens pTm
 pTm :: Parser Tm
 pTm = pLam <|> pLet <|> try pPi <|> pFunOrSpine
 
-pPostulate :: Parser TopEntry
-pPostulate = nonIndented $
-  indent (symbol "assume") $ \_ ->
-    TEPostulate <$> withPos pIdent <*> (char ':' *> pTm)
+pRewrite :: Parser TopEntry
+pRewrite = nonIndented $ do
+  indentMore (([] <$ symbol "{}") <|> many (withPos pBraceBinder)) $ \bs -> do
+    let bs' :: [Posed (Named Ty)]
+        bs' = [Posed pos (Named n a) | Posed _ (T3 ns a _) <- bs, Posed pos n <- ns]
+    pArrow
+    lhs <- pTm
+    char '='
+    rhs <- pTm
+    pure (TERewrite bs' lhs rhs)
 
 pProfiling :: Parser (Maybe Profiling)
 pProfiling = optional $ brackets $
   (PElabTime <$ symbol "elaborate") <|> (PNormalizeTime <$ symbol "normalize")
 
-pDefinition :: Parser TopEntry
-pDefinition = nonIndented $ indent (withPos pIdent) $ \x@(Posed pos _) -> do
+pPostulateOrDefinition :: Parser TopEntry
+pPostulateOrDefinition = nonIndented $ indentMore (withPos pIdent) $ \x@(Posed pos _) -> do
   profiling <- pProfiling
   a <- optional (char ':' *> pTm)
-  t <- char '=' *> pTm
-  case a of
-    Just a  -> pure (TEDefinition x profiling a t)
-    Nothing -> pure (TEDefinition x profiling (Posed pos Hole) t)
+  t <- optional (char '=' *> pTm)
+  case t of
+    Just t  -> case a of
+      Just a  -> pure (TEDefinition x profiling a t)
+      Nothing -> pure (TEDefinition x profiling (Posed pos Hole) t)
+    Nothing -> case a of
+      Just a -> case  profiling of
+        Nothing -> pure (TEPostulate x a)
+        _       -> fail "No profiling options are available for postulates"
+      _      -> fail "expected a postulate or a definition"
 
 pProgram :: Parser Program
-pProgram = many (pPostulate <|> pDefinition)
+pProgram = many (pPostulateOrDefinition <|> pRewrite)
 
 pFile :: Parser Program
 pFile = ws *> pProgram <* eof
@@ -242,5 +263,5 @@ parseFile = parse (runReaderT pFile (mkPos 1))
 -- parseTest' p t = parseTest (runReaderT p (mkPos 1)) t
 
 -- test = T.unlines [
---    "f = (g (g (g (g (g x)))))"
+--   "{}  -> plus zero    = λ m. m"
 --    ]

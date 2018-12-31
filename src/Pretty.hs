@@ -8,15 +8,9 @@ module Pretty (
     showTm
   , showTm0
   , showTmCxt
-  , showVal
-  , showValMetaless
-  , showValCxt
-  , showValCxtMetaless
-  , showGlued
-  , showGluedCxt
+  , showRule
   ) where
 
-import qualified Data.Array.Dynamic as A
 import qualified Data.Text.Short as T
 import qualified Data.HashMap.Strict as HM
 
@@ -24,35 +18,18 @@ import Common
 import ElabState
 import Syntax
 import Cxt
-import Values
-import Evaluation
 
 showTm0 :: NameTable -> Tm -> String
 showTm0 ntbl = showTm ntbl NNil
 
 showTm :: NameTable -> Names -> Tm -> String
-showTm ntbl ns t = prettyTm 0 ntbl ns t ""
+showTm ntbl ns t = showSTm ntbl ns t ""
+
+showRule :: NameTable -> [Named Ty] -> Tm -> Tm -> String
+showRule ntbl vars lhs rhs = showSRule ntbl vars lhs rhs ""
 
 showTmCxt :: Cxt -> Tm -> String
 showTmCxt Cxt{..} = showTm _nameTable _names
-
-showVal :: NameTable -> Names -> Val -> String
-showVal ntbl ns = showTm ntbl ns . vQuote (namesLength ns)
-
-showValMetaless :: NameTable -> Names -> Val -> String
-showValMetaless ntbl ns = showTm ntbl ns . vQuoteMetaless (namesLength ns)
-
-showValCxt :: Cxt -> Val -> String
-showValCxt Cxt{..} = showTm _nameTable _names . vQuote _size
-
-showValCxtMetaless :: Cxt -> Val -> String
-showValCxtMetaless Cxt{..} = showValMetaless _nameTable _names
-
-showGlued :: NameTable -> Names -> Glued -> String
-showGlued ntbl ns = showTm ntbl ns . gQuote (namesLength ns)
-
-showGluedCxt :: Cxt -> Glued -> String
-showGluedCxt Cxt{..} = showGlued _nameTable _names
 
 getApp :: Tm -> Maybe (Icit, Tm, Tm)
 getApp (AppI t u) = Just (Impl, t, u)
@@ -65,14 +42,41 @@ pattern App i t u <- (getApp -> Just (i, t, u)) where
   App Impl t u = AppI t u
   App Expl t u = AppE t u
 
-prettyTm :: Int -> NameTable -> Names -> Tm -> ShowS
-prettyTm prec ntbl = go (prec /= 0) where
+disambiguate :: NameTable -> Names -> Name -> Name
+disambiguate ntbl ns n | T.null n = n
+disambiguate ntbl ns n = go (0 :: Int) where
+  go 0 | elem n ns || HM.member n ntbl = go 1
+       | otherwise = n
+  go i = let n' = n <> T.pack (show i)
+         in if elem n' ns || HM.member n' ntbl then go (i + 1) else n'
+  elem n NNil = False
+  elem n (NSnoc ns n')
+    | n == n'   = True
+    | otherwise = elem n ns
+
+showSRule :: NameTable -> [Named Ty] -> Tm -> Tm -> ShowS
+showSRule ntbl vars lhs rhs = go NNil vars where
+  tm     = showSTm ntbl
+  disamb = disambiguate ntbl
+
+  go :: Names -> [Named Ty] -> ShowS
+  go ns (Named (disamb ns -> n) a:vars) =
+    ('{':).(T.unpack n++).(" : "++).tm ns a.('}':).go (NSnoc ns n) vars
+  go ns [] =
+    (case ns of NNil -> ("{} → "++); _ -> (" → "++))
+    . tm ns lhs . (" = "++) . tm ns rhs
+
+showSTm :: NameTable -> Names -> Tm -> ShowS
+showSTm ntbl = go False where
+
+  disamb = disambiguate ntbl
 
   go :: Bool -> Names -> Tm -> ShowS
   go p ns = \case
     LocalVar x -> ((T.unpack $ lookupName ns x)++)
-    TopVar x -> runIO $ do {Posed _ n <- _entryName <$> A.read top x; pure (T.unpack n++)}
+    TopVar x -> case topName x of Posed _ n -> (T.unpack n++)
     MetaVar (Meta i j) -> (("?"++).(show i++)).('.':).(show j++)
+    RuleVar x -> ((T.unpack $ lookupName ns (namesLength ns - x - 1))++)
     Let (Named (disamb ns -> x) a) t u ->
       ("let "++) . (T.unpack x++) . (" : "++) . go False ns a . ("\n    = "++)
       . go False ns t  . ("\nin\n"++) . go False (NSnoc ns x) u
@@ -109,19 +113,7 @@ prettyTm prec ntbl = go (prec /= 0) where
   goLam ns t = (". "++) . go False ns t
 
   lookupName :: Names -> Ix -> Name
-  lookupName = go where
-    go NNil         _ = error "lookupNames: impossible"
+  lookupName ns xTop = go ns xTop where
+    go NNil         _ = T.pack (show xTop)
     go (NSnoc ns n) 0 = if T.null n then "_" else n
     go (NSnoc ns n) x = go ns (x - 1)
-
-  disamb :: Names -> Name -> Name
-  disamb ns n | T.null n = n
-  disamb ns n = go (0 :: Int) where
-    go 0 | elem n ns || HM.member n ntbl = go 1
-         | otherwise = n
-    go i = let n' = n <> T.pack (show i)
-           in if elem n' ns || HM.member n' ntbl then go (i + 1) else n'
-    elem n NNil = False
-    elem n (NSnoc ns n')
-      | n == n'   = True
-      | otherwise = elem n ns

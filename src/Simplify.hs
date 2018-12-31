@@ -15,26 +15,36 @@ import Evaluation
 import Syntax
 import Values
 
+inlineLocal :: VEnv -> Ix -> Either Val Tm
+inlineLocal vs topx = go vs topx where
+  go (EDef vs v) 0 = Left v
+  go (ESkip vs)  0 = Right (LocalVar topx)
+  go (EDef vs _) x = go vs (x - 1)
+  go (ESkip vs)  x = go vs (x - 1)
+  go ENil        x = error "inlineLocal: impossible"
+
 inlineSp :: Lvl -> VEnv -> Tm -> Either Val Tm
 inlineSp l vs = go where
-  go (MetaVar x) = case lookupMeta x of
+  go (MetaVar x)  = case lookupMeta x of
     MESolved _ True t _ -> Left (vEval ENil t)
     _                   -> Right (MetaVar x)
-  go (AppI t u)  = either (\v -> Left (vAppI v (vEval vs u)))
-                          (\t -> Right (AppI t (inline l vs u)))
-                          (go t)
-  go (AppE t u)  = either (\v -> Left (vAppE v (vEval vs u)))
-                          (\t -> Right (AppE t (inline l vs u)))
-                          (go t)
-  go t           = Right (inline l vs t)
+  go (LocalVar x) = inlineLocal vs x
+  go (AppI t u)   = either (\v -> Left (vAppI v (vEval vs u)))
+                           (\t -> Right (AppI t (inline l vs u)))
+                           (go t)
+  go (AppE t u)   = either (\v -> Left (vAppE v (vEval vs u)))
+                           (\t -> Right (AppE t (inline l vs u)))
+                           (go t)
+  go t            = Right (inline l vs t)
 
 inline :: Lvl -> VEnv -> Tm -> Tm
 inline l vs = \case
-  LocalVar x -> LocalVar x
+  LocalVar x -> either (vQuote l) id (inlineLocal vs x)
   TopVar x   -> TopVar x
   MetaVar x  -> case lookupMeta x of
     MESolved _ True t _ -> vQuote l (vEval ENil t)
     _                   -> MetaVar x
+  RuleVar x  -> RuleVar x
   Let (Named x a) t u -> Let (Named x (inline l vs a)) (inline l vs t) (inline (l + 1) (ESkip vs) u)
   AppI t u   -> either (\v -> vQuote l (vAppI v (vEval vs u)))
                        (\t -> AppI t (inline l vs u))
@@ -62,7 +72,7 @@ simplifyMetaBlock cxt = do
   AD.forMIx_ block $ \j -> \case
     MESolved gv uf t pos -> do
       let t' = inline 0 ENil t
-      AD.unsafeWrite block j (MESolved (gvEval ENil ENil t') uf t' pos)
+      AD.write block j (MESolved (gvEval 0 ENil ENil t')  uf t' pos)
     MEUnsolved p -> do
       updPos p
       throw (TopError cxt (EEUnsolvedMeta (Meta blockIx j)))
@@ -74,19 +84,20 @@ simplifyMetaBlock cxt = do
   let countOccurs :: Tm -> IO ()
       countOccurs = go where
         go = \case
-          LocalVar{} -> pure ()
-          TopVar{} -> pure ()
-          MetaVar (Meta i j) -> when (i == blockIx) $ do
-            n <- PA.readPrimArray occurs j
-            PA.writePrimArray occurs j (n + 1)
+          LocalVar{}          -> pure ()
+          TopVar{}            -> pure ()
+          MetaVar (Meta i j)  -> when (i == blockIx) $ do
+                                   n <- PA.readPrimArray occurs j
+                                   PA.writePrimArray occurs j (n + 1)
+          RuleVar{}           -> error "simplifyMetaBlock: impossible"
           Let (Named _ a) t u -> go a >> go t >> go u
-          AppI t u -> go t >> go u
-          AppE t u -> go t >> go u
-          Lam _ t -> go t
-          Pi _ a b -> go a >> go b
-          Fun a b -> go a >> go b
-          Irrelevant -> pure ()
-          U -> pure ()
+          AppI t u            -> go t >> go u
+          AppE t u            -> go t >> go u
+          Lam _ t             -> go t
+          Pi _ a b            -> go a >> go b
+          Fun a b             -> go a >> go b
+          Irrelevant          -> pure ()
+          U                   -> pure ()
 
   AD.forM_ block $ \case
     MESolved _ _ t _ -> countOccurs t
@@ -95,5 +106,5 @@ simplifyMetaBlock cxt = do
   AD.forMIx_ block $ \j -> \case
     MESolved gv uf t pos -> when (not uf) $ do
       occ <- PA.readPrimArray occurs j
-      when (occ == 0) $ AD.unsafeWrite block j (MESolved gv True t pos)
+      when (occ == 0) $ AD.write block j (MESolved gv True t pos)
     _ -> error "simplifyMetaBlock: impossible"

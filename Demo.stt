@@ -425,8 +425,8 @@ synEqTest2 [elaborate] : Eq n1M n1M = refl
 -}
 
 -- approximate equality works in smallt if Eq is postulated
-assume Eq2   : {A} → A → A → U
-assume refl2 : {A x} → Eq2 {A} x x
+Eq2   : {A} → A → A → U
+refl2 : {A x} → Eq2 {A} x x
 
 -- smalltt : approx check succeeds
 -- Agda    : approx check succeeds
@@ -725,3 +725,11 @@ STLCStress [elaborate] : Tm nil (fun (fun ι ι) (fun ι ι))
 -- Coq, Agda : can't benchmark precisely (too fast to measure by hand)
 -- Coq seems subjectively as fast as smalltt, Agda a bit slower
 STLCEvalTest [normalize] = EvalTm STLCStress tt
+
+------------------------------------------------------------
+
+-- isEqual : {A} → A → A → U
+-- {A x} → isEqual {A} x x = U
+
+-- nonLinearMatch1M  [normalize] = isEqual n1M n1MB
+-- nonLinearMatch10M [normalize] = isEqual n10M n10MB

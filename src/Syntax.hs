@@ -14,6 +14,7 @@ data Tm
   = LocalVar Ix
   | TopVar Lvl
   | MetaVar Meta
+  | RuleVar Lvl
   | Let (Named Ty) Tm Tm
   | AppI Tm Tm
   | AppE Tm Tm

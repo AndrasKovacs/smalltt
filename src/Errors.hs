@@ -10,9 +10,9 @@ import qualified Data.Text as T
 import Common
 import Cxt
 import ElabState
-import Pretty
 import Syntax
 import Values
+import Evaluation
 
 data SolutionError
   = SEScope Ix
@@ -49,6 +49,9 @@ data ElabError
   | EEFunctionExpected Tm GVTy
   | EENamedLambda
   | EEUnsolvedMeta Meta
+  | EEIllegalDefInPostulateBlock
+  | EEIllegalRuleLHS
+  | EEWrongRuleArity Int Int
 
 instance Show ElabError where show _ = "ElabError"
 instance Exception ElabError
@@ -82,7 +85,7 @@ displayTopError file (TopError cxt@(Cxt{..}) err) = do
       let reportUnify v v' = report $ printf
            "Can't unify\n\n  %s\n\nwith\n\n  %s\n\n\
             \while unifying expected type:\n\n  %s\n\nwith inferred type:\n\n  %s\n\n"
-            (showValMetaless _nameTable ns v) (showValMetaless _nameTable ns v')
+            (showValMetaless _nameTable ns v') (showValMetaless _nameTable ns v)
             (showValCxtMetaless cxt vwant) (showValCxtMetaless cxt vhas)
 
           reportSolutionErr x vsp v err = report (
@@ -133,3 +136,15 @@ displayTopError file (TopError cxt@(Cxt{..}) err) = do
         MEUnsolved pos ->
           reportWithLine
             file pos (printf "Unsolved metavariable: %d.%d\n\n" i j)
+
+    EEIllegalDefInPostulateBlock ->
+      report "Only lambda expressions are allowed as\
+              \definitions in an \"assume\" block\n\n"
+
+    EEIllegalRuleLHS ->
+      report "Rewrite rule left hand side must be a postulated name applied to one or more arguments\n\n"
+
+    EEWrongRuleArity want has ->
+      report $ printf "Rewrite rule arity mismatch: expected arity %d, got %d\n\nAll \
+                       \rewrite rules for the same name must have the same arity\n\n"
+               want has

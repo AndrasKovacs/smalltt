@@ -11,8 +11,9 @@ data Profiling = PElabTime | PNormalizeTime
   deriving Show
 
 data TopEntry
-  = TEPostulate  (Posed Name) {-# unpack #-} Ty
-  | TEDefinition (Posed Name) (Maybe Profiling) {-# unpack #-} Ty {-# unpack #-} Tm
+  = TEPostulate (Posed Name) {-# unpack #-} Ty
+  | TERewrite [Posed (Named Ty)] {-# unpack #-} Tm {-# unpack #-} Tm
+  | TEDefinition {-# unpack #-} (Posed Name) (Maybe Profiling) {-# unpack #-} Ty {-# unpack #-} Tm
   deriving Show
 
 type Program = [TopEntry]

@@ -39,11 +39,11 @@ load path = do
       Right file -> case parseFile path file of
         Left e     -> mempty <$ (putStrLn $ errorBundlePretty e)
         Right prog -> do
-            ((file, ntbl), telab) <- timed $ try (checkProgram prog) >>= \case
+            (ntbl, telab) <- timed $ try (checkProgram prog) >>= \case
               Left (e :: TopError) -> do
                 displayTopError file e
-                pure (file, mempty)
-              Right ntbl -> pure (file, ntbl)
+                pure mempty
+              Right ntbl -> pure ntbl
             putStrLn ("file \"" ++ path ++ "\" elaborated in " ++ show telab)
             pure (file, ntbl)
   putStrLn ("total load time: " ++ show ttotal)
@@ -71,21 +71,21 @@ loop state = do
     ':':'t':_:name -> whenLoaded state $ \(file, path, ntbl) -> do
       updPos (initialPos "interactive")
       try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
-        Left e                  -> displayTopError (T.pack name) e
-        Right (T2 _ (GV ga va)) -> putStrLn $ showValMetaless ntbl NNil va
+        Left e              -> displayTopError (T.pack name) e
+        Right (_, GV ga va) -> putStrLn $ showValMetaless ntbl NNil va
       loop state
     ':':'n':'t':_:name -> whenLoaded state $ \(file, path, ntbl) -> do
       updPos (initialPos "interactive")
       try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
-        Left e                  -> displayTopError (T.pack name) e
-        Right (T2 _ (GV ga va)) -> putStrLn $ showGlued ntbl NNil ga
+        Left e              -> displayTopError (T.pack name) e
+        Right (_, GV ga va) -> putStrLn $ showGlued ntbl NNil ga
       loop state
     ':':'n':_:name -> whenLoaded state $ \(file, path, ntbl) -> do
       updPos (initialPos "interactive")
       try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
         Left e -> displayTopError (T.pack name) e
-        Right (T2 t _) -> do
-          (nt, time) <- timedPure (gQuote 0 (gEval ENil ENil t))
+        Right (t, _) -> do
+          (nt, time) <- timedPure (gQuote 0 (gEval 0 ENil ENil t))
           putStrLn (showTm0 ntbl nt)
           putStrLn ("evaluated in " ++ show time)
           performGC

@@ -10,6 +10,7 @@ import Data.Time.Clock
 import GHC.Magic (runRW#)
 import GHC.Types (IO(..))
 import Text.Megaparsec.Pos (SourcePos)
+import Control.Monad.Except
 
 type Unfoldable = Bool
 
@@ -46,17 +47,39 @@ unPosed (Posed _ a) = a
 {-# inline posOf #-}
 {-# inline unPosed #-}
 
-data Named a = Named {-# unpack #-} Name a deriving Show
+data Named a = Named {-# unpack #-} Name a deriving (Show, Functor)
 nameOf (Named x _) = x
 unNamed (Named _ a) = a
 {-# inline nameOf #-}
 {-# inline unNamed #-}
 
+-- Bit-packed pair of 32 bit integers.
+--------------------------------------------------------------------------------
+
+newtype Int2 = MkInt2 Int deriving (Eq, Ord)
+
+instance Show Int2 where show (Int2 x y) = show (x, y)
+
+unpackInt2 :: Int2 -> (Int, Int)
+unpackInt2 (MkInt2 x) = (unsafeShiftR x 32, x .&. 0xFFFFFFFF)
+{-# inline unpackInt2 #-}
+
+pattern Int2 :: Int -> Int -> Int2
+pattern Int2 x y <- (unpackInt2 -> (x, y)) where
+  Int2 x y = MkInt2 (unsafeShiftL x 32 .|. y)
+{-# complete Int2 #-}
+
+--------------------------------------------------------------------------------
+
+
 -- | Indices for metavariables. Consists of two 32-bit numbers, one is an index
 --   for the top context, the other indexes the meta context at that
 --   entry. NOTE: the following only works on 64-bit systems. TODO: rewrite in
 --   32-bit compatible way.
-newtype Meta = MkMeta Int deriving (Eq, Ord)
+newtype Meta = MkMeta Int2 deriving (Eq, Ord)
+pattern Meta :: Lvl -> Lvl -> Meta
+pattern Meta x y = MkMeta (Int2 x y)
+{-# complete Meta #-}
 
 metaTopLvl :: Meta -> Lvl
 metaTopLvl (Meta i _) = i
@@ -66,16 +89,9 @@ metaLocalLvl :: Meta -> Lvl
 metaLocalLvl (Meta _ j) = j
 {-# inline metaLocalLvl #-}
 
-unpackMeta :: Meta -> (Int, Int)
-unpackMeta (MkMeta n) = (unsafeShiftR n 32, n .&. 0xFFFFFFFF)
-{-# inline unpackMeta #-}
+instance Show Meta where show (Meta x y) = show (x, y)
 
-pattern Meta :: Int -> Int -> Meta
-pattern Meta i j <- (unpackMeta -> (i, j)) where
-  Meta i j = MkMeta (unsafeShiftL i 32 .|. j)
-{-# complete Meta #-}
-
-instance Show Meta where show = show . unpackMeta
+--------------------------------------------------------------------------------
 
 data Names = NNil | NSnoc Names {-# unpack #-} Name deriving Show
 
@@ -140,3 +156,10 @@ timedPure ~a = do
   t2  <- getCurrentTime
   pure (res, diffUTCTime t2 t1)
 {-# inline timedPure #-}
+
+finally :: MonadError e m => m a -> m b -> m a
+finally ma mb = do
+  a <- ma `catchError` \e -> mb >> throwError e
+  mb
+  pure a
+{-# inline finally #-}
