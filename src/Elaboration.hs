@@ -4,13 +4,12 @@ module Elaboration where
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Array.Dynamic as A
 import qualified Data.Array.Dynamic.Unlifted as UA
-import qualified SmallArray as SA
-import Text.Printf
 
 import Control.Exception
-import Control.Monad
 import Control.Monad.State.Strict
 import Data.IORef
+import Text.Printf
+import qualified GHC.Exts as Exts
 
 import Common
 import Cxt
@@ -23,8 +22,6 @@ import Syntax
 import Values
 import qualified LvlSet as LS
 import qualified Presyntax as P
-
--- import Debug.Trace
 
 
 -- Unification
@@ -680,70 +677,30 @@ elabTopEntry e = do
           lhs  <- pure (inline _size _vEnv lhs)
           rhs  <- pure (inline _size _vEnv rhs)
 
-          -- Evaluate lhs & force it & replace local vars with rule vars
-
-          -- INFELICITY: we don't use the Val parts of evaluated lhs at all, so we don't
-          -- even bother to insert rule vars there. We only have the Val-s there so
-          -- that the matching function becomes simpler, since it uniformly works
-          -- on GV-s. If we wanted to get rid of the useless Val-s, we'd need to write
-          -- Additional code:
-          --   a) A full non-local evaluator returning Val-s
-          --   b) A matching function which matches Val-s against GVs, and switches
-          --      to GV-GV match whenever lhs Val is forced to GV (a complication!)
-          let goSp :: GSpine -> GSpine
-              goSp SNil          = SNil
-              goSp (SAppI gsp g) = SAppI (goSp gsp) $! go g
-              goSp (SAppE gsp g) = SAppE (goSp gsp) $! go g
-
-              go :: Glued -> Glued
-              go g = case gForce _size g of
-                GNe (HLocal x) gsp vsp     -> GNe (HRuleVar x) (goSp gsp) vsp
-                GNe h gsp vsp              -> GNe h (goSp gsp) vsp
-                GLam ni (GCl gsp vsp t)    -> GLam ni (GCl (go <$> gsp) vsp t)
-                GPi ni (GV ga va)
-                       (GCl gsp vsp t)     -> GPi ni ((GV $! go ga) va)
-                                                     (GCl (go <$> gsp) vsp t)
-                GFun (GV ga va) (GV gb vb) -> GFun ((GV $! go ga) va) ((GV $! go gb) vb)
-                GU                         -> GU
-                GIrrelevant                -> GIrrelevant
-          let glhs = go (gEvalCxt cxt lhs)
-
-          -- check glued lhs shape, arity, register rule
+          -- get lhs spine
           updPos lhsPos
-          case glhs of
-            GNe (HTopRigid (Int2 x _)) gsp vsp -> case lookupTop x of
+          let (hd, sp) = go lhs [] where
+                go (AppI t u) sp = go t (u:sp)
+                go (AppE t u) sp = go t (u:sp)
+                go t          sp = (t, sp)
+
+          -- TODO: check whether lhs unifies with rhs
+
+          -- check lhs head, arity, register rule
+          case hd of
+            TopVar x -> case lookupTop x of
               TEPostulate numRules rules arity name a gva -> do
-
-                let gspLen = spineLength gsp
-                when (not (null rules) && (gspLen /= arity)) $
-                  throw (TopError cxt (EEWrongRuleArity arity gspLen))
-                when (gspLen == 0) $
+                let spLen = length sp
+                when (not (null rules) && (spLen /= arity)) $
+                  throw (TopError cxt (EEWrongRuleArity arity spLen))
+                when (spLen == 0) $
                   throw (TopError cxt EEIllegalRuleLHS)
-
-                -- create lhs spine
-                lhsSpine <- do
-                  lhsSpine <- SA.new gspLen undefined
-                  let go i SNil          SNil          = pure ()
-                      go i (SAppI gsp g) (SAppI vsp v) =
-                        SA.write lhsSpine i (GV g v) >> go (i - 1) gsp vsp
-                      go i (SAppE gsp g) (SAppE vsp v) =
-                        SA.write lhsSpine i (GV g v) >> go (i - 1) gsp vsp
-                      go _ _ _  = error "elabTopEntry: impossible"
-                  go (gspLen - 1) gsp vsp
-                  SA.unsafeFreeze lhsSpine
-
-                let rule = RewriteRule _size vars lhsSpine lhs rhs
-
-                -- register rule
+                let rule = RewriteRule _size vars (Exts.fromList sp) lhs rhs
                 A.push top (TERewriteRule rule)
                 A.write top x $
-                  TEPostulate (numRules + 1) (rules ++ [rule]) gspLen name a gva
-
+                  TEPostulate (numRules + 1) (rules ++ [rule]) spLen name a gva
               _ -> error "elabTopEntry: impossible"
-            GNe (HTopUnderapplied (Int2 x n)) (spineLength -> gspLen) vsp -> do
-              throw (TopError cxt (EEWrongRuleArity (gspLen + n) gspLen))
             _ -> throw (TopError cxt EEIllegalRuleLHS)
-
 
 checkProgram :: P.Program -> IO NameTable
 checkProgram es = do

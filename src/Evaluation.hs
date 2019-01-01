@@ -2,8 +2,8 @@
 module Evaluation where
 
 import qualified SmallArray as SA
+import qualified Data.Array.Dynamic as A
 import Control.Monad.Except
-import Data.IORef
 
 import Common
 import ElabState
@@ -12,93 +12,116 @@ import Values
 import Pretty
 import Cxt
 
+-- import Text.Printf
+
 -- Rule rewriting
 --------------------------------------------------------------------------------
 
 data MatchFailure = MFRigid | MFFlex Meta
 
-matchLHS :: Lvl -> RewriteRule -> GSpine -> VSpine -> ExceptT MatchFailure IO Glued
-matchLHS topLvl (RewriteRule varNum vars gvlhs lhs rhs) gsp vsp = do
-  buffer <- SA.new varNum REUnsolved
+-- INFELICITY: we don't use the Val parts of evaluated lhs spine at all. We
+-- only have the Val-s there so that the matching function becomes
+-- simpler, since it uniformly works on GV-s. If we wanted to get rid
+-- of the useless Val-s, we'd need to write additional code: a) A full
+-- non-local evaluator returning Val-s b) A matching function which
+-- matches Val-s against GVs.
+-- (TODO to rectify)
 
-  let match :: GV -> GV -> ExceptT MatchFailure IO ()
+matchLHS :: Lvl -> RewriteRule -> GSpine -> VSpine -> ExceptT MatchFailure IO Glued
+matchLHS topLvl (RewriteRule varNum vars lhsSp lhs rhs) gsp vsp = do
+
+  -- lift $ printf "trying to match %s with %s\n\n"
+  --   (show lhsSp) (showGlued mempty NNil (GNe (HTopRigid (Int2 0 0)) gsp vsp))
+
+
+  start <- lift (A.size ruleVarStack)
+  let end = start + varNum
+  lift $ A.pushN ruleVarStack REUnsolved varNum
+
+  let (gEnv, vEnv) = go start ENil ENil where
+        go i gsp vsp | i == end = (gsp, vsp)
+        go i gsp vsp = go (i + 1) (EDef gsp (gRuleVar i)) (EDef vsp (VRuleVar i))
+
+  -- lift $ printf "created local envs\n"
+
+  let match :: Glued -> GV -> ExceptT MatchFailure IO ()
       match = go topLvl where
 
-        goSp :: Lvl -> GSpine -> GSpine -> VSpine -> VSpine -> ExceptT MatchFailure IO ()
-        goSp l (SAppI gsp g) (SAppI gsp' g')
-               (SAppI vsp v) (SAppI vsp' v') = goSp l gsp gsp' vsp vsp'
-                                               >> go l (GV g v) (GV g' v')
-        goSp l (SAppE gsp g) (SAppE gsp' g')
-               (SAppE vsp v) (SAppE vsp' v') = goSp l gsp gsp' vsp vsp'
-                                               >> go l (GV g v) (GV g' v')
-        goSp d SNil SNil SNil SNil = pure ()
-        goSp _ _    _    _    _    = error "gvUnify.goSp: impossible"
+        goSp :: Lvl -> GSpine -> GSpine -> VSpine -> ExceptT MatchFailure IO ()
+        goSp l (SAppI gsp g) (SAppI gsp' g') (SAppI vsp' v') =
+          goSp l gsp gsp' vsp' >> go l g (GV g' v')
+        goSp l (SAppE gsp g) (SAppE gsp' g') (SAppE vsp' v') =
+          goSp l gsp gsp' vsp' >> go l g (GV g' v')
+        goSp d SNil SNil SNil = pure ()
+        goSp _ _    _    _    = error "gvUnify.goSp: impossible"
 
-        go :: Lvl -> GV -> GV -> ExceptT MatchFailure IO ()
-        go l (GV g v) (GV g' v') = case (gForce l g, gForce l g') of
-          (GNe (HRuleVar x) gsp vsp, g') -> solve l x gsp (GV g' v')
-          (GNe (HMeta x) gsp vsp, g')    -> throwError (MFFlex x)
-          (g, GNe (HMeta x') gsp' vsp')  -> throwError (MFFlex x')
-          (GNe h gsp vsp, GNe h' gsp' vsp') | h == h' -> goSp l gsp gsp' vsp vsp'
+        go :: Lvl -> Glued -> GV -> ExceptT MatchFailure IO ()
+        go l g (GV g' v') = case (gForce l g, gForce l g') of
+          (GNe (HRuleVar x) gsp vsp, g')    | start <= x && x < end -> solve l x gsp (GV g' v')
+          (GNe h gsp vsp, GNe h' gsp' vsp') | h == h' -> goSp l gsp gsp' vsp'
+          (GNe (HMeta x) gsp vsp, g')   -> throwError (MFFlex x)
+          (g, GNe (HMeta x') gsp' vsp') -> throwError (MFFlex x')
 
           (GU, GU) -> pure ()
 
           (GLam (Named n i) t, GLam _ t') -> let var = gvLocal l in
-            go (l + 1) (gvInst l t var) (gvInst l t' var)
+            go (l + 1) (gInst l t var) (gvInst l t' var)
 
           (GLam (Named n i) t, t'       ) -> let var = gvLocal l in
-            go (l + 1) (gvInst l t var) (gvApp i l t' var)
+            go (l + 1) (gInst l t var) (gvApp i l t' var)
 
           (t     , GLam (Named n' i') t') -> let var = gvLocal l in
-            go (l + 1) (gvApp i' l t var) (gvInst l t' var)
+            go (l + 1) (gApp i' l t var) (gvInst l t' var)
 
-          (GPi (Named n i) a b, GPi (Named _ i') a' b') | i == i' -> do
+          (GPi (Named n i) (GV a _) b, GPi (Named _ i') a' b') | i == i' -> do
             let var = gvLocal l
             go l a a'
-            go (l + 1) (gvInst l b var) (gvInst l b' var)
+            go (l + 1) (gInst l b var) (gvInst l b' var)
 
-          (GPi (Named n i) a b, GFun a' b') -> do
+          (GPi (Named n i) (GV a _) b, GFun a' b') -> do
             go l a a'
-            go (l + 1) (gvInst l b (gvLocal l)) b'
+            go (l + 1) (gInst l b (gvLocal l)) b'
 
-          (GFun a b, GPi (Named n' i') a' b') -> do
+          (GFun (GV a _) (GV b _), GPi (Named n' i') a' b') -> do
             go l a a'
             go (l + 1) b (gvInst l b' (gvLocal l))
 
-          (GFun a b, GFun a' b') -> go l a a' >> go l b b'
+          (GFun (GV a _) (GV b _), GFun a' b') -> go l a a' >> go l b b'
 
           _ -> throwError MFRigid
 
         solve :: Lvl -> Lvl -> GSpine -> GV -> ExceptT MatchFailure IO ()
         solve l x gsp gv
-          | l == topLvl, SNil <- gsp = lift $ do
-              buffer <- readIORef rewriteLHS
-              SA.write buffer x (RESolved gv)
+          | l == topLvl, SNil <- gsp = lift (A.write ruleVarStack x (RESolved gv))
           | otherwise = error "match.solve: higher-order rewrite rules not yet supported"
         {-# inline solve #-}
 
       matchLHS :: ExceptT MatchFailure IO ()
-      matchLHS = go (SA.size gvlhs - 1) gsp vsp where
+      matchLHS = go (SA.size lhsSp - 1) gsp vsp where
         go i (SAppI gsp g) (SAppI vsp v) = go (i - 1) gsp vsp
-                                        >> match (SA.index gvlhs i) (GV g v)
+                                        >> match (gEval varNum gEnv vEnv (SA.index lhsSp i))
+                                                 (GV g v)
         go i (SAppE gsp g) (SAppE vsp v) = go (i - 1) gsp vsp
-                                        >> match (SA.index gvlhs i) (GV g v)
+                                        >> match (gEval varNum gEnv vEnv (SA.index lhsSp i))
+                                                 (GV g v)
         go i SNil          SNil          = pure ()
-        go _ _             _             = error "matchSp: impossible"
+        go _ _             _             = error "matchLHS: impossible"
 
-      finalize :: IO Glued
-      finalize = go 0 ENil ENil where
-        go i gs vs | i == SA.sizeM buffer =
-          pure (gEval topLvl gs vs rhs)
-        go i gs vs =
-          SA.read buffer i >>= \case
-            REUnsolved        -> error "non-deterministic rewrite rule"
-            RESolved (GV g v) -> go (i + 1) (EDef gs g) (EDef vs v)
+      evalRhs :: IO Glued
+      evalRhs = go start ENil ENil where
+        go i gs vs | i == end = do
+          A.popN ruleVarStack varNum
+          pure (gEval varNum gs vs rhs)
+        go i gs vs = lookupRuleVarIO i >>= \case
+          RESolved (GV g v) -> go (i + 1) (EDef gs g) (EDef vs v)
+          REUnsolved -> error "non-deterministic rewrite rule"
 
-  oldBuffer <- lift $ readIORef rewriteLHS
-  lift $ writeIORef rewriteLHS buffer
-  matchLHS `finally` (lift $ writeIORef rewriteLHS oldBuffer)
-  lift finalize
+  matchLHS `catchError` \e -> do
+    -- lift $ printf "match failed\n\n"
+    lift (A.popN ruleVarStack varNum)
+    throwError e
+  -- lift $ printf "matched lhs\n\n"
+  lift evalRhs
 {-# inline matchLHS #-}
 
 gRewriteIO :: Lvl -> Lvl -> GSpine -> VSpine -> IO Glued
@@ -138,7 +161,6 @@ gSaturatedRewrite :: Lvl -> Lvl -> GSpine -> VSpine -> Glued
 gSaturatedRewrite l x gsp vsp = runIO (gSaturatedRewriteIO l x gsp vsp)
 
 
-
 -- Glued evaluation
 --------------------------------------------------------------------------------
 
@@ -168,12 +190,20 @@ gEvalBox l gs vs = \case
   t           -> Box (gEval l gs vs t)
 {-# inline gEvalBox #-}
 
+gRuleVar :: Lvl -> Glued
+gRuleVar x = case lookupRuleVar x of RESolved (GV g _) -> g; _ -> GRuleVar x
+{-# inline gRuleVar #-}
+
+gMetaVar :: Meta -> Glued
+gMetaVar x = case lookupMeta x of MESolved (GV g _) _ _ _ -> g; _ -> GMeta x
+{-# inline gMetaVar #-}
+
 gEval :: Lvl -> GEnv -> VEnv -> Tm -> Glued
 gEval l gs vs = \case
   LocalVar x  -> let Box g = gLocal gs x in g
   TopVar   x  -> let Box g = gTop x in g
-  MetaVar  x  -> case lookupMeta x of MESolved (GV g _) _ _ _ -> g; _ -> GMeta x
-  RuleVar  x  -> case lookupRuleVar x of RESolved (GV g _) -> g; _ -> GRuleVar x
+  MetaVar  x  -> gMetaVar x
+  RuleVar  x  -> gRuleVar x
   AppI t u    -> let Box gu = gEvalBox l gs vs u
                  in gAppI l (gEval l gs vs t) (GV gu (vEval vs u))
   AppE t u    -> let Box gu = gEvalBox l gs vs u
@@ -187,6 +217,7 @@ gEval l gs vs = \case
   Let _ t u   -> let Box gt = gEvalBox l gs vs t
                  in gEval l (EDef gs gt) (EDef vs (vEval vs u)) u
   Irrelevant  -> GIrrelevant
+
 
 gInst :: Lvl -> GCl -> GV -> Glued
 gInst l (GCl gs vs t) (GV g v) = gEval l (EDef gs g) (EDef vs v) t
@@ -213,6 +244,11 @@ gAppE l g gv = case (g, gv) of
   _ -> error "gvAppI : impossible"
 {-# inline gAppE #-}
 
+gApp :: Icit -> Lvl -> Glued -> GV -> Glued
+gApp Impl = gAppI
+gApp Expl = gAppE
+{-# inline gApp #-}
+
 gAppSpine :: Lvl -> Glued -> GSpine -> VSpine -> Glued
 gAppSpine l g (SAppI gsp g') (SAppI vsp v) = gAppI l (gAppSpine l g gsp vsp) (GV g' v)
 gAppSpine l g (SAppE gsp g') (SAppE vsp v) = gAppE l (gAppSpine l g gsp vsp) (GV g' v)
@@ -228,7 +264,8 @@ gForce l g = case g of
   GNe (HRuleVar x) gsp vsp
     | RESolved (GV g _) <- lookupRuleVar x -> gForce l (gAppSpine l g gsp vsp)
   GNe (HTopRigid (Int2 x n)) gsp vsp
-    | TEPostulate n' _ _ _ _ _ <- lookupTop x, n' > n -> gForce l (gRewrite l x gsp vsp)
+    | case gsp of SNil -> False; _ -> True,
+      TEPostulate n' _ _ _ _ _ <- lookupTop x, n' > n -> gForce l (gRewrite l x gsp vsp)
   g -> g
 
 --------------------------------------------------------------------------------

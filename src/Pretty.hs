@@ -114,6 +114,6 @@ showSTm ntbl = go False where
 
   lookupName :: Names -> Ix -> Name
   lookupName ns xTop = go ns xTop where
-    go NNil         _ = T.pack (show xTop)
+    go NNil         _ = T.pack ("!!" ++ show xTop)
     go (NSnoc ns n) 0 = if T.null n then "_" else n
     go (NSnoc ns n) x = go ns (x - 1)

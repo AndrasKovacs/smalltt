@@ -4,6 +4,8 @@ module Data.Array.Dynamic (
   , Array
   , clear
   , push
+  , pushN
+  , popN
   , Data.Array.Dynamic.read
   , showArray
   , size
@@ -31,6 +33,7 @@ import qualified Data.Primitive.UnliftedArray as UA
 
 import GHC.Types
 import GHC.Prim
+import Data.Bits
 
 type role Array representational
 data Array (a :: *) = Array (UA.MutableUnliftedArray RealWorld
@@ -43,7 +46,7 @@ instance UA.PrimUnlifted (Array a) where
   {-# inline fromArrayArray# #-}
 
 defaultCapacity :: Int
-defaultCapacity = 5
+defaultCapacity = 32
 {-# inline defaultCapacity #-}
 
 undefinedElement :: a
@@ -109,7 +112,7 @@ push (Array arr) ~a = do
   let cap = A.sizeofMutableArray elems
   PA.writePrimArray sizeRef 0 (size + 1)
   if (size == cap) then do
-    let cap' = 2 * cap
+    let cap' = unsafeShiftL cap 1
     elems' <- A.newArray cap' (undefinedElement :: a)
     A.copyMutableArray elems' 0 elems 0 size
     A.writeArray elems' size a
@@ -117,13 +120,61 @@ push (Array arr) ~a = do
   else do
     A.writeArray elems size a
 
+pushN :: Array a -> a -> Int -> IO ()
+pushN _           ~_ 0 = pure ()
+pushN (Array arr) ~a n = do
+  if (n < 0) then error "Data.Array.Dynamic.pushN: negative input"
+             else pure ()
+  sizeRef   <- getSizeRef arr
+  elems     <- getElems arr
+  size      <- PA.readPrimArray sizeRef 0
+  let cap   = A.sizeofMutableArray elems
+  let size' = size + n
+  PA.writePrimArray sizeRef 0 size'
+  let set dst i | i == size' = pure ()
+      set dst i = A.writeArray dst i a >> set dst (i + 1)
+  if (size' > cap) then do
+    let cap' = unsafeShiftL size' 1
+    elems' <- A.newArray cap' (undefinedElement :: a)
+    A.copyMutableArray elems' 0 elems 0 size
+    set elems' size
+    UA.writeUnliftedArray arr 1 elems'
+  else do
+    set elems size
+{-# inline pushN #-}
+
+-- | Pop given number of elements. Overwrites popped elements with
+--   undefined value, only deallocates array if the new array is empty
+--   and the capacity is higher than the default capacity.
+popN :: Array a -> Int -> IO ()
+popN _           0 = pure ()
+popN (Array arr) n = do
+  if (n < 0) then error "Data.Array.Dynamic.popN: negative input"
+             else pure ()
+  sizeRef   <- getSizeRef arr
+  elems     <- getElems arr
+  size      <- PA.readPrimArray sizeRef 0
+  let cap   = A.sizeofMutableArray elems
+  let size' = size - n
+  if size' < 0 then error "Data.Array.Dynamic.popN: empty array"
+               else pure ()
+  PA.writePrimArray sizeRef 0 size'
+  if size' == 0 && cap > defaultCapacity then do
+    elems <- A.newArray defaultCapacity (undefinedElement :: a)
+    UA.writeUnliftedArray arr 1 elems
+  else do
+    let unset i | i == size = pure ()
+        unset i = A.writeArray elems i undefinedElement >> unset (i + 1)
+    unset size'
+{-# inline popN #-}
+
 clear :: Array a -> IO ()
 clear (Array arr) = do
-  (sizeRef :: PA.MutablePrimArray _ Int) <- PA.newPrimArray 1
+  sizeRef <- getSizeRef arr
   PA.writePrimArray sizeRef 0 0
   elems <- A.newArray defaultCapacity (undefinedElement :: a)
-  UA.writeUnliftedArray arr 0 (unsafeCoerce# sizeRef)
   UA.writeUnliftedArray arr 1 elems
+{-# inline clear #-}
 
 size :: Array a -> IO Int
 size (Array arr) = do

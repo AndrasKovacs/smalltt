@@ -11,6 +11,8 @@ import Common
 import Syntax
 import Values
 
+-- import qualified GHC.Exts as Exts
+-- import Text.Printf
 
 -- Top scope state
 --------------------------------------------------------------------------------
@@ -18,8 +20,8 @@ import Values
 data RewriteRule = RewriteRule
   Int            -- number of vars
   [Named Ty]     -- vars
-  (SA.Array GV)  -- glued LHS spine
-  Tm             -- LHS
+  (SA.Array Tm)  -- LHS spine
+  Tm             -- LHS (with head)
   Tm             -- RHS
 
 data TopEntry
@@ -60,20 +62,14 @@ topName x = case lookupTop x of
 
 data RewriteEntry = REUnsolved | RESolved {-# unpack #-} GV
 
-emptyLHSArr :: SA.IOArray RewriteEntry
-emptyLHSArr = runIO $ SA.new 0 REUnsolved
-{-# noinline emptyLHSArr #-}
-
-rewriteLHS :: IORef (SA.IOArray RewriteEntry)
-rewriteLHS = runIO $ do
-  ref <- newIORef emptyLHSArr
-  pure ref
-{-# noinline rewriteLHS #-}
+ruleVarStack :: A.Array RewriteEntry
+ruleVarStack = runIO A.empty
+{-# noinline ruleVarStack #-}
 
 lookupRuleVarIO :: Lvl -> IO RewriteEntry
 lookupRuleVarIO x = do
-  arr <- readIORef rewriteLHS
-  SA.read arr x
+  -- printf "rule var: %d\n\n" x
+  A.read ruleVarStack x
 {-# inline lookupRuleVarIO #-}
 
 lookupRuleVar :: Lvl -> RewriteEntry
@@ -131,19 +127,6 @@ writeMeta (Meta i j) e = do
   A.write arr j e
 {-# inline writeMeta #-}
 
---------------------------------------------------------------------------------
-
-headRigidity :: Head -> Rigidity
-headRigidity = \case
-  HMeta  x             -> metaRigidity x
-  HTopRigid (Int2 x _) -> topRigidity x
-  HRuleVar x           -> ruleVarRigidity x
-  HLocal _             -> Rigid
-  HTopBlockedOnMeta{}  -> Flex
-  HTopUnderapplied{}   -> Flex
-
-{-# inline headRigidity #-}
-
 -- Source position state
 --------------------------------------------------------------------------------
 
@@ -159,20 +142,11 @@ getPos :: IO SourcePos
 getPos = readIORef currPos
 {-# inline getPos #-}
 
-withPos :: SourcePos -> IO a -> IO a
-withPos pos ma = do
-  p <- getPos
-  updPos pos
-  a <- ma
-  updPos p
-  pure a
-{-# inline withPos #-}
-
 --------------------------------------------------------------------------------
 
 reset :: IO ()
 reset = do
   A.clear top
   UA.clear metas
-  writeIORef rewriteLHS emptyLHSArr
+  A.clear ruleVarStack
   writeIORef currPos (initialPos "")
