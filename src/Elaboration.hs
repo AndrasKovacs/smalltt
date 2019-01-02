@@ -58,15 +58,6 @@ Meta solution quotation:
 
 --------------------------------------------------------------------------------
 
-isInlinable :: Tm -> Bool
-isInlinable t = go t where
-  go LocalVar{} = True
-  go MetaVar{}  = True
-  go TopVar{}   = True
-  go (Lam _ t)  = go t
-  go U          = True
-  go _          = False
-
 registerSolution :: Meta -> Tm -> IO ()
 registerSolution (Meta i j) t = do
   arr <- UA.read metas i
@@ -84,9 +75,9 @@ contract :: (Lvl, Renaming, VSpine) -> Val -> ((Lvl, Renaming, VSpine), Val)
 contract topRen topV@(VNe h vsp') = go (mempty @LS.LvlSet) topRen vsp' where
   go xs (!l, ren, vsp) SNil
     | disjointLvls xs ren = ((l, ren, vsp), VNe h SNil)
-  go xs (!l, RCons x _ ren, SAppI vsp _) (SAppI vsp' (VLocal x'))
+  go xs (!l, RCons x _ ren, SAppI vsp _) (SAppI vsp' (vForce -> VLocal x'))
     | x == x', not (LS.member x xs) = go (LS.insert x xs) (l - 1, ren, vsp) vsp'
-  go xs (!l, RCons x _ ren, SAppE vsp _) (SAppE vsp' (VLocal x'))
+  go xs (!l, RCons x _ ren, SAppE vsp _) (SAppE vsp' (vForce -> VLocal x'))
     | x == x', not (LS.member x xs) = go (LS.insert x xs) (l - 1, ren, vsp) vsp'
   go _ _ _ = (topRen, topV)
 contract ren v = (ren, v)
@@ -206,41 +197,37 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
     (VFun a b, VFun a' b') -> go l u ns r a a' >> go l u ns r b b'
 
-
-    (VNe (HTopRigid (Int2 x _)) vsp, VNe (HTopRigid (Int2 x' _)) vsp') | x == x' ->
-      goSp l u ns (r `meld` topRigidity x `meld` topRigidity x') vsp vsp'
-
-    (VNe (HLocal x) vsp, VNe (HLocal x') vsp') | x == x' ->
-      goSp l u ns r vsp vsp'
-
-    (VNe (HMeta x) vsp, VNe (HMeta x') vsp') | x == x' ->
-      goSp l u ns (r `meld` metaRigidity x `meld` metaRigidity x') vsp vsp'
+    (VNe h vsp, VNe h' vsp') | h == h' ->
+      goSp l u ns (r `meld` headRigidity h `meld` headRigidity h') vsp vsp'
 
     -- meta sides
     (v@(VNe (HMeta x) vsp), v')
-      | MESolved (GV _ v) _ _ _ <- lookupMeta x ->
-        if u > 0 then go l (u - 1) ns r (vAppSpine v vsp) v'
-                 else cantUnify l ns Flex v v'
+      | MESolved (GV _ v) _ _ _ <- lookupMeta x
+       , u > 0 -> go l (u - 1) ns r (vAppSpine v vsp) v'
       | MEUnsolved _ <- lookupMeta x, Rigid <- r ->
         solve l ns x vsp v'
 
     (v, v'@(VNe (HMeta x') vsp'))
-      | MESolved (GV _ v') _ _ _ <- lookupMeta x' ->
-        if u > 0 then go l (u - 1) ns r v (vAppSpine v' vsp')
-                 else cantUnify l ns Flex v v'
+      | MESolved (GV _ v') _ _ _ <- lookupMeta x'
+        , u > 0 -> go l (u - 1) ns r v (vAppSpine v' vsp')
       | MEUnsolved _ <- lookupMeta x', Rigid <- r ->
         solve l ns  x' vsp' v
 
-    -- top sides
+    -- top definition sides
     (v@(VNe (HTopRigid (Int2 x _)) vsp), v')
-      | TEDefinition (GV _ v) _ _ _ _ <- lookupTop x ->
-        if u > 0 then go l (u - 1) ns r (vAppSpine v vsp) v'
-                 else cantUnify l ns Flex v v'
+      | TEDefinition (GV _ v) _ _ _ _ <- lookupTop x
+        , u > 0 -> go l (u - 1) ns r (vAppSpine v vsp) v'
 
     (v, v'@(VNe (HTopRigid (Int2 x' _)) vsp'))
-      | TEDefinition (GV _ v') _ _ _ _ <- lookupTop x' ->
-        if u > 0 then go l (u - 1) ns r v (vAppSpine v' vsp')
-                 else cantUnify l ns Flex v v'
+      | TEDefinition (GV _ v') _ _ _ _ <- lookupTop x'
+        , u > 0 -> go l (u - 1) ns r v (vAppSpine v' vsp')
+
+    (v@(VNe h vsp), v'@(VNe h' vsp')) ->
+      cantUnify l ns (headRigidity h `meld` headRigidity h') v v'
+    (v@(VNe h vsp), v') ->
+      cantUnify l ns (headRigidity h) v v'
+    (v, v'@(VNe h' vsp')) ->
+      cantUnify l ns (headRigidity h') v v'
 
     (v, v') -> cantUnify l ns r v v'
 
@@ -451,6 +438,7 @@ check cxt@Cxt{..} (Posed pos t) (GV gwant vwant) = updPos pos >> case (t, gForce
   (P.Lam x NOExpl t, GFun a b) ->
     Lam (Named x Expl) <$> check (bindVar (Posed pos x) a cxt) t b
 
+  -- (special case)
   (P.Var n, gwant@(GPi (Named x Impl) a b))
     | (t, gvty@(GV gty vty)) <- runIO (inferVar cxt n)
     , gty@(GNe (HMeta x) _ _) <- gForce _size gty -> do
@@ -525,7 +513,6 @@ infer ins cxt@Cxt{..} (Posed pos t) = updPos pos >> case t of
 
   P.Var x -> insertMetas ins cxt (inferVar cxt x)
 
-  -- TODO: do the case where a meta is inferred for "t"
   P.App t u ni -> insertMetas ins cxt $ do
     let insertion = case ni of
           NOName x -> MIUntilName x
@@ -556,13 +543,11 @@ infer ins cxt@Cxt{..} (Posed pos t) = updPos pos >> case t of
         let i   = case ni of NOExpl -> Expl; _ -> Impl
             gPi = GPi (Named "x" i) gva (GCl _gEnv _vEnv b)
             vPi = VPi (Named "x" i) va  (VCl _vEnv b)
-
         gvUnify cxt (GV gaTop vaTop) (GV gPi vPi)
           `catch`
           \e -> do
             updPos tpos
             throw (TopError cxt (EECheck t (GV gPi vPi) (GV gaTop vaTop) e))
-
         pure (app i t u, gvInst _size (GCl _gEnv _vEnv b) (gvEvalCxt cxt u))
       ga -> throw (TopError cxt (EEFunctionExpected t (GV gaTop vaTop)))
 
@@ -649,7 +634,7 @@ elabTopEntry e = do
 
     P.TERewrite vars lhs rhs -> lift $ do
 
-      -- First, dive under the rule variables.
+      -- Go under the rule variables.
       ($ vars) $ ($ []) $ ($ cxt) $ fix $ \dive cxt@Cxt{..} vars' -> \case
         Posed pos (Named n a):vars -> do
           updPos pos
@@ -657,12 +642,14 @@ elabTopEntry e = do
           let gva = gvEvalCxt cxt a
           dive (bindVar (Posed pos n) gva cxt) (Named n a:vars') vars
         [] -> do
+          printf "size: %d\n" _size
 
           let vars   = reverse vars'
               lhsPos = posOf lhs
 
           -- elaborate lhs, rhs
-          (lhs, gva) <- infer MIYes cxt lhs
+          (lhs, gva@(GV ga _)) <- infer MIYes cxt lhs
+          printf "foo %s\n" (showGluedCxt cxt ga)
           rhs <- check cxt rhs gva
 
           -- inline metas
@@ -721,9 +708,9 @@ renderElabOutput ntbl = do
         ms <- A.foldr' (:) [] ms
 
         let metaBlock = filter (not . null) $ map
-              (\case (j, (MESolved _ uf t _))
-                         -> if uf then ""
-                                  else printf "  %d.%d = %s" i j (showTm0 ntbl t)
+              (\case (j, (MESolved _ inl t _))
+                         -> if inl then ""
+                                   else printf "  %d.%d = %s" i j (showTm0 ntbl t)
                      _   -> error "renderElabOutput: impossible")
               (zip [(0 :: Int)..] ms)
 

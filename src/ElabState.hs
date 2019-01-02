@@ -121,11 +121,28 @@ metaRigidity :: Meta -> Rigidity
 metaRigidity x = case lookupMeta x of MESolved{} -> Flex; _ -> Rigid
 {-# inline metaRigidity #-}
 
+activeMetaRigidity :: Lvl -> Rigidity
+activeMetaRigidity x = case lookupActiveMeta x of
+  MESolved{} -> Flex; _ -> Rigid
+{-# inline activeMetaRigidity #-}
+
 writeMeta :: Meta -> MetaEntry -> IO ()
 writeMeta (Meta i j) e = do
   arr <- UA.read metas i
   A.write arr j e
 {-# inline writeMeta #-}
+
+--------------------------------------------------------------------------------
+
+headRigidity :: Head -> Rigidity
+headRigidity = \case
+  HTopRigid (Int2 x _)         -> topRigidity x
+  HRuleVar x                   -> ruleVarRigidity x
+  HTopBlockedOnMeta (Int2 _ j) -> activeMetaRigidity j
+  HTopUnderapplied{}           -> Rigid
+  HMeta x                      -> metaRigidity x
+  HLocal{}                     -> Rigid
+{-# inline headRigidity #-}
 
 -- Source position state
 --------------------------------------------------------------------------------

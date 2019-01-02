@@ -102,7 +102,7 @@ displayTopError file (TopError cxt@(Cxt{..}) err) = do
             )
 
       case err of
-        UELocalUnify v v'                      -> reportUnify v v'
+        UELocalUnify v v'                      -> printf "localUnify\n\n" >> reportUnify v v'
         UEGluedUnify (GV _ v) (GV _ v')        -> reportUnify v v'
         UELocalSolution x vsp v err            -> reportSolutionErr x vsp v err
         UEGluedSolution x vsp gsp (GV _ v) err -> reportSolutionErr x vsp v err

@@ -12,7 +12,8 @@ import Values
 import Pretty
 import Cxt
 
--- import Text.Printf
+import Text.Printf
+import Control.Concurrent
 
 -- Rule rewriting
 --------------------------------------------------------------------------------
@@ -30,9 +31,11 @@ data MatchFailure = MFRigid | MFFlex Meta
 matchLHS :: Lvl -> RewriteRule -> GSpine -> VSpine -> ExceptT MatchFailure IO Glued
 matchLHS topLvl (RewriteRule varNum vars lhsSp lhs rhs) gsp vsp = do
 
-  -- lift $ printf "trying to match %s with %s\n\n"
-  --   (show lhsSp) (showGlued mempty NNil (GNe (HTopRigid (Int2 0 0)) gsp vsp))
-
+  lift $ printf "trying to match %s with %s\n\n"
+    (showTm0 mempty lhs)
+    (showGluedLvl topLvl (GNe (HLocal 0) gsp vsp))
+  lift $ printf "toplvl: %d\n\n" topLvl
+  lift $ threadDelay 500000
 
   start <- lift (A.size ruleVarStack)
   let end = start + varNum
@@ -91,13 +94,32 @@ matchLHS topLvl (RewriteRule varNum vars lhsSp lhs rhs) gsp vsp = do
           _ -> throwError MFRigid
 
         solve :: Lvl -> Lvl -> GSpine -> GV -> ExceptT MatchFailure IO ()
-        solve l x gsp gv
+        solve l x gsp gv@(GV g v)
           | l == topLvl, SNil <- gsp = lift (A.write ruleVarStack x (RESolved gv))
+          | SNil <- gsp = do
+              let scopeCheck :: Glued -> ExceptT MatchFailure IO ()
+                  scopeCheck = go topLvl MFRigid where
+                    go :: Lvl -> MatchFailure -> Glued -> ExceptT MatchFailure IO ()
+                    go l m g = case gForce l g of
+                      GNe (HMeta x) gsp vsp -> goSp l (case m of MFRigid -> MFFlex x; _ -> m) gsp
+                      GNe (HLocal x) gsp vsp | x >= topLvl -> throwError m
+                      GNe h gsp vsp -> goSp l m gsp
+                      GLam _ t -> go (l + 1) m (gInst l t (gvLocal l))
+                      GPi _ (GV a _) b -> go l m a >> go (l + 1) m (gInst l b (gvLocal l))
+                      GFun (GV a _) (GV b _) -> go l m a >> go l m b
+                      GU -> pure ()
+                      GIrrelevant -> pure ()
+                    goSp :: Lvl -> MatchFailure -> GSpine -> ExceptT MatchFailure IO ()
+                    goSp l m (SAppI gsp g) = goSp l m gsp >> go l m g
+                    goSp l m (SAppE gsp g) = goSp l m gsp >> go l m g
+                    goSp l m SNil          = pure ()
+              scopeCheck g
+              lift (A.write ruleVarStack x (RESolved gv))
           | otherwise = error "match.solve: higher-order rewrite rules not yet supported"
         {-# inline solve #-}
 
-      matchLHS :: ExceptT MatchFailure IO ()
-      matchLHS = go (SA.size lhsSp - 1) gsp vsp where
+      matchSpine :: ExceptT MatchFailure IO ()
+      matchSpine = go (SA.size lhsSp - 1) gsp vsp where
         go i (SAppI gsp g) (SAppI vsp v) = go (i - 1) gsp vsp
                                         >> match (gEval varNum gEnv vEnv (SA.index lhsSp i))
                                                  (GV g v)
@@ -105,7 +127,7 @@ matchLHS topLvl (RewriteRule varNum vars lhsSp lhs rhs) gsp vsp = do
                                         >> match (gEval varNum gEnv vEnv (SA.index lhsSp i))
                                                  (GV g v)
         go i SNil          SNil          = pure ()
-        go _ _             _             = error "matchLHS: impossible"
+        go _ _             _             = error "matchSpine: impossible"
 
       evalRhs :: IO Glued
       evalRhs = go start ENil ENil where
@@ -116,11 +138,11 @@ matchLHS topLvl (RewriteRule varNum vars lhsSp lhs rhs) gsp vsp = do
           RESolved (GV g v) -> go (i + 1) (EDef gs g) (EDef vs v)
           REUnsolved -> error "non-deterministic rewrite rule"
 
-  matchLHS `catchError` \e -> do
-    -- lift $ printf "match failed\n\n"
+  matchSpine `catchError` \e -> do
+    lift $ printf "match failed\n\n"
     lift (A.popN ruleVarStack varNum)
     throwError e
-  -- lift $ printf "matched lhs\n\n"
+  lift $ printf "matched lhs\n\n"
   lift evalRhs
 {-# inline matchLHS #-}
 
@@ -220,7 +242,7 @@ gEval l gs vs = \case
 
 
 gInst :: Lvl -> GCl -> GV -> Glued
-gInst l (GCl gs vs t) (GV g v) = gEval l (EDef gs g) (EDef vs v) t
+gInst l (GCl gs vs t) (GV g v) = gEval (l + 1) (EDef gs g) (EDef vs v) t
 {-# inline gInst #-}
 
 gAppI :: Lvl -> Glued -> GV -> Glued
@@ -359,7 +381,7 @@ gvInst :: Lvl -> GCl -> GV -> GV
 gvInst l (GCl gs vs t) (GV g v) =
   let vs' = EDef vs v
       gs' = EDef gs g
-  in GV (gEval l gs' vs' t) (vEval vs' t)
+  in GV (gEval (l + 1) gs' vs' t) (vEval vs' t)
 {-# inline gvInst #-}
 
 gvAppI :: Lvl -> Glued -> GV -> GV

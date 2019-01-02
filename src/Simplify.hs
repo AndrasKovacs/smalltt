@@ -69,10 +69,23 @@ simplifyMetaBlock cxt = do
   blockIx   <- subtract 1 <$> ADU.size metas
 
   -- 1. Inline already inlinable metas in block, check for unsolved metas
+
+  -- first pass
   AD.forMIx_ block $ \j -> \case
-    MESolved gv uf t pos -> do
+    MESolved gv inl t pos -> do
       let t' = inline 0 ENil t
-      AD.write block j (MESolved (gvEval 0 ENil ENil t')  uf t' pos)
+      AD.unsafeWrite block j
+        -- (MESolved (gvEval 0 ENil ENil t') inl t' pos)
+        (MESolved (gvEval 0 ENil ENil t') (isInlinable t') t' pos)
+    MEUnsolved p -> do
+      updPos p
+      throw (TopError cxt (EEUnsolvedMeta (Meta blockIx j)))
+
+  -- second pass (maybe unnecessary?)
+  AD.forMIx_ block $ \j -> \case
+    MESolved gv inl t pos -> do
+      let t' = inline 0 ENil t
+      AD.unsafeWrite block j (MESolved (gvEval 0 ENil ENil t') inl t' pos)
     MEUnsolved p -> do
       updPos p
       throw (TopError cxt (EEUnsolvedMeta (Meta blockIx j)))
@@ -104,7 +117,7 @@ simplifyMetaBlock cxt = do
     _                -> error "simplifyMetaBlock: impossible"
 
   AD.forMIx_ block $ \j -> \case
-    MESolved gv uf t pos -> when (not uf) $ do
+    MESolved gv inl t pos -> when (not inl) $ do
       occ <- PA.readPrimArray occurs j
       when (occ == 0) $ AD.write block j (MESolved gv True t pos)
     _ -> error "simplifyMetaBlock: impossible"

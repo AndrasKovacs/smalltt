@@ -29,3 +29,12 @@ app :: Icit -> Tm -> Tm -> Tm
 app Impl = AppI
 app Expl = AppE
 {-# inline app #-}
+
+isInlinable :: Tm -> Bool
+isInlinable t = go t where
+  go LocalVar{} = True
+  go MetaVar{}  = True
+  go TopVar{}   = True
+  go (Lam _ t)  = go t
+  go U          = True
+  go _          = False

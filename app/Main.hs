@@ -55,6 +55,7 @@ loop state = do
 
   let whenLoaded state action =
         maybe (putStrLn "No file loaded" >> loop state) action state
+      cliPos = initialPos "interactive"
 
   putStr "λ> "
   l <- getLine
@@ -69,19 +70,19 @@ loop state = do
       performGC
       loop $ Just (file, path, ntbl)
     ':':'t':_:name -> whenLoaded state $ \(file, path, ntbl) -> do
-      updPos (initialPos "interactive")
+      updPos cliPos
       try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
         Left e              -> displayTopError (T.pack name) e
         Right (_, GV ga va) -> putStrLn $ showValMetaless ntbl NNil va
       loop state
     ':':'n':'t':_:name -> whenLoaded state $ \(file, path, ntbl) -> do
-      updPos (initialPos "interactive")
+      updPos cliPos
       try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
         Left e              -> displayTopError (T.pack name) e
         Right (_, GV ga va) -> putStrLn $ showGlued ntbl NNil ga
       loop state
-    ':':'n':_:name -> whenLoaded state $ \(file, path, ntbl) -> do
-      updPos (initialPos "interactive")
+    ':':'n':' ':name -> whenLoaded state $ \(file, path, ntbl) -> do
+      updPos cliPos
       try (inferVar (initCxt ntbl) (ST.pack name)) >>= \case
         Left e -> displayTopError (T.pack name) e
         Right (t, _) -> do
