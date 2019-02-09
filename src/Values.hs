@@ -53,7 +53,18 @@ data VCl = VCl VEnv Tm
 -- Bitpacked definition, with 3 bits for tags.
 
 
-newtype Head = Head Int deriving (Eq)
+newtype Head = Head Int
+
+isTop :: Int -> Bool
+isTop n = 2 <= n && n <= 4
+{-# inline isTop #-}
+
+instance Eq Head where
+  h == h' = case (unpackHead h, unpackHead h') of
+    ((t, i), (t', i'))
+      | isTop t, isTop t', Int2 i _ <- coerce i, Int2 i' _ <- coerce i' -> i == i'
+      | otherwise -> (coerce h :: Int) == coerce h'
+  {-# inline (==) #-}
 
 unpackHead :: Head -> (Int, Int)
 unpackHead (Head x) = (x .&. 7, unsafeShiftR x 3)
@@ -87,13 +98,7 @@ pattern HTopBlockedOnMeta x <- (unpackHead -> (3, coerce -> x)) where
 pattern HTopRigid :: Int2 -> Head
 pattern HTopRigid x <- (unpackHead -> (4, coerce -> x)) where
   HTopRigid x = Head (unsafeShiftL (coerce x) 3 .|. 4)
-
--- | Head with a variable coming from a rewrite LHS rule.
-pattern HRuleVar :: Lvl -> Head
-pattern HRuleVar x <- (unpackHead -> (5, x)) where
-  HRuleVar x = Head (unsafeShiftL x 3 .|. 5)
-{-# complete HLocal, HMeta, HTopUnderapplied,  HTopBlockedOnMeta, HTopRigid, HRuleVar #-}
-
+{-# complete HLocal, HMeta, HTopUnderapplied, HTopBlockedOnMeta, HTopRigid #-}
 
 instance Show Head where
   show (HLocal x)    = "local " ++ show x
@@ -103,7 +108,6 @@ instance Show Head where
     printf "%d blocked on %d" top mj
   show (HTopUnderapplied (Int2 top arity)) =
     printf "%d underapplied by %d" top arity
-  show (HRuleVar x) = "RuleVar " ++ show x
 
 --------------------------------------------------------------------------------
 
@@ -132,9 +136,6 @@ pattern GLocal x = GNe (HLocal x) SNil SNil
 pattern GMeta :: Meta -> Glued
 pattern GMeta x = GNe (HMeta x) SNil SNil
 
-pattern GRuleVar :: Lvl -> Glued
-pattern GRuleVar x = GNe (HRuleVar x) SNil SNil
-
 pattern VLocal :: Ix -> Val
 pattern VLocal x = VNe (HLocal x) SNil
 
@@ -143,9 +144,6 @@ pattern VTop x = VNe (HTopRigid x) SNil
 
 pattern VMeta :: Meta -> Val
 pattern VMeta x = VNe (HMeta x) SNil
-
-pattern VRuleVar :: Lvl -> Val
-pattern VRuleVar x = VNe (HRuleVar x) SNil
 
 gvLocal :: Ix -> GV
 gvLocal x = GV (GLocal x) (VLocal x)

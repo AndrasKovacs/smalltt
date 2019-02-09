@@ -115,7 +115,6 @@ vQuoteSolution throwAction = \l ns occurs (renl, ren, vsp) v ->
           HTopRigid (Int2 x _)         -> goSp l ren (TopVar x) vsp
           HTopBlockedOnMeta (Int2 x _) -> goSp l ren (TopVar x) vsp
           HTopUnderapplied (Int2 x _)  -> goSp l ren (TopVar x) vsp
-          HRuleVar x                   -> error "vQuoteSolution: impossible"
 
           HMeta  x | x == occurs -> Irrelevant <$ throwAction (FRFlex @LocalError)
                    | otherwise   -> lookupMetaIO x >>= \case
@@ -197,8 +196,11 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
     (VFun a b, VFun a' b') -> go l u ns r a a' >> go l u ns r b b'
 
-    (VNe h vsp, VNe h' vsp') | h == h' ->
-      goSp l u ns (r `meld` headRigidity h `meld` headRigidity h') vsp vsp'
+    (VNe h vsp, VNe h' vsp') | h == h' -> do
+      -- printf "local neutral: %s   %s\n" (showValMetaless mempty ns (VNe h vsp))
+      --                                   (showValMetaless mempty ns (VNe h' vsp'))
+      -- printf "rigidity: %s, next rigidity: %s\n" (show r) (show (r `meld` headRigidity h))
+      goSp l u ns (r `meld` headRigidity h) vsp vsp'
 
     -- meta sides
     (v@(VNe (HMeta x) vsp), v')
@@ -223,13 +225,14 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
         , u > 0 -> go l (u - 1) ns r v (vAppSpine v' vsp')
 
     (v@(VNe h vsp), v'@(VNe h' vsp')) ->
-      cantUnify l ns (headRigidity h `meld` headRigidity h') v v'
+      cantUnify l ns (r `meld` headRigidity h `meld` headRigidity h') v v'
     (v@(VNe h vsp), v') ->
-      cantUnify l ns (headRigidity h) v v'
+      cantUnify l ns (r `meld` headRigidity h) v v'
     (v, v'@(VNe h' vsp')) ->
-      cantUnify l ns (headRigidity h') v v'
+      cantUnify l ns (r `meld` headRigidity h') v v'
 
-    (v, v') -> cantUnify l ns r v v'
+    (v, v') ->
+      cantUnify l ns r v v'
 
   cantUnify l ns r v v' = throw (makeFR r (LocalError ns (UELocalUnify v v')))
   {-# inline cantUnify #-}
@@ -260,8 +263,8 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
   goSp :: Lvl -> Unfolding -> Names -> Rigidity -> VSpine -> VSpine -> IO ()
   goSp l u ns r (SAppI vsp v) (SAppI vsp' v') = goSp l u ns r vsp vsp' >> go l u ns r v v'
   goSp l u ns r (SAppE vsp v) (SAppE vsp' v') = goSp l u ns r vsp vsp' >> go l u ns r v v'
-  goSp l u ns r SNil            SNil          = pure ()
-  goSp _ _ _  r _               _             = error "vUnify.goSp: impossible"
+  goSp l u ns r SNil          SNil            = pure ()
+  goSp _ _ _  r _             _               = error "vUnify.goSp: impossible"
 
 
 -- | Throws SolutionError, returns True if rhs is eta-convertible to lhs.
@@ -294,7 +297,6 @@ gCheckSolution topLvl occurs (renl, ren) g = contr topLvl ren g where
           HTopUnderapplied{}  -> pure ()
           HMeta x | x == occurs -> throw SEOccurs
                   | otherwise   -> pure ()
-          HRuleVar{}          -> error "scopeCheck: impossible"
         goSp l ren gsp
       GLam x t               -> go (l + 1) (RCons l (l - shift) ren) (gInst l t (gvLocal l))
       GPi x (GV a _) b       -> go l ren a
@@ -340,7 +342,11 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
       (t     , GLam (Named n' i') t') -> let var = gvLocal l in
         go (l + 1) (NSnoc ns n') (gvApp i' l t var) (gvInst l t' var)
 
-      (GNe h gsp vsp, GNe h' gsp' vsp') | h == h' -> goSp l ns gsp gsp' vsp vsp'
+      (g@(GNe h gsp vsp), g'@(GNe h' gsp' vsp'))
+        | h == h' -> goSp l ns gsp gsp' vsp vsp'
+        -- | otherwise -> do
+        --     printf "head fail? %s %s\n" (show h) (show h')
+        --     throw (LocalError ns (UEGluedUnify (GV g v) (GV g' v')))
 
       (GPi (Named n i) a b, GPi (Named _ i') a' b') | i == i' -> do
         let var = gvLocal l
@@ -424,7 +430,6 @@ newMeta cxt@Cxt{..} = do
   A.push arr (MEUnsolved pos)
   let go BINil           = MetaVar (Meta i j)
       go (BILocal bis x) = AppE (go bis) (LocalVar (_size - x - 1))
-      go (BIRule bis x)  = AppE (go bis) (RuleVar  (_size - x - 1))
   pure (go _boundIndices)
 
 -- | Throws TopError.
@@ -438,7 +443,7 @@ check cxt@Cxt{..} (Posed pos t) (GV gwant vwant) = updPos pos >> case (t, gForce
   (P.Lam x NOExpl t, GFun a b) ->
     Lam (Named x Expl) <$> check (bindVar (Posed pos x) a cxt) t b
 
-  -- (special case)
+  -- Special case for for checking implicit pi type for a variable
   (P.Var n, gwant@(GPi (Named x Impl) a b))
     | (t, gvty@(GV gty vty)) <- runIO (inferVar cxt n)
     , gty@(GNe (HMeta x) _ _) <- gForce _size gty -> do
@@ -642,14 +647,14 @@ elabTopEntry e = do
           let gva = gvEvalCxt cxt a
           dive (bindVar (Posed pos n) gva cxt) (Named n a:vars') vars
         [] -> do
-          printf "size: %d\n" _size
+          -- printf "size: %d\n" _size
 
           let vars   = reverse vars'
               lhsPos = posOf lhs
 
           -- elaborate lhs, rhs
           (lhs, gva@(GV ga _)) <- infer MIYes cxt lhs
-          printf "foo %s\n" (showGluedCxt cxt ga)
+          -- printf "inferred lhs type: %s\n" (showGluedCxt cxt ga)
           rhs <- check cxt rhs gva
 
           -- inline metas
@@ -682,7 +687,10 @@ elabTopEntry e = do
                   throw (TopError cxt (EEWrongRuleArity arity spLen))
                 when (spLen == 0) $
                   throw (TopError cxt EEIllegalRuleLHS)
-                let rule = RewriteRule _size vars (Exts.fromList sp) lhs rhs
+                let lhsTms    = Exts.fromList sp
+                    lhsOccurs = Exts.fromList (map (freeLocalVars _size) sp)
+                    rule      = RewriteRule _size vars lhsTms lhsOccurs lhs rhs
+                -- printf "%s %s\n" (show lhsTms) (show lhsOccurs)
                 A.push top (TERewriteRule rule)
                 A.write top x $
                   TEPostulate (numRules + 1) (rules ++ [rule]) spLen name a gva
@@ -720,7 +728,7 @@ renderElabOutput ntbl = do
                 printf "%s : %s\n = %s" n (showTm0 ntbl a) (showTm0 ntbl t)
               TEPostulate _ _ _ (Posed pos n) a _ ->
                 printf "%s : %s" n (showTm0 ntbl a)
-              TERewriteRule (RewriteRule _ vars _ lhs rhs) ->
+              TERewriteRule (RewriteRule _ vars _ _ lhs rhs) ->
                 showRule ntbl vars lhs rhs
 
         pure $ if not (null metaBlock) then "mutual":metaBlock ++ [thisDef]

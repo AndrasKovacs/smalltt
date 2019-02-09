@@ -82,8 +82,16 @@ displayTopError file (TopError cxt@(Cxt{..}) err) = do
     EECheck t want@(GV gwant vwant) has@(GV ghas vhas)
               (LocalError ns err) -> do
 
-      let reportUnify v v' = report $ printf
-           "Can't unify\n\n  %s\n\nwith\n\n  %s\n\n\
+      let reportUnify g g' v v' = report $ printf
+           "Can't (glued) unify\n\n  %s\n\nwith\n\n  %s\n\n\
+            \while unifying expected type:\n\n  %s\n\nwith inferred type:\n\n  %s\n\n"
+            (showGlued _nameTable ns g') (showGlued _nameTable ns g)
+            -- (showValMetaless _nameTable ns v') (showValMetaless _nameTable ns v)
+            -- (showValCxtMetaless cxt vwant) (showValCxtMetaless cxt vhas)
+            (showGlued _nameTable ns gwant) (showGlued _nameTable ns ghas)
+
+      let reportLocalUnify v v' = report $ printf
+           "Can't (locally) unify\n\n  %s\n\nwith\n\n  %s\n\n\
             \while unifying expected type:\n\n  %s\n\nwith inferred type:\n\n  %s\n\n"
             (showValMetaless _nameTable ns v') (showValMetaless _nameTable ns v)
             (showValCxtMetaless cxt vwant) (showValCxtMetaless cxt vhas)
@@ -102,8 +110,8 @@ displayTopError file (TopError cxt@(Cxt{..}) err) = do
             )
 
       case err of
-        UELocalUnify v v'                      -> printf "localUnify\n\n" >> reportUnify v v'
-        UEGluedUnify (GV _ v) (GV _ v')        -> reportUnify v v'
+        UELocalUnify v v'                      -> reportLocalUnify v v'
+        UEGluedUnify (GV g v) (GV g' v')       -> reportUnify g g' v v'
         UELocalSolution x vsp v err            -> reportSolutionErr x vsp v err
         UEGluedSolution x vsp gsp (GV _ v) err -> reportSolutionErr x vsp v err
         UELocalSpine x vsp rhs v               -> report "Non-variable in meta spine\n\n"

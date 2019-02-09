@@ -19,7 +19,6 @@ type NameTable = HashMap Name NameTableEntry
 data BoundIndices
   = BINil
   | BILocal BoundIndices Lvl
-  | BIRule BoundIndices Lvl
 
 -- | Local elaboration context.
 data Cxt = Cxt {

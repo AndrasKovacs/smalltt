@@ -76,7 +76,6 @@ showSTm ntbl = go False where
     LocalVar x -> ((T.unpack $ lookupName ns x)++)
     TopVar x -> case topName x of Posed _ n -> (T.unpack n++)
     MetaVar (Meta i j) -> (("?"++).(show i++)).('.':).(show j++)
-    RuleVar x -> showParen p (("Rule " ++).(show x++))
     Let (Named (disamb ns -> x) a) t u ->
       ("let "++) . (T.unpack x++) . (" : "++) . go False ns a . ("\n    = "++)
       . go False ns t  . ("\nin\n"++) . go False (NSnoc ns x) u

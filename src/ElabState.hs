@@ -4,12 +4,14 @@ module ElabState where
 import qualified Data.Array.Dynamic as A
 import qualified Data.Array.Dynamic.Unlifted as UA
 import qualified SmallArray as SA
+import qualified PrimArray  as PA
 import Text.Megaparsec.Pos
 import Data.IORef
 
 import Common
 import Syntax
 import Values
+import LvlSet
 
 -- import qualified GHC.Exts as Exts
 -- import Text.Printf
@@ -18,11 +20,12 @@ import Values
 --------------------------------------------------------------------------------
 
 data RewriteRule = RewriteRule
-  Int            -- number of vars
-  [Named Ty]     -- vars
-  (SA.Array Tm)  -- LHS spine
-  Tm             -- LHS (with head)
-  Tm             -- RHS
+  Int               -- number of vars
+  [Named Ty]        -- vars
+  (SA.Array Tm)     -- LHS spine
+  (PA.Array LvlSet) -- bound var occurrences for LHS spine entries
+  Tm                -- LHS (with head)
+  Tm                -- RHS
 
 data TopEntry
   -- number of rewrite rules, rules, rule arity, name, type, gvtype
@@ -137,7 +140,6 @@ writeMeta (Meta i j) e = do
 headRigidity :: Head -> Rigidity
 headRigidity = \case
   HTopRigid (Int2 x _)         -> topRigidity x
-  HRuleVar x                   -> ruleVarRigidity x
   HTopBlockedOnMeta (Int2 _ j) -> activeMetaRigidity j
   HTopUnderapplied{}           -> Rigid
   HMeta x                      -> metaRigidity x

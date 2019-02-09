@@ -44,7 +44,6 @@ inline l vs = \case
   MetaVar x  -> case lookupMeta x of
     MESolved _ True t _ -> vQuote l (vEval ENil t)
     _                   -> MetaVar x
-  RuleVar x  -> RuleVar x
   Let (Named x a) t u -> Let (Named x (inline l vs a)) (inline l vs t) (inline (l + 1) (ESkip vs) u)
   AppI t u   -> either (\v -> vQuote l (vAppI v (vEval vs u)))
                        (\t -> AppI t (inline l vs u))
@@ -102,7 +101,6 @@ simplifyMetaBlock cxt = do
           MetaVar (Meta i j)  -> when (i == blockIx) $ do
                                    n <- PA.readPrimArray occurs j
                                    PA.writePrimArray occurs j (n + 1)
-          RuleVar{}           -> error "simplifyMetaBlock: impossible"
           Let (Named _ a) t u -> go a >> go t >> go u
           AppI t u            -> go t >> go u
           AppE t u            -> go t >> go u

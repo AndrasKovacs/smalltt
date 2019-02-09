@@ -117,7 +117,7 @@ keyword x = x == "let" || x == "in" || x == "λ" || x == "U" || x == "assume"
 pIdent :: Parser Name
 pIdent = try $ lexeme $ do
   o   <- getOffset
-  txt <- takeWhile1P Nothing isAlphaNum
+  txt <- takeWhile1P Nothing (\c -> isAlphaNum c || c == '-' || c == '\'')
   unless (isAlpha $ T.head txt) $
     failWithOffset o "identifier must start with an alphabetic character"
   when (keyword txt) $
@@ -164,14 +164,23 @@ pSpine = chainl
   pArg
   pAtom
 
+pInfer :: Parser Text
+pInfer = lexeme (takeWhile1P Nothing (=='─'))
+
+pColon :: Parser ()
+pColon = char ':' *> void (optional pInfer)
+
 pArrow :: Parser Text
-pArrow = symbol "->" <|> symbol "→"
+pArrow =
+      symbol "->"
+  <|> symbol "→"
+  <|> pInfer
 
 pLet :: Parser Tm
 pLet = withPos $ do
   symbol "let"
   T3 x a t <- indentMore (withPos pIdent) $ \(Posed pos x) -> do
-    a <- optional (char ':' *> pTm)
+    a <- optional (pColon *> pTm)
     t <- char '=' *> pTm
     case a of
       Just a  -> pure (T3 x a t)
@@ -182,12 +191,12 @@ pLet = withPos $ do
 pBraceBinder =
       braces ((\x y -> T3 x y Impl)
   <$> some (withPos pBind)
-  <*> ((char ':' *> pTm) <|> withPos (pure Hole)))
+  <*> ((pColon *> pTm) <|> withPos (pure Hole)))
 
 pParenBinder =
       parens ((\x y -> T3 x y Expl)
   <$> some (withPos pBind)
-  <*> (char ':' *> pTm))
+  <*> (pColon *> pTm))
 
 pPiBinder :: Parser (Posed (T3 [Posed Name] Tm Icit))
 pPiBinder = withPos (pBraceBinder <|> pParenBinder)
@@ -233,7 +242,7 @@ pProfiling = optional $ brackets $
 pPostulateOrDefinition :: Parser TopEntry
 pPostulateOrDefinition = nonIndented $ indentMore (withPos pIdent) $ \x@(Posed pos _) -> do
   profiling <- pProfiling
-  a <- optional (char ':' *> pTm)
+  a <- optional (pColon *> pTm)
   t <- optional (char '=' *> pTm)
   case t of
     Just t  -> case a of

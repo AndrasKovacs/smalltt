@@ -9,9 +9,11 @@ module LvlSet where
 
 import Data.Bits
 import Data.List (foldl')
+import Data.Primitive.Types
+
 import Common
 
-newtype LvlSet = LvlSet Int
+newtype LvlSet = LvlSet Int deriving (Prim, Eq, Ord)
 
 instance Semigroup LvlSet where
   LvlSet s1 <> LvlSet s2 = LvlSet (s1 .|. s2)
@@ -39,6 +41,14 @@ member x (LvlSet s)
   | otherwise = (unsafeShiftL 1 x .&. s) /= 0
 {-# inline member #-}
 
+intersect :: LvlSet -> LvlSet -> LvlSet
+intersect (LvlSet a) (LvlSet b) = LvlSet (a .&. b)
+{-# inline intersect #-}
+
+difference :: LvlSet -> LvlSet -> LvlSet
+difference (LvlSet a) (LvlSet b) = LvlSet (a .&. complement b)
+{-# inline difference #-}
+
 toList :: LvlSet -> [Lvl]
 toList s = filter (`member` s) [0..63]
 {-# inline toList #-}
@@ -49,3 +59,7 @@ fromList = foldl' (flip insert) mempty
 
 instance Show LvlSet where
   show = show . toList
+
+singleton :: Lvl -> LvlSet
+singleton x = insert x mempty
+{-# inline singleton #-}
