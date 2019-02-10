@@ -76,11 +76,6 @@ indentMore ref p = do
   a   <- ref
   local (const (lvl <> mkPos 1)) (p a)
 
--- withColumn :: Parser a -> Parser (a, Pos)
--- withColumn p = do
---   lvl <- L.indentLevel
---   a <- p
---   pure (a, lvl)
 
 -- Lexing
 --------------------------------------------------------------------------------
@@ -108,7 +103,7 @@ brackets p = char '[' *> p <* char ']'
 braces p = char '{' *> p <* char '}'
 
 keyword :: Text -> Bool
-keyword x = x == "let" || x == "in" || x == "λ" || x == "U" || x == "assume"
+keyword x = x == "let" || x == "in" || x == "λ" || x == "U"
 
 
 -- Parsing
@@ -226,7 +221,7 @@ pTm = pLam <|> pLet <|> try pPi <|> pFunOrSpine
 
 pRewrite :: Parser TopEntry
 pRewrite = nonIndented $ do
-  indentMore (([] <$ symbol "{}") <|> many (withPos pBraceBinder)) $ \bs -> do
+  indentMore (([] <$ symbol "{}") <|> some (withPos pBraceBinder)) $ \bs -> do
     let bs' :: [Posed (Named Ty)]
         bs' = [Posed pos (Named n a) | Posed _ (T3 ns a _) <- bs, Posed pos n <- ns]
     pArrow
