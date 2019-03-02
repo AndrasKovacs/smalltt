@@ -1,6 +1,7 @@
 # smalltt
 
-See [Demo.stt](Demo.stt) for notes on usage, goals and benchmarks.
+- See [Demo.stt](Demo.stt) for notes on usage, goals and benchmarks.
+- See [krakow-pres.pdf](krakow-pres.pdf) for one presentation I previously gave about this system.
 
 ## Some benchmarks
 
