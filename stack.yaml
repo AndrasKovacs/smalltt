@@ -1,5 +1,5 @@
 
-resolver: nightly-2018-11-20
+resolver: lts-13.13
 
 packages:
 - .
