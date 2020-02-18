@@ -27,6 +27,10 @@ insert x (LvlSet s)
   | otherwise = LvlSet (unsafeShiftL 1 x .|. s)
 {-# inline insert #-}
 
+single :: Lvl -> LvlSet
+single x = insert x mempty
+{-# inline single #-}
+
 delete :: Lvl -> LvlSet -> LvlSet
 delete x (LvlSet s)
   | x > 63    = error "LvlSet.delete: element out of range"
