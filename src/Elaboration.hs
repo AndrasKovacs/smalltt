@@ -215,14 +215,17 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
     (VFun a b, VFun a' b') -> go l u ns r a a' >> go l u ns r b b'
 
-    (VNe (HTop x) vsp, VNe (HTop x') vsp') | x == x' ->
-      goSp l u ns (r `meld` topRigidity x `meld` topRigidity x') vsp vsp'
+    (v@(VNe (HTop x) vsp), v'@(VNe (HTop x') vsp')) | x == x' -> do
+      let r' = r `meld` topRigidity x `meld` topRigidity x'
+      goSp (cantUnify l ns r' v v') l u ns r' vsp vsp'
 
-    (VNe (HLocal x) vsp, VNe (HLocal x') vsp') | x == x' ->
-      goSp l u ns r vsp vsp'
+    (v@(VNe (HLocal x) vsp), v'@(VNe (HLocal x') vsp')) | x == x' -> do
+      goSp (cantUnify l ns r v v') l u ns r vsp vsp'
 
-    (VNe (HMeta x) vsp, VNe (HMeta x') vsp') | x == x' ->
-      goSp l u ns (r `meld` metaRigidity x `meld` metaRigidity x') vsp vsp'
+    (v@(VNe (HMeta x) vsp), v'@(VNe (HMeta x') vsp')) | x == x' -> do
+      let r'  = r `meld` metaRigidity x `meld` metaRigidity x'
+      let err = cantUnify l ns r' v v'
+      goSp err l u ns r' vsp vsp'
 
     -- meta sides
     (v@(VNe (HMeta x) vsp), v')
@@ -252,7 +255,7 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
     (v, v') -> cantUnify l ns r v v'
 
-  cantUnify l ns r v v' = throw (makeFR r (LocalError ns (UELocalUnify v v')))
+  cantUnify l ns r v v' = throwIO (makeFR r (LocalError ns (UELocalUnify v v')))
   {-# inline cantUnify #-}
 
   solve :: Lvl -> Names -> Meta -> VSpine -> Val -> IO ()
@@ -274,11 +277,11 @@ vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
         rhs <- vQuoteSolutionShortCut l ns x ren v
         registerSolution x rhs
 
-  goSp :: Lvl -> Unfolding -> Names -> Rigidity -> VSpine -> VSpine -> IO ()
-  goSp l u ns r (SAppI vsp v) (SAppI vsp' v') = goSp l u ns r vsp vsp' >> go l u ns r v v'
-  goSp l u ns r (SAppE vsp v) (SAppE vsp' v') = goSp l u ns r vsp vsp' >> go l u ns r v v'
-  goSp l u ns r SNil            SNil          = pure ()
-  goSp _ _ _  r _               _             = error "vUnify.goSp: impossible"
+  goSp :: IO () -> Lvl -> Unfolding -> Names -> Rigidity -> VSpine -> VSpine -> IO ()
+  goSp err l u ns r (SAppI vsp v) (SAppI vsp' v') = goSp err l u ns r vsp vsp' >> go l u ns r v v'
+  goSp err l u ns r (SAppE vsp v) (SAppE vsp' v') = goSp err l u ns r vsp vsp' >> go l u ns r v v'
+  goSp err l u ns r SNil            SNil          = pure ()
+  goSp err _ _ _  r _               _             = err
 
 
 -- | Throws SolutionError, returns True if rhs is eta-convertible to lhs.
@@ -304,10 +307,10 @@ gCheckSolution topLvl occurs (renl, ren) g = contr topLvl ren g where
       GNe h gsp _ -> do
         case h of
           HLocal x -> case applyRen ren x of
-            (-1)   -> throw (SEScope x)
+            (-1)   -> throwIO (SEScope x)
             _      -> pure ()
           HTop{} -> pure ()
-          HMeta x | x == occurs -> throw SEOccurs
+          HMeta x | x == occurs -> throwIO SEOccurs
                   | otherwise   -> pure ()
         goSp l ren gsp
       GLam x t               -> go (l + 1) (RCons l (l - shift) ren) (gInst t (gvLocal l))
@@ -339,7 +342,7 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
       (g@(GNe (HMeta x) gsp vsp), g'@(GNe (HMeta x')  gsp' vsp')) -> case compare x x' of
         LT -> solve l ns x' vsp' gsp' (GV g v)
         GT -> solve l ns x vsp gsp (GV g' v')
-        EQ -> goSp l ns gsp gsp' vsp vsp'
+        EQ -> goSp (err ns (GV g v) (GV g' v')) l ns gsp gsp' vsp vsp'
 
       (GNe (HMeta x) gsp vsp, g') -> solve l ns x vsp gsp (GV g' v')
       (g, GNe (HMeta x') gsp' vsp') -> solve l ns x' vsp' gsp' (GV g v)
@@ -368,20 +371,25 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
 
       (GFun a b, GFun a' b') -> go l ns a a' >> go l ns b b'
 
-      (GNe (HTop x)   gsp vsp, GNe (HTop x')   gsp' vsp') | x == x' -> goSp l ns gsp gsp' vsp vsp'
-      (GNe (HLocal x) gsp vsp, GNe (HLocal x') gsp' vsp') | x == x' -> goSp l ns gsp gsp' vsp vsp'
+      (g@(GNe (HTop x) gsp vsp), g'@(GNe (HTop x') gsp' vsp')) | x == x' ->
+        goSp (err ns (GV g v) (GV g' v')) l ns gsp gsp' vsp vsp'
+      (g@(GNe (HLocal x) gsp vsp), g'@(GNe (HLocal x') gsp' vsp')) | x == x' ->
+        goSp (err ns (GV g v) (GV g' v')) l ns gsp gsp' vsp vsp'
 
-      (g, g') -> throw (LocalError ns (UEGluedUnify (GV g v) (GV g' v')))
+      (g, g') -> err ns (GV g v) (GV g' v')
 
-    goSp :: Lvl -> Names -> GSpine -> GSpine -> VSpine -> VSpine -> IO ()
-    goSp l ns (SAppI gsp g) (SAppI gsp' g')
-              (SAppI vsp v) (SAppI vsp' v') = goSp l ns gsp gsp' vsp vsp'
-                                              >> go l ns (GV g v) (GV g' v')
-    goSp l ns (SAppE gsp g) (SAppE gsp' g')
-              (SAppE vsp v) (SAppE vsp' v') = goSp l ns gsp gsp' vsp vsp'
-                                              >> go l ns (GV g v) (GV g' v')
-    goSp d ns SNil SNil SNil SNil = pure ()
-    goSp _ _  _    _    _    _    = error "gvUnify.goSp: impossible"
+    err ns gv gv' = throwIO (LocalError ns (UEGluedUnify gv gv'))
+    {-# inline err #-}
+
+    goSp :: IO () -> Lvl -> Names -> GSpine -> GSpine -> VSpine -> VSpine -> IO ()
+    goSp err l ns (SAppI gsp g) (SAppI gsp' g')
+                  (SAppI vsp v) (SAppI vsp' v') = goSp err l ns gsp gsp' vsp vsp'
+                                                  >> go l ns (GV g v) (GV g' v')
+    goSp err l ns (SAppE gsp g) (SAppE gsp' g')
+                  (SAppE vsp v) (SAppE vsp' v') = goSp err l ns gsp gsp' vsp vsp'
+                                                  >> go l ns (GV g v) (GV g' v')
+    goSp err l ns SNil SNil SNil SNil = pure ()
+    goSp err _ _  _    _    _    _    = err
 
 
     solve :: Lvl -> Names -> Meta -> VSpine -> GSpine -> GV -> IO ()
@@ -406,11 +414,11 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
       rhs <- vQuoteSolutionRefError err l ns x ren' v'
       readIORef err >>= \case
         Nothing          -> registerSolution x rhs
-        Just (FRRigid e) -> throw e
+        Just (FRRigid e) -> throwIO e
         Just FRFlex      -> do
           chk <- gCheckSolution l x ren g
                  `catch`
-                 (\e -> throw (LocalError ns (UEGluedSolution x vspTop gspTop gvTop e)))
+                 (\e -> throwIO (LocalError ns (UEGluedSolution x vspTop gspTop gvTop e)))
           if chk then pure () else registerSolution x rhs
 
 -- Elaboration
@@ -471,7 +479,7 @@ check cxt (Posed pos t) (GV gwant vwant) = updPos pos >> case (t, gForce gwant) 
       `catch`
       \e -> do
         updPos pos
-        throw (TopError cxt (EECheck t (GV gwant vwant) gvhas e))
+        throwIO (TopError cxt (EECheck t (GV gwant vwant) gvhas e))
     pure t
 
 insertMetas :: MetaInsertion -> Cxt -> IO (T2 Tm GVTy) -> IO (T2 Tm GVTy)
@@ -491,16 +499,16 @@ insertMetas ins cxt inp = case ins of
           | otherwise = do
               m <- newMeta cxt
               go (AppI t m) (gvInst b (gvEval' cxt m))
-        go t gva = throw (TopError cxt (EENoNamedArg t gva x))
+        go t gva = throwIO (TopError cxt (EENoNamedArg t gva x))
     go t gva
 {-# inline insertMetas #-}
 
 inferVar :: Cxt -> Name -> IO (T2 Tm GVTy)
 inferVar cxt n =
   case HM.lookup n (_nameTable cxt) of
-    Nothing -> throw (TopError cxt (EEScope n))
+    Nothing -> throwIO (TopError cxt (EEScope n))
     Just es -> go es where
-      go []               = throw (TopError cxt (EEScope n))
+      go []               = throwIO (TopError cxt (EEScope n))
       go (NITop pos x:es) = do
         EntryTy _ gvty <- _entryTy <$> A.unsafeRead top x
         pure (T2 (TopVar x) gvty)
@@ -529,17 +537,17 @@ infer ins cxt (Posed pos t) = updPos pos >> case t of
         case ni of
           NOName x -> pure ()
           NOImpl   -> unless (i' == Impl)
-                        (updPos (posOf u) >> throw (TopError cxt (EEAppIcit t i' Impl)))
+                        (updPos (posOf u) >> throwIO (TopError cxt (EEAppIcit t i' Impl)))
           NOExpl   -> unless (i' == Expl)
-                        (updPos (posOf u) >> throw (TopError cxt (EEAppIcit t i' Expl)))
+                        (updPos (posOf u) >> throwIO (TopError cxt (EEAppIcit t i' Expl)))
         u <- check cxt u a
         pure (T2 (app i' t u) (gvInst b (gvEval' cxt u)))
       GFun a b -> do
         case ni of NOExpl -> pure ()
-                   _      -> updPos (posOf u) >> throw (TopError cxt (EEAppIcit t Expl Impl))
+                   _      -> updPos (posOf u) >> throwIO (TopError cxt (EEAppIcit t Expl Impl))
         u <- check cxt u a
         pure (T2 (AppE t u) b)
-      ga -> throw (TopError cxt (EEFunctionExpected t (GV ga va)))
+      ga -> throwIO (TopError cxt (EEFunctionExpected t (GV ga va)))
 
   P.Pi (Named x i) a b -> do
     a <- check cxt a gvU
@@ -553,7 +561,7 @@ infer ins cxt (Posed pos t) = updPos pos >> case t of
 
   P.Lam x ni t -> insertMetas ins cxt $ do
     i <- case ni of
-      NOName x -> throw (TopError cxt EENamedLambda)
+      NOName x -> throwIO (TopError cxt EENamedLambda)
       NOImpl   -> pure Impl
       NOExpl   -> pure Expl
     gva@(GV ga va) <- gvEval' cxt <$> newMeta cxt
