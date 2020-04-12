@@ -16,9 +16,9 @@ import Values
 
 data EntryDef
   = EDPostulate
-  | EDDefinition Tm {-# unpack #-} GV
+  | EDDefinition Tm ~Val
 
-data EntryTy = EntryTy Tm {-# unpack #-} GV
+data EntryTy = EntryTy Tm ~Val
 
 data TopEntry = TopEntry {
   _entryName  :: {-# unpack #-} (Posed Name),
@@ -45,7 +45,7 @@ topRigidity x = case _entryDef (lookupTop x) of
 
 data MetaEntry
   = MEUnsolved SourcePos
-  | MESolved {-# unpack #-} GV Unfoldable Tm SourcePos
+  | MESolved ~Val Unfoldable Tm SourcePos
 
 metas :: UA.Array (A.Array MetaEntry)
 metas = runIO UA.empty

@@ -12,8 +12,8 @@ module Pretty (
   , showValMetaless
   , showValCxt
   , showValCxtMetaless
-  , showGlued
-  , showGluedCxt
+  , showLocal
+  , showLocalCxt
   ) where
 
 import qualified Data.Array.Dynamic as A
@@ -37,22 +37,22 @@ showTmCxt :: Cxt -> Tm -> String
 showTmCxt Cxt{..} = showTm _nameTable _names
 
 showVal :: NameTable -> Names -> Val -> String
-showVal ntbl ns = showTm ntbl ns . vQuote (namesLength ns)
+showVal ntbl ns = showTm ntbl ns . nfQuote (namesLength ns)
 
 showValMetaless :: NameTable -> Names -> Val -> String
-showValMetaless ntbl ns = showTm ntbl ns . vQuoteMetaless (namesLength ns)
+showValMetaless ntbl ns = showTm ntbl ns . lQuoteMetaless (namesLength ns)
 
 showValCxt :: Cxt -> Val -> String
-showValCxt Cxt{..} = showTm _nameTable _names . vQuote _size
+showValCxt Cxt{..} = showTm _nameTable _names . nfQuote _size
 
 showValCxtMetaless :: Cxt -> Val -> String
 showValCxtMetaless Cxt{..} = showValMetaless _nameTable _names
 
-showGlued :: NameTable -> Names -> Glued -> String
-showGlued ntbl ns = showTm ntbl ns . gQuote (namesLength ns)
+showLocal :: NameTable -> Names -> Val -> String
+showLocal ntbl ns = showTm ntbl ns . lQuote (namesLength ns)
 
-showGluedCxt :: Cxt -> Glued -> String
-showGluedCxt Cxt{..} = showGlued _nameTable _names
+showLocalCxt :: Cxt -> Val -> String
+showLocalCxt Cxt{..} = showLocal _nameTable _names
 
 getApp :: Tm -> Maybe (Icit, Tm, Tm)
 getApp (AppI t u) = Just (Impl, t, u)

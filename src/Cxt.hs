@@ -1,13 +1,14 @@
 
 module Cxt where
 
-import Common
-import Text.Megaparsec.Pos
-import Values
-import qualified Data.Text.Short as T
 import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HM
+import Text.Megaparsec.Pos
 import Text.Printf
+import Values
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Text.Short as T
+
+import Common
 
 -- | Inserted names come from inserting implicit binders during elaboration.
 --   Other names come from user input.
@@ -27,10 +28,9 @@ data BoundIndices = BINil | BISnoc BoundIndices Lvl
 
 -- | Local elaboration context.
 data Cxt = Cxt {
-  _size      :: Int, -- ^ Number of local entries.
-  _gVals     :: GEnv, -- ^ Glued values of definitions.
-  _vVals     :: VEnv, -- ^ Local values of definitions.
-  _types     :: [GVTy], -- ^ Types of entries.
+  _size      :: Int,   -- ^ Number of local entries.
+  _vVals     :: VEnv,  -- ^ Local values of definitions.
+  _types     :: [VTy], -- ^ Types of entries.
 
   -- | Structure for getting indices for names during elaboration.
   _nameTable :: NameTable,
@@ -51,13 +51,12 @@ addName n ni ntbl = if T.null n
 
 -- | Initial local context.
 initCxt :: NameTable -> Cxt
-initCxt ntbl = Cxt 0 ENil ENil [] ntbl NNil BINil
+initCxt ntbl = Cxt 0 ENil [] ntbl NNil BINil
 
 -- | Add a bound variable to local context.
-localBind :: Posed Name -> NameOrigin -> GVTy -> Cxt -> Cxt
-localBind x origin gvty (Cxt l gs vs tys ninf ns bis) =
+localBind :: Posed Name -> NameOrigin -> VTy -> Cxt -> Cxt
+localBind x origin gvty (Cxt l vs tys ninf ns bis) =
   Cxt (l + 1)
-      (ESkip gs)
       (ESkip vs)
       (gvty:tys)
       (addName (unPosed x) (NILocal (posOf x) origin l) ninf)
@@ -65,16 +64,15 @@ localBind x origin gvty (Cxt l gs vs tys ninf ns bis) =
       (BISnoc bis l)
 
 -- | Add a new definition to local context.
-localDefine :: Posed Name -> GV -> GVTy -> Cxt -> Cxt
-localDefine x (GV g v) gvty (Cxt l gs vs tys ninf ns bis) =
+localDefine :: Posed Name -> Val -> VTy -> Cxt -> Cxt
+localDefine x v gvty (Cxt l vs tys ninf ns bis) =
   Cxt (l + 1)
-      (EDef gs g)
       (EDef vs v)
       (gvty:tys)
       (addName (unPosed x) (NILocal (posOf x) NOSource l) ninf)
       (NSnoc ns (unPosed x))
       bis
 
-localBindSrc, localBindIns :: Posed Name -> GVTy -> Cxt -> Cxt
+localBindSrc, localBindIns :: Posed Name -> VTy -> Cxt -> Cxt
 localBindSrc x = localBind x NOSource
 localBindIns x = localBind x NOInserted

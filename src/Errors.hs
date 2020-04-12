@@ -28,10 +28,10 @@ instance Exception a => Exception (FlexRigid a)
 data UnifyError
   = UELocalSolution Meta VSpine Val SolutionError
   | UELocalUnify Val Val
-  | UEGluedSolution Meta VSpine GSpine GV SolutionError
-  | UEGluedUnify GV GV
+  | UEGluedSolution Meta VSpine Val SolutionError
+  | UEGluedUnify Val Val
   | UELocalSpine Meta VSpine Val Val
-  | UEGluedSpine Meta VSpine GSpine GV Glued
+  | UEGluedSpine Meta VSpine Val Val
 
 instance Show UnifyError where show _ = "UnifyError"
 instance Exception UnifyError
@@ -42,11 +42,11 @@ instance Show LocalError where show _ = "LocalError"
 instance Exception LocalError
 
 data ElabError
-  = EECheck Tm GVTy GVTy LocalError
-  | EENoNamedArg Tm GVTy Name
+  = EECheck Tm VTy VTy LocalError
+  | EENoNamedArg Tm VTy Name
   | EEScope Name
   | EEAppIcit Tm Icit Icit
-  | EEFunctionExpected Tm GVTy
+  | EEFunctionExpected Tm VTy
   | EENamedLambda
   | EEUnsolvedMeta Meta
 
@@ -76,14 +76,14 @@ displayTopError file (TopError cxt@(Cxt{..}) err) = do
   report <- reportWithLine file <$> getPos
 
   case err of
-    EECheck t want@(GV gwant vwant) has@(GV ghas vhas)
+    EECheck t want has
               (LocalError ns err) -> do
 
       let reportUnify v v' = report $ printf
            "Can't unify\n\n  %s\n\nwith\n\n  %s\n\n\
             \while unifying expected type:\n\n  %s\n\nwith inferred type:\n\n  %s\n\n"
-            (showValMetaless _nameTable ns v) (showValMetaless _nameTable ns v')
-            (showValCxtMetaless cxt vwant) (showValCxtMetaless cxt vhas)
+            (showVal _nameTable ns v) (showValMetaless _nameTable ns v')
+            (showValCxtMetaless cxt want) (showValCxtMetaless cxt has)
 
           reportSolutionErr x vsp v err = report (
             printf
@@ -99,12 +99,12 @@ displayTopError file (TopError cxt@(Cxt{..}) err) = do
             )
 
       case err of
-        UELocalUnify v v'                      -> reportUnify v v'
-        UEGluedUnify (GV _ v) (GV _ v')        -> reportUnify v v'
-        UELocalSolution x vsp v err            -> reportSolutionErr x vsp v err
-        UEGluedSolution x vsp gsp (GV _ v) err -> reportSolutionErr x vsp v err
-        UELocalSpine x vsp rhs v               -> report "Non-variable in meta spine\n\n"
-        UEGluedSpine x vsp gsp rhs g           -> report "Non-variable in meta spine\n\n"
+        UELocalUnify v v'               -> reportUnify v v'
+        UEGluedUnify v v'               -> reportUnify v v'
+        UELocalSolution x vsp v err     -> reportSolutionErr x vsp v err
+        UEGluedSolution x vsp v err     -> reportSolutionErr x vsp v err
+        UELocalSpine x vsp rhs v        -> report "Non-variable in meta spine\n\n"
+        UEGluedSpine x vsp rhs g        -> report "Non-variable in meta spine\n\n"
 
     EENoNamedArg t gva x ->
       report $ printf "No implicit argument with name: %s\n\n" x
@@ -118,7 +118,7 @@ displayTopError file (TopError cxt@(Cxt{..}) err) = do
           "Expected %s application\n\n"
           (case iwant of Expl -> "explicit"::String; _ -> "implicit")
 
-    EEFunctionExpected t (GV ga va) ->
+    EEFunctionExpected t va ->
       report $
         printf
           "Expected a function type for expression. Inferred type:\n\n  %s\n\n"

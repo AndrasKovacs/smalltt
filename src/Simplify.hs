@@ -33,13 +33,13 @@ inline l vs = \case
   LocalVar x -> LocalVar x
   TopVar x   -> TopVar x
   MetaVar x  -> case lookupMeta x of
-    MESolved _ True t _ -> vQuote l (vEval ENil t)
+    MESolved _ True t _ -> lQuote l (vEval ENil t)
     _                   -> MetaVar x
   Let (Named x a) t u -> Let (Named x (inline l vs a)) (inline l vs t) (inline (l + 1) (ESkip vs) u)
-  AppI t u   -> either (\v -> vQuote l (vAppI v (vEval vs u)))
+  AppI t u   -> either (\v -> lQuote l (vAppI v (vEval vs u)))
                        (\t -> AppI t (inline l vs u))
                        (inlineSp l vs t)
-  AppE t u   -> either (\v -> vQuote l (vAppE v (vEval vs u)))
+  AppE t u   -> either (\v -> lQuote l (vAppE v (vEval vs u)))
                        (\t -> AppE t (inline l vs u))
                        (inlineSp l vs t)
   Lam ni t   -> Lam ni (inline (l + 1) (ESkip vs) t)
@@ -62,7 +62,7 @@ simplifyMetaBlock cxt = do
   AD.forMIx_ block $ \j -> \case
     MESolved gv uf t pos -> do
       let t' = inline 0 ENil t
-      AD.unsafeWrite block j (MESolved (gvEval ENil ENil t') uf t' pos)
+      AD.unsafeWrite block j (MESolved (vEval ENil t') uf t' pos)
     MEUnsolved p -> do
       updPos p
       throw (TopError cxt (EEUnsolvedMeta (Meta blockIx j)))

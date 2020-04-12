@@ -42,7 +42,7 @@ import Values
 import qualified LvlSet as LS
 import qualified Presyntax as P
 
--- import Debug.Trace
+import Debug.Trace
 
 
 -- Unification
@@ -92,7 +92,7 @@ registerSolution :: Meta -> Tm -> IO ()
 registerSolution (Meta i j) t = do
   arr <- UA.unsafeRead metas i
   pos <- getPos
-  A.unsafeWrite arr j (MESolved (gvEval ENil ENil t) (isUnfoldable t) t pos)
+  A.unsafeWrite arr j (MESolved (vEval ENil t) (isUnfoldable t) t pos)
 {-# inline registerSolution #-}
 
 disjointLvls :: LS.LvlSet -> Renaming -> Bool
@@ -130,7 +130,7 @@ vQuoteSolution throwAction = \l ns occurs ren v ->
     scopeCheck l (renl, ren) v = go l ren v  where
       shift = l - renl
       go :: Lvl -> Renaming -> Val -> IO Tm
-      go l ren v = case vForce v of
+      go l ren v = case v of
         VNe h vsp -> case h of
           HLocal x -> case applyRen ren x of
             (-1)   -> Irrelevant <$ throwAction (FRFlex @LocalError)
@@ -144,12 +144,14 @@ vQuoteSolution throwAction = \l ns occurs ren v ->
                            throwAction (FRFlex @LocalError)
                          goSp l ren (MetaVar x) vsp
 
-        VLam x t    -> Lam x <$> go (l + 1) (RCons l (l - shift) ren) (vInst t (VLocal l))
-        VPi x a b   -> Pi x <$> go l ren a
-                            <*> go (l + 1) (RCons l (l - shift) ren) (vInst b (VLocal l))
-        VFun a b    -> Fun <$> go l ren a <*> go l ren b
-        VU          -> pure U
-        VIrrelevant -> pure Irrelevant
+        VLam x t     -> Lam x <$> go (l + 1) (RCons l (l - shift) ren) (vInst t (VLocal l))
+        VPi x a b    -> Pi x <$> go l ren a
+                             <*> go (l + 1) (RCons l (l - shift) ren) (vInst b (VLocal l))
+        VFun a b     -> Fun <$> go l ren a <*> go l ren b
+        VU           -> pure U
+        VIrrelevant  -> pure Irrelevant
+        VGlueTop x sp t -> goSp l ren (TopVar x) sp
+        VGlueMeta x sp _ -> go l ren (VNe (HMeta x) sp)
 
       goSp :: Lvl -> Renaming -> Tm -> VSpine -> IO Tm
       goSp l ren t (SAppI vsp v) = AppI <$> goSp l ren t vsp <*> go l ren v
@@ -176,135 +178,135 @@ type Unfolding = Int
 -- | Try to unify local values. May succeed with () or throw ElabError. A rigid
 --   error is unrecoverable and will be reported, a flex error can be rectified
 --   if full unification succeeds later.
-unfoldLimit :: Unfolding
-unfoldLimit = 2
-{-# inline unfoldLimit #-}
+-- unfoldLimit :: Unfolding
+-- unfoldLimit = 2
+-- {-# inline unfoldLimit #-}
 
--- | Throws (FlexRigid LocalError).
-vUnify :: Cxt -> Val -> Val -> IO ()
-vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
+-- -- | Throws (FlexRigid LocalError).
+-- vUnify :: Cxt -> Val -> Val -> IO ()
+-- vUnify cxt v v' = go (_size cxt) unfoldLimit (_names cxt) Rigid v v' where
 
-  go :: Lvl -> Unfolding -> Names -> Rigidity -> Val -> Val -> IO ()
-  go l u ns r v v' = case (vForce v, vForce v') of
+--   go :: Lvl -> Unfolding -> Names -> Rigidity -> Val -> Val -> IO ()
+--   go l u ns r v v' = case (v, v') of
 
-    (VIrrelevant, _) -> pure ()
-    (_, VIrrelevant) -> pure ()
+--     (VIrrelevant, _) -> pure ()
+--     (_, VIrrelevant) -> pure ()
 
-    -- same heads
-    (VU, VU) -> pure ()
+--     -- same heads
+--     (VU, VU) -> pure ()
 
-    (VLam (Named n i) t, VLam _ t') -> let var = VLocal l in
-      go (l + 1) u (NSnoc ns n) r (vInst t var) (vInst t' var)
-    (VLam (Named n i) t, t'       ) -> let var = VLocal l in
-      go (l + 1) u (NSnoc ns n) r (vInst t var) (vApp i t' var)
-    (t     , VLam (Named n' i') t') -> let var = VLocal l in
-      go (l + 1) u (NSnoc ns n') r (vApp i' t var) (vInst t' var)
+--     (VLam (Named n i) t, VLam _ t') -> let var = VLocal l in
+--       go (l + 1) u (NSnoc ns n) r (vInst t var) (vInst t' var)
+--     (VLam (Named n i) t, t'       ) -> let var = VLocal l in
+--       go (l + 1) u (NSnoc ns n) r (vInst t var) (vApp i t' var)
+--     (t     , VLam (Named n' i') t') -> let var = VLocal l in
+--       go (l + 1) u (NSnoc ns n') r (vApp i' t var) (vInst t' var)
 
-    (VPi (Named n i) a b, VPi (Named _ i') a' b') | i == i' -> do
-      go l u ns r a a'
-      let var = VLocal l
-      go (l + 1) u (NSnoc ns n) r (vInst b var) (vInst b' var)
+--     (VPi (Named n i) a b, VPi (Named _ i') a' b') | i == i' -> do
+--       go l u ns r a a'
+--       let var = VLocal l
+--       go (l + 1) u (NSnoc ns n) r (vInst b var) (vInst b' var)
 
-    (VPi (Named n i) a b, VFun a' b') -> do
-      go l u ns r a a'
-      go (l + 1) u (NSnoc ns n) r (vInst b (VLocal l)) b'
+--     (VPi (Named n i) a b, VFun a' b') -> do
+--       go l u ns r a a'
+--       go (l + 1) u (NSnoc ns n) r (vInst b (VLocal l)) b'
 
-    (VFun a b, VPi (Named n' i') a' b') -> do
-      go l u ns r a a'
-      go (l + 1) u (NSnoc ns n') r b (vInst b' (VLocal l))
+--     (VFun a b, VPi (Named n' i') a' b') -> do
+--       go l u ns r a a'
+--       go (l + 1) u (NSnoc ns n') r b (vInst b' (VLocal l))
 
-    (VFun a b, VFun a' b') -> go l u ns r a a' >> go l u ns r b b'
+--     (VFun a b, VFun a' b') -> go l u ns r a a' >> go l u ns r b b'
 
-    (v@(VNe (HTop x) vsp), v'@(VNe (HTop x') vsp')) | x == x' -> do
-      let r' = r `meld` topRigidity x `meld` topRigidity x'
-      goSp (cantUnify l ns r' v v') l u ns r' vsp vsp'
+--     (v@(VNe (HTop x) vsp), v'@(VNe (HTop x') vsp')) | x == x' -> do
+--       let r' = r `meld` topRigidity x `meld` topRigidity x'
+--       goSp (cantUnify l ns r' v v') l u ns r' vsp vsp'
 
-    (v@(VNe (HLocal x) vsp), v'@(VNe (HLocal x') vsp')) | x == x' -> do
-      goSp (cantUnify l ns r v v') l u ns r vsp vsp'
+--     (v@(VNe (HLocal x) vsp), v'@(VNe (HLocal x') vsp')) | x == x' -> do
+--       goSp (cantUnify l ns r v v') l u ns r vsp vsp'
 
-    (v@(VNe (HMeta x) vsp), v'@(VNe (HMeta x') vsp')) | x == x' -> do
-      let r'  = r `meld` metaRigidity x `meld` metaRigidity x'
-      let err = cantUnify l ns r' v v'
-      goSp err l u ns r' vsp vsp'
+--     (v@(VNe (HMeta x) vsp), v'@(VNe (HMeta x') vsp')) | x == x' -> do
+--       let r'  = r `meld` metaRigidity x `meld` metaRigidity x'
+--       let err = cantUnify l ns r' v v'
+--       goSp err l u ns r' vsp vsp'
 
-    -- meta sides
-    (v@(VNe (HMeta x) vsp), v')
-      | MESolved (GV _ v) _ _ _ <- lookupMeta x ->
-        if u > 0 then go l (u - 1) ns r (vAppSpine v vsp) v'
-                 else cantUnify l ns Flex v v'
-      | MEUnsolved _ <- lookupMeta x, Rigid <- r ->
-        solve l ns x vsp v'
+--     -- meta sides
+--     (v@(VNe (HMeta x) vsp), v')
+--       | MESolved v _ _ _ <- lookupMeta x ->
+--         if u > 0 then go l (u - 1) ns r (vAppSpine v vsp) v'
+--                  else cantUnify l ns Flex v v'
+--       | MEUnsolved _ <- lookupMeta x, Rigid <- r ->
+--         solve l ns x vsp v'
 
-    (v, v'@(VNe (HMeta x') vsp'))
-      | MESolved (GV _ v') _ _ _ <- lookupMeta x' ->
-        if u > 0 then go l (u - 1) ns r v (vAppSpine v' vsp')
-                 else cantUnify l ns Flex v v'
-      | MEUnsolved _ <- lookupMeta x', Rigid <- r ->
-        solve l ns  x' vsp' v
+--     (v, v'@(VNe (HMeta x') vsp'))
+--       | MESolved v' _ _ _ <- lookupMeta x' ->
+--         if u > 0 then go l (u - 1) ns r v (vAppSpine v' vsp')
+--                  else cantUnify l ns Flex v v'
+--       | MEUnsolved _ <- lookupMeta x', Rigid <- r ->
+--         solve l ns  x' vsp' v
 
-    -- top sides
-    (v@(VNe (HTop x) vsp), v')
-      | EDDefinition _ (GV _ v) <- _entryDef (lookupTop x) ->
-        if u > 0 then go l (u - 1) ns r (vAppSpine v vsp) v'
-                 else cantUnify l ns Flex v v'
+--     -- top sides
+--     (v@(VNe (HTop x) vsp), v')
+--       | EDDefinition _ v <- _entryDef (lookupTop x) ->
+--         if u > 0 then go l (u - 1) ns r (vAppSpine v vsp) v'
+--                  else cantUnify l ns Flex v v'
 
-    (v, v'@(VNe (HTop x') vsp'))
-      | EDDefinition _ (GV _ v') <- _entryDef (lookupTop x') ->
-        if u > 0 then go l (u - 1) ns r v (vAppSpine v' vsp')
-                 else cantUnify l ns Flex v v'
+--     (v, v'@(VNe (HTop x') vsp'))
+--       | EDDefinition _ v' <- _entryDef (lookupTop x') ->
+--         if u > 0 then go l (u - 1) ns r v (vAppSpine v' vsp')
+--                  else cantUnify l ns Flex v v'
 
-    (v, v') -> cantUnify l ns r v v'
+--     (v, v') -> cantUnify l ns r v v'
 
-  cantUnify l ns r v v' = throwIO (makeFR r (LocalError ns (UELocalUnify v v')))
-  {-# inline cantUnify #-}
+--   cantUnify l ns r v v' = throwIO (makeFR r (LocalError ns (UELocalUnify v v')))
+--   {-# inline cantUnify #-}
 
-  solve :: Lvl -> Names -> Meta -> VSpine -> Val -> IO ()
-  solve l ns x vsp v = do
-    let checkVSp :: VSpine -> (Lvl, Renaming)
-        checkVSp = go where
-          go SNil = (0, RNil)
-          go (SAppI vsp v) = case vForce v of
-            VLocal x -> case go vsp of
-              (l, ren) -> (l + 1, RCons x l ren)
-            _        -> throw (FRFlex @LocalError)
-          go (SAppE vsp v) = case vForce v of
-            VLocal x -> case go vsp of
-              (l, ren) -> (l + 1, RCons x l ren)
-            _        -> throw (FRFlex @LocalError)
+--   solve :: Lvl -> Names -> Meta -> VSpine -> Val -> IO ()
+--   solve l ns x vsp v = do
+--     let checkVSp :: VSpine -> (Lvl, Renaming)
+--         checkVSp = go where
+--           go SNil = (0, RNil)
+--           go (SAppI vsp v) = case vForce v of
+--             VLocal x -> case go vsp of
+--               (l, ren) -> (l + 1, RCons x l ren)
+--             _        -> throw (FRFlex @LocalError)
+--           go (SAppE vsp v) = case vForce v of
+--             VLocal x -> case go vsp of
+--               (l, ren) -> (l + 1, RCons x l ren)
+--             _        -> throw (FRFlex @LocalError)
 
-    case contract (checkVSp vsp) v of
-      (ren, v) -> do
-        rhs <- vQuoteSolutionShortCut l ns x ren v
-        registerSolution x rhs
+--     case contract (checkVSp vsp) v of
+--       (ren, v) -> do
+--         rhs <- vQuoteSolutionShortCut l ns x ren v
+--         registerSolution x rhs
 
-  goSp :: IO () -> Lvl -> Unfolding -> Names -> Rigidity -> VSpine -> VSpine -> IO ()
-  goSp err l u ns r (SAppI vsp v) (SAppI vsp' v') = goSp err l u ns r vsp vsp' >> go l u ns r v v'
-  goSp err l u ns r (SAppE vsp v) (SAppE vsp' v') = goSp err l u ns r vsp vsp' >> go l u ns r v v'
-  goSp err l u ns r SNil            SNil          = pure ()
-  goSp err _ _ _  r _               _             = err
+--   goSp :: IO () -> Lvl -> Unfolding -> Names -> Rigidity -> VSpine -> VSpine -> IO ()
+--   goSp err l u ns r (SAppI vsp v) (SAppI vsp' v') = goSp err l u ns r vsp vsp' >> go l u ns r v v'
+--   goSp err l u ns r (SAppE vsp v) (SAppE vsp' v') = goSp err l u ns r vsp vsp' >> go l u ns r v v'
+--   goSp err l u ns r SNil            SNil          = pure ()
+--   goSp err _ _ _  r _               _             = err
 
 
 -- | Throws SolutionError, returns True if rhs is eta-convertible to lhs.
-gCheckSolution :: Lvl -> Meta -> (Lvl, Renaming) -> Glued -> IO Bool
+gCheckSolution :: Lvl -> Meta -> (Lvl, Renaming) -> Val -> IO Bool
 gCheckSolution topLvl occurs (renl, ren) g = contr topLvl ren g where
 
   shift :: Int
   shift = topLvl - renl
 
-  contr :: Lvl -> Renaming -> Glued -> IO Bool
-  contr l ren g = case gForce g of
-    GLam _ t -> contr (l + 1) (RCons l (l - shift) ren) (gInst t (gvLocal l))
-    GNe (HMeta x) gsp _ | occurs == x, strip l gsp -> pure True where
+  contr :: Lvl -> Renaming -> Val -> IO Bool
+  contr l ren g = case vForce g of
+    VLam _ t -> contr (l + 1) (RCons l (l - shift) ren) (vInst t (VLocal l))
+    VNe (HMeta x) sp | occurs == x, strip l sp -> pure True where
        strip l SNil                   = l == topLvl
-       strip l (SAppI gs (GLocal l')) = (l' == l - 1) && strip (l - 1) gs
-       strip l (SAppE gs (GLocal l')) = (l' == l - 1) && strip (l - 1) gs
+       strip l (SAppI gs (VLocal l')) = (l' == l - 1) && strip (l - 1) gs
+       strip l (SAppE gs (VLocal l')) = (l' == l - 1) && strip (l - 1) gs
        strip _ _                      = False
     g -> False <$ scopeCheck l ren g
 
-  scopeCheck :: Lvl -> Renaming -> Glued -> IO ()
+  scopeCheck :: Lvl -> Renaming -> Val -> IO ()
   scopeCheck = go where
-    go l ren g = case gForce g of
-      GNe h gsp _ -> do
+    go l ren g = case vForce g of
+      VNe h sp -> do
         case h of
           HLocal x -> case applyRen ren x of
             (-1)   -> throwIO (SEScope x)
@@ -312,102 +314,104 @@ gCheckSolution topLvl occurs (renl, ren) g = contr topLvl ren g where
           HTop{} -> pure ()
           HMeta x | x == occurs -> throwIO SEOccurs
                   | otherwise   -> pure ()
-        goSp l ren gsp
-      GLam x t               -> go (l + 1) (RCons l (l - shift) ren) (gInst t (gvLocal l))
-      GPi x (GV a _) b       -> go l ren a >> go (l + 1) (RCons l (l - shift) ren) (gInst b (gvLocal l))
-      GFun (GV a _) (GV b _) -> go l ren a >> go l ren b
-      GU                     -> pure ()
-      GIrrelevant            -> pure ()
+        goSp l ren sp
+      VLam x t    -> go (l + 1) (RCons l (l - shift) ren) (vInst t (VLocal l))
+      VPi x a b   -> go l ren a >> go (l + 1) (RCons l (l - shift) ren) (vInst b (VLocal l))
+      VFun a b    -> go l ren a >> go l ren b
+      VGlueTop _ _ t -> go l ren t
+      VGlueMeta _ _ t -> go l ren t
+      VU          -> pure ()
+      VIrrelevant -> pure ()
 
-    goSp :: Lvl -> Renaming -> GSpine -> IO ()
+    goSp :: Lvl -> Renaming -> VSpine -> IO ()
     goSp l ren SNil          = pure ()
     goSp l ren (SAppI gsp g) = goSp l ren gsp >> go l ren g
     goSp l ren (SAppE gsp g) = goSp l ren gsp >> go l ren g
 
 
 -- | Throws LocalError.
-gvUnify :: Cxt -> GV -> GV -> IO ()
-gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
-  vUnify cxt v v'
-  `catch`
-  \case
-    FRRigid e -> throw (e :: LocalError)
-    FRFlex    -> go (_size cxt) (_names cxt) gv gv'
+gvUnify :: Cxt -> Val -> Val -> IO ()
+gvUnify cxt v v' = go (_size cxt) (_names cxt) v v'
+  -- vUnify cxt v v'
+  -- `catch`
+  -- \case
+  --   FRRigid e -> throw (e :: LocalError)
+  --   FRFlex    -> go (_size cxt) (_names cxt) v v'
   where
-    go :: Lvl -> Names -> GV -> GV -> IO ()
-    go l ns (GV g v) (GV g' v') = case (gForce g, gForce g') of
+    go :: Lvl -> Names -> Val -> Val -> IO ()
+    go l ns v v' = case (vForce v, vForce v') of
+      (VIrrelevant, _) -> pure ()
+      (_, VIrrelevant) -> pure ()
 
-      (GU, GU) -> pure ()
+      (VU, VU) -> pure ()
 
-      (g@(GNe (HMeta x) gsp vsp), g'@(GNe (HMeta x')  gsp' vsp')) -> case compare x x' of
-        LT -> solve l ns x' vsp' gsp' (GV g v)
-        GT -> solve l ns x vsp gsp (GV g' v')
-        EQ -> goSp (err ns (GV g v) (GV g' v')) l ns gsp gsp' vsp vsp'
+      (v@(VNe (HMeta x) sp), v'@(VNe (HMeta x') sp')) -> case compare x x' of
+        LT -> solve l ns x' sp' v
+        GT -> solve l ns x sp v
+        EQ -> goSp (err ns v v') l ns sp sp'
 
-      (GNe (HMeta x) gsp vsp, g') -> solve l ns x vsp gsp (GV g' v')
-      (g, GNe (HMeta x') gsp' vsp') -> solve l ns x' vsp' gsp' (GV g v)
+      (VNe (HMeta x) sp, g') -> solve l ns x sp v'
+      (g, VNe (HMeta x') sp') -> solve l ns x' sp' v
 
-      (GLam (Named n i) t, GLam _ t') -> let var = gvLocal l in
-        go (l + 1) (NSnoc ns n) (gvInst t var) (gvInst t' var)
+      (VLam (Named n i) t, VLam _ t') -> let var = VLocal l in
+        go (l + 1) (NSnoc ns n) (vInst t var) (vInst t' var)
 
-      (GLam (Named n i) t, t'       ) -> let var = gvLocal l in
-        go (l + 1) (NSnoc ns n) (gvInst t var) (gvApp i t' var)
+      (VLam (Named n i) t, t'       ) -> let var = VLocal l in
+        go (l + 1) (NSnoc ns n) (vInst t var) (vApp i t' var)
 
-      (t     , GLam (Named n' i') t') -> let var = gvLocal l in
-        go (l + 1) (NSnoc ns n') (gvApp i' t var) (gvInst t' var)
+      (t     , VLam (Named n' i') t') -> let var = VLocal l in
+        go (l + 1) (NSnoc ns n') (vApp i' t var) (vInst t' var)
 
-      (GPi (Named n i) a b, GPi (Named _ i') a' b') | i == i' -> do
-        let var = gvLocal l
+      (VPi (Named n i) a b, VPi (Named _ i') a' b') | i == i' -> do
+        let var = VLocal l
         go l ns a a'
-        go (l + 1) (NSnoc ns n) (gvInst b var) (gvInst b' var)
+        go (l + 1) (NSnoc ns n) (vInst b var) (vInst b' var)
 
-      (GPi (Named n i) a b, GFun a' b') -> do
+      (VPi (Named n i) a b, VFun a' b') -> do
         go l ns a a'
-        go (l + 1) (NSnoc ns n) (gvInst b (gvLocal l)) b'
+        go (l + 1) (NSnoc ns n) (vInst b (VLocal l)) b'
 
-      (GFun a b, GPi (Named n' i') a' b') -> do
+      (VFun a b, VPi (Named n' i') a' b') -> do
         go l ns a a'
-        go (l + 1) (NSnoc ns n') b (gvInst b' (gvLocal l))
+        go (l + 1) (NSnoc ns n') b (vInst b' (VLocal l))
 
-      (GFun a b, GFun a' b') -> go l ns a a' >> go l ns b b'
+      (VFun a b, VFun a' b') -> go l ns a a' >> go l ns b b'
 
-      (g@(GNe (HTop x) gsp vsp), g'@(GNe (HTop x') gsp' vsp')) | x == x' ->
-        goSp (err ns (GV g v) (GV g' v')) l ns gsp gsp' vsp vsp'
-      (g@(GNe (HLocal x) gsp vsp), g'@(GNe (HLocal x') gsp' vsp')) | x == x' ->
-        goSp (err ns (GV g v) (GV g' v')) l ns gsp gsp' vsp vsp'
+      (g@(VNe (HTop x) sp), g'@(VNe (HTop x') sp')) | x == x' ->
+        goSp (err ns v v') l ns sp sp'
+      (g@(VNe (HLocal x) sp), g'@(VNe (HLocal x') sp')) | x == x' ->
+        goSp (err ns v v') l ns sp sp'
 
-      (g, g') -> err ns (GV g v) (GV g' v')
+      (g, g') -> err ns v v'
 
-    err ns gv gv' = throwIO (LocalError ns (UEGluedUnify gv gv'))
+    err ns v v' = throwIO (LocalError ns (UEGluedUnify v v'))
     {-# inline err #-}
 
-    goSp :: IO () -> Lvl -> Names -> GSpine -> GSpine -> VSpine -> VSpine -> IO ()
-    goSp err l ns (SAppI gsp g) (SAppI gsp' g')
-                  (SAppI vsp v) (SAppI vsp' v') = goSp err l ns gsp gsp' vsp vsp'
-                                                  >> go l ns (GV g v) (GV g' v')
-    goSp err l ns (SAppE gsp g) (SAppE gsp' g')
-                  (SAppE vsp v) (SAppE vsp' v') = goSp err l ns gsp gsp' vsp vsp'
-                                                  >> go l ns (GV g v) (GV g' v')
-    goSp err l ns SNil SNil SNil SNil = pure ()
-    goSp err _ _  _    _    _    _    = err
+    goSp :: IO () -> Lvl -> Names -> VSpine -> VSpine -> IO ()
+    goSp err l ns (SAppI vsp v) (SAppI vsp' v') = goSp err l ns vsp vsp'
+                                                >> go l ns v v'
+    goSp err l ns (SAppE vsp v) (SAppE vsp' v') = goSp err l ns vsp vsp'
+                                                >> go l ns v v'
+    goSp err l ns SNil SNil = pure ()
+    goSp err _ _  _    _    = err
 
 
-    solve :: Lvl -> Names -> Meta -> VSpine -> GSpine -> GV -> IO ()
-    solve l ns x vspTop gspTop gvTop@(GV g v) = do
+    solve :: Lvl -> Names -> Meta -> VSpine -> Val -> IO ()
+    solve l ns x spTop vTop = do
 
-      let checkGSp :: GSpine -> (Lvl, Renaming)
-          checkGSp = go where
+      let checkSp :: VSpine -> (Lvl, Renaming)
+          checkSp = go where
             go SNil = (0, RNil)
             go (SAppI gsp g) = case g of
-              GLocal x -> case go gsp of
+              VLocal x -> case go gsp of
                 (l, ren) -> (l + 1, RCons x l ren)
-              _        -> throw (LocalError ns (UEGluedSpine x vspTop gspTop gvTop g))
+              _        -> throw (LocalError ns (UEGluedSpine x spTop vTop g))
             go (SAppE gsp v) = case v of
-              GLocal x -> case go gsp of
+              VLocal x -> case go gsp of
                 (l, ren) -> (l + 1, RCons x l ren)
-              _        -> throw (LocalError ns (UEGluedSpine x vspTop gspTop gvTop g))
+              _        -> throw (LocalError ns (UEGluedSpine x spTop vTop v))
 
-          ren        = checkGSp gspTop
+          ren        = checkSp spTop
           (ren', v') = contract ren v
 
       err <- newIORef Nothing
@@ -416,9 +420,9 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
         Nothing          -> registerSolution x rhs
         Just (FRRigid e) -> throwIO e
         Just FRFlex      -> do
-          chk <- gCheckSolution l x ren g
+          chk <- gCheckSolution l x ren vTop
                  `catch`
-                 (\e -> throwIO (LocalError ns (UEGluedSolution x vspTop gspTop gvTop e)))
+                 (\e -> throwIO (LocalError ns (UEGluedSolution x spTop vTop e)))
           if chk then pure () else registerSolution x rhs
 
 -- Elaboration
@@ -426,13 +430,9 @@ gvUnify cxt gv@(GV g v) gv'@(GV g' v') =
 
 data MetaInsertion = MIYes | MINo | MIUntilName Name
 
-gvEval' :: Cxt -> Tm -> GV
-gvEval' cxt t = gvEval (_gVals cxt) (_vVals cxt) t
-{-# inline gvEval' #-}
-
-gEval' :: Cxt -> Tm -> Glued
-gEval' cxt t = gEval (_gVals cxt) (_vVals cxt) t
-{-# inline gEval' #-}
+vEval' :: Cxt -> Tm -> Val
+vEval' cxt t = vEval (_vVals cxt) t
+{-# inline vEval' #-}
 
 newMeta :: Cxt -> IO Tm
 newMeta cxt = do
@@ -448,80 +448,80 @@ newMeta cxt = do
   pure (go bis)
 
 -- | Throws TopError.
-check :: Cxt -> P.Tm -> GVTy -> IO Tm
-check cxt (Posed pos t) (GV gwant vwant) = updPos pos >> case (t, gForce gwant) of
-  (P.Lam x ni t, GPi (Named x' i') a b) | (case ni of NOName y -> y == x'
+check :: Cxt -> P.Tm -> VTy -> IO Tm
+check cxt (Posed pos t) want = updPos pos >> case (t, vForce want) of
+  (P.Lam x ni t, VPi (Named x' i') a b) | (case ni of NOName y -> y == x'
                                                       NOImpl   -> i' == Impl
                                                       NOExpl   -> i' == Expl) ->
-    Lam (Named x i') <$> check (localBindSrc (Posed pos x) a cxt) t (gvInst b (gvLocal (_size cxt)))
+    Lam (Named x i') <$> check (localBindSrc (Posed pos x) a cxt) t (vInst b (VLocal (_size cxt)))
 
-  (P.Lam x NOExpl t, GFun a b) ->
+  (P.Lam x NOExpl t, VFun a b) ->
     Lam (Named x Expl) <$> check (localBindSrc (Posed pos x) a cxt) t b
 
-  (t, GPi (Named x Impl) a b) ->
+  (t, VPi (Named x Impl) a b) ->
     Lam (Named x Impl) <$> check (localBindIns (Posed pos x) a cxt)
-                                 (Posed pos t) (gvInst b (gvLocal (_size cxt)))
+                                 (Posed pos t) (vInst b (VLocal (_size cxt)))
 
-  (P.Let x a t u, gwant) -> do
-    a <- check cxt a gvU
-    let gva = gvEval' cxt a
-    t <- check cxt t gva
-    let gvt = gvEval' cxt t
-    u <- check (localDefine (Posed pos x) gvt gva cxt) u (GV gwant vwant)
+  (P.Let x a t u, want) -> do
+    a <- check cxt a VU
+    let ~va = vEval' cxt a
+    t <- check cxt t va
+    let ~vt = vEval' cxt t
+    u <- check (localDefine (Posed pos x) vt va cxt) u want
     pure (Let (Named x a) t u)
 
   (P.Hole, _) ->
     newMeta cxt
 
-  (t, gwant) -> do
-    T2 t gvhas <- infer MIYes cxt (Posed pos t)
-    gvUnify cxt gvhas (GV gwant vwant)
+  (t, want) -> do
+    (t, has) <- infer MIYes cxt (Posed pos t)
+    gvUnify cxt has want
       `catch`
       \e -> do
         updPos pos
-        throwIO (TopError cxt (EECheck t (GV gwant vwant) gvhas e))
+        throwIO (TopError cxt (EECheck t want has e))
     pure t
 
-insertMetas :: MetaInsertion -> Cxt -> IO (T2 Tm GVTy) -> IO (T2 Tm GVTy)
+insertMetas :: MetaInsertion -> Cxt -> IO (Tm, VTy) -> IO (Tm, VTy)
 insertMetas ins cxt inp = case ins of
   MINo  -> inp
   MIYes -> do
-    T2 t gva <- inp
-    let go t (GV (gForce -> GPi (Named x Impl) a b) va) = do
+    (t, va) <- inp
+    let go t (vForce -> VPi (Named x Impl) a b) = do
           m <- newMeta cxt
-          go (AppI t m) (gvInst b (gvEval' cxt m))
-        go t gva = pure (T2 t gva)
-    go t gva
+          go (AppI t m) (vInst b (vEval' cxt m))
+        go t gva = pure (t, gva)
+    go t va
   MIUntilName x -> do
-    T2 t gva <- inp
-    let go t gva@(GV (gForce -> GPi (Named x' Impl) a b) va)
-          | x  == x'  = pure (T2 t gva)
+    (t, va) <- inp
+    let go t va@(vForce -> VPi (Named x' Impl) a b)
+          | x  == x'  = pure (t, va)
           | otherwise = do
               m <- newMeta cxt
-              go (AppI t m) (gvInst b (gvEval' cxt m))
-        go t gva = throwIO (TopError cxt (EENoNamedArg t gva x))
-    go t gva
+              go (AppI t m) (vInst b (vEval' cxt m))
+        go t va = throwIO (TopError cxt (EENoNamedArg t va x))
+    go t va
 {-# inline insertMetas #-}
 
-inferVar :: Cxt -> Name -> IO (T2 Tm GVTy)
+inferVar :: Cxt -> Name -> IO (Tm, VTy)
 inferVar cxt n =
   case HM.lookup n (_nameTable cxt) of
     Nothing -> throwIO (TopError cxt (EEScope n))
     Just es -> go es where
       go []               = throwIO (TopError cxt (EEScope n))
       go (NITop pos x:es) = do
-        EntryTy _ gvty <- _entryTy <$> A.unsafeRead top x
-        pure (T2 (TopVar x) gvty)
+        EntryTy _ vty <- _entryTy <$> A.unsafeRead top x
+        pure (TopVar x, vty)
       go (NILocal pos origin x:es) = case origin of
         NOInserted -> go es
         NOSource   ->
-          pure (T2 (LocalVar (_size cxt - x - 1)) (_types cxt !! (_size cxt - x - 1)))
+          pure (LocalVar (_size cxt - x - 1), (_types cxt !! (_size cxt - x - 1)))
 {-# inline inferVar #-}
 
 -- throws TopError
-infer :: MetaInsertion -> Cxt -> P.Tm -> IO (T2 Tm GVTy)
+infer :: MetaInsertion -> Cxt -> P.Tm -> IO (Tm, VTy)
 infer ins cxt (Posed pos t) = updPos pos >> case t of
-  P.U -> pure (T2 U gvU)
+  P.U -> pure (U, VU)
 
   P.Var x -> insertMetas ins cxt (inferVar cxt x)
 
@@ -531,9 +531,9 @@ infer ins cxt (Posed pos t) = updPos pos >> case t of
           NOName x -> MIUntilName x
           NOImpl   -> MINo
           NOExpl   -> MIYes
-    T2 t (GV ga va) <- infer insertion cxt t
-    case gForce ga of
-      GPi (Named x i') a b -> do
+    (t, va) <- infer insertion cxt t
+    case vForce va of
+      VPi (Named x i') a b -> do
         case ni of
           NOName x -> pure ()
           NOImpl   -> unless (i' == Impl)
@@ -541,52 +541,53 @@ infer ins cxt (Posed pos t) = updPos pos >> case t of
           NOExpl   -> unless (i' == Expl)
                         (updPos (posOf u) >> throwIO (TopError cxt (EEAppIcit t i' Expl)))
         u <- check cxt u a
-        pure (T2 (app i' t u) (gvInst b (gvEval' cxt u)))
-      GFun a b -> do
+        pure (app i' t u, vInst b (vEval' cxt u))
+      VFun a b -> do
         case ni of NOExpl -> pure ()
                    _      -> updPos (posOf u) >> throwIO (TopError cxt (EEAppIcit t Expl Impl))
         u <- check cxt u a
-        pure (T2 (AppE t u) b)
-      ga -> throwIO (TopError cxt (EEFunctionExpected t (GV ga va)))
+        pure (AppE t u, b)
+      va -> do
+        traceM (showValCxt cxt va)
+        traceM (showValCxtMetaless cxt va)
+        throwIO (TopError cxt (EEFunctionExpected t va))
 
   P.Pi (Named x i) a b -> do
-    a <- check cxt a gvU
-    b <- check (localBindSrc (Posed pos x) (gvEval' cxt a) cxt) b gvU
-    pure (T2 (Pi (Named x i) a b) gvU)
+    a <- check cxt a VU
+    b <- check (localBindSrc (Posed pos x) (vEval' cxt a) cxt) b VU
+    pure (Pi (Named x i) a b, VU)
 
   P.Fun a b -> do
-    a <- check cxt a gvU
-    b <- check cxt b gvU
-    pure (T2 (Fun a b) gvU)
+    a <- check cxt a VU
+    b <- check cxt b VU
+    pure (Fun a b, VU)
 
   P.Lam x ni t -> insertMetas ins cxt $ do
     i <- case ni of
       NOName x -> throwIO (TopError cxt EENamedLambda)
       NOImpl   -> pure Impl
       NOExpl   -> pure Expl
-    gva@(GV ga va) <- gvEval' cxt <$> newMeta cxt
-    T2 t gvb@(GV gb vb) <- infer MIYes (localBindSrc (Posed pos x) gva cxt) t
+    va <- vEval' cxt <$> newMeta cxt
+    (t, vb) <- infer MIYes (localBindSrc (Posed pos x) va cxt) t
     let d = _size cxt
-        b = vQuote (d + 1) vb
+        b = lQuote (d + 1) vb
         ni' = Named x i
-    pure (T2 (Lam ni' t)
-             (GV (GPi ni' gva (GCl (_gVals cxt) (_vVals cxt) b))
-                 (VPi ni' va  (VCl (_vVals cxt) b))))
+    pure (Lam ni' t, VPi ni' va  (Cl (_vVals cxt) b))
 
   P.Let x a t u -> do
-    a <- check cxt a gvU
-    let gva = gvEval' cxt a
-    t <- check cxt t gva
-    let gvt = gvEval' cxt t
-    T2 u gvb <- infer ins (localDefine (Posed pos x) gvt gva cxt) u
-    pure (T2 (Let (Named x a) t u) gvb)
+    a <- check cxt a VU
+    let va = vEval' cxt a
+    t <- check cxt t va
+    let vt = vEval' cxt t
+    (u, vb) <- infer ins (localDefine (Posed pos x) vt va cxt) u
+    pure (Let (Named x a) t u, vb)
 
   P.StopMetaIns t -> infer MINo cxt t
 
   P.Hole -> do
     m1 <- newMeta cxt
     m2 <- newMeta cxt
-    pure (T2 m1 (gvEval' cxt m2))
+    pure (m1, vEval' cxt m2)
 
 checkTopEntry :: NameTable -> P.TopEntry -> IO NameTable
 checkTopEntry ntbl e = do
@@ -596,21 +597,21 @@ checkTopEntry ntbl e = do
   case e of
     P.TEPostulate (Posed pos n) a -> updPos pos >> do
       ((), time) <- timed $ do
-        a <- check cxt a gvU
+        a <- check cxt a VU
         simplifyMetaBlock cxt
         let a' = inline0 a
-        A.push top (TopEntry (Posed pos n) EDPostulate (EntryTy a' (gvEval' cxt a')))
+        A.push top (TopEntry (Posed pos n) EDPostulate (EntryTy a' (vEval' cxt a')))
       pure (addName n (NITop pos x) ntbl)
     P.TEDefinition (Posed pos n) prof a t -> updPos pos >> do
-      (GV gt _, time) <- timed $ do
-        a <- check cxt a gvU
-        let gva = gvEval' cxt a
-        t <- check cxt t gva
+      (vt, time) <- timed $ do
+        a <- check cxt a VU
+        let va = vEval' cxt a
+        t <- check cxt t va
         simplifyMetaBlock cxt
         let a'   = inline0 a
             t'   = inline0 t
-            gva' = gvEval' cxt a'
-            gvt  = gvEval' cxt t'
+            gva' = vEval' cxt a'
+            gvt  = vEval' cxt t'
         A.push top (TopEntry (Posed pos n) (EDDefinition t' gvt) (EntryTy a' gva'))
         pure gvt
       case prof of
@@ -618,7 +619,7 @@ checkTopEntry ntbl e = do
         Just P.PElabTime ->
           printf "Definition \"%s\" elaborated in %s\n" n (show time)
         Just P.PNormalizeTime -> do
-          (nt, time) <- timedPure (gQuote 0 gt)
+          (nt, time) <- timedPure (nfQuote 0 vt)
           printf "Definition \"%s\" normalized in %s\n" n (show time)
       pure (addName n (NITop pos x) ntbl)
 

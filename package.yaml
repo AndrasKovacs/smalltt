@@ -77,7 +77,7 @@ library:
     # - -ddump-simpl -dsuppress-all -dno-suppress-type-signatures
 
 executables:
-  smalltt:
+  smalltt-alt:
     main:  app/Main.hs
     ghc-options:
     - -rtsopts
