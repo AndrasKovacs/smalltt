@@ -1,0 +1,111 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           smalltt
+version:        0.2.0.0
+description:    Demo for high-performance elaboration with dependent types
+category:       Language
+author:         András Kovács
+maintainer:     puttamalac@gmail.com
+copyright:      2021 András Kovács
+license:        MIT
+build-type:     Simple
+
+library
+  exposed-modules:
+      Common
+      ElabState
+      Lexer
+      Parser
+      Presyntax
+      SymTable
+      Syntax
+  other-modules:
+      Paths_smalltt
+  hs-source-dirs:
+      src
+  default-extensions:
+      AllowAmbiguousTypes
+      BangPatterns
+      BlockArguments
+      ConstraintKinds
+      DataKinds
+      DeriveFoldable
+      DeriveFunctor
+      DeriveTraversable
+      DerivingVia
+      ExplicitNamespaces
+      FlexibleContexts
+      FlexibleInstances
+      FunctionalDependencies
+      GADTs
+      KindSignatures
+      LambdaCase
+      MagicHash
+      MultiParamTypeClasses
+      OverloadedStrings
+      PatternSynonyms
+      PolyKinds
+      RankNTypes
+      ScopedTypeVariables
+      StandaloneDeriving
+      Strict
+      TemplateHaskell
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      ViewPatterns
+  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg
+  build-depends:
+      base >=4.7 && <5
+    , bytestring
+    , containers
+    , dynamic-array
+    , flatparse
+    , primdata
+    , template-haskell
+  default-language: Haskell2010
+
+executable app
+  main-is: Main.hs
+  hs-source-dirs:
+      app
+  default-extensions:
+      AllowAmbiguousTypes
+      BangPatterns
+      BlockArguments
+      ConstraintKinds
+      DataKinds
+      DeriveFoldable
+      DeriveFunctor
+      DeriveTraversable
+      DerivingVia
+      ExplicitNamespaces
+      FlexibleContexts
+      FlexibleInstances
+      FunctionalDependencies
+      GADTs
+      KindSignatures
+      LambdaCase
+      MagicHash
+      MultiParamTypeClasses
+      OverloadedStrings
+      PatternSynonyms
+      PolyKinds
+      RankNTypes
+      ScopedTypeVariables
+      StandaloneDeriving
+      Strict
+      TemplateHaskell
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      ViewPatterns
+  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg -rtsopts
+  build-depends:
+      base >=4.7 && <5
+    , smalltt
+  default-language: Haskell2010

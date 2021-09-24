@@ -1,246 +1,247 @@
+{-# language UnboxedTuples, UnboxedSums #-}
 
-module Parser (parseFile, parseTm) where
+module Parser where
 
-import Control.Applicative hiding (many, some)
-import Control.Monad.Reader
-import Data.Char
-import Data.Void
-
-import qualified Data.Set as Set
-
-import           Data.Text (Text)
-import qualified Data.Text       as T
-import qualified Data.Text.Short as TS
-
-import qualified Text.Megaparsec
-import           Text.Megaparsec.Internal (ParsecT(..))
-import           Text.Megaparsec hiding (satisfy)
-import qualified Text.Megaparsec.Char       as C
-import qualified Text.Megaparsec.Char.Lexer as L
-
-import Text.Printf
+import Data.Foldable
+import FlatParse.Stateful hiding (Parser, runParser, string, cut)
+import qualified Data.ByteString as B
+-- import Data.Char (ord)
 
 import Common
 import Presyntax
+import Lexer
 
 --------------------------------------------------------------------------------
 
--- | The `ReaderT` stores indentation level.
-type Parser = ReaderT Pos (Parsec Void Text)
+-- problems:
+--  - reboxing in UMaybe and Span results
+--  - random cruft
 
-
--- Extra combinators
+-- atoms
 --------------------------------------------------------------------------------
 
--- | Parse a starting value, then zero or more elements.
---   Combine the results with a function in a left-associated way.
-chainl :: (Alternative m, Monad m) => (b -> a -> b) -> m a -> m b -> m b
-chainl f elem start = start >>= go where
-  go b = do {a <- elem; go (f b a)} <|> pure b
-{-# inline chainl #-}
+colon   = $(symbol ":")
+colon'  = $(symbol' ":")
+semi    = $(symbol ";")
+semi'   = $(symbol' ";")
+braceL  = $(symbol "{")
+braceR' = $(symbol' "}")
+dot'    = $(symbol' ".")
+eq      = $(symbol  "=")
+eq'     = $(symbol' "=")
+parR'   = $(symbol' ")")
+arrow   = token $(switch [| case _ of "->" -> pure (); "→" -> pure () |])
 
--- | Parse one or more elements, then parse an ending value.
---   Combine result with a function in a right-associated way.
-chainr1 :: Alternative m => (a -> b -> b) -> m a -> m b -> m b
-chainr1 f elem end = (\a rest -> f a rest) <$> elem <*> go where
-  go = ((\a rest -> f a rest) <$> elem <*> go)
-       <|> end
-{-# inline chainr1 #-}
+isKeyword :: Span -> Parser ()
+isKeyword span = inSpan span do
+  $(switch [| case _ of
+     "let"  -> pure ()
+     "λ"    -> pure ()
+     "U"    -> pure ()
+     |])
+  eof
 
-failWithOffset :: Int -> String -> Parser a
-failWithOffset o msg = lift (ParsecT $ \s _ _ _ eerr ->
-  eerr (FancyError o (Set.singleton (ErrorFail msg))) s)
-{-# inline failWithOffset #-}
+identBase :: Parser Span
+identBase = spanned (identStartChar >> manyIdents) \_ x -> do
+  fails (isKeyword x)
+  ws
+  pure x
 
--- Indentation
---------------------------------------------------------------------------------
+ident :: Parser Span
+ident = lvl >> identBase
 
-indentError :: Parser a
-indentError = fail "incorrect indentation"
-{-# noinline indentError #-}
+ident' :: Parser Span
+ident' = lvl' >> identBase `cut'` Msg "identifier"
 
-indentedAt :: Pos -> Parser a -> Parser a
-indentedAt level p = do
-  actual <- L.indentLevel
-  unless (actual == level) indentError
-  p
+skipToVar :: Pos -> (Pos -> Parser Tm) -> Parser Tm
+skipToVar l k = branch identChar
+  (do {manyIdents; r <- getPos; ws; pure $ Var (Span l r)})
+  (do {r <- getPos; ws; k r})
+{-# inline skipToVar #-}
 
-nonIndented :: Parser a -> Parser a
-nonIndented = indentedAt (mkPos 1)
+atomBase :: Parser Tm
+atomBase = do
+  l <- getPos
+  $(switch [| case _ of
+    "("    -> ws *> tm' <* parR'
+    "_"    -> ws >> pure (Hole l)
+    "let"  -> skipToVar l \_ -> empty
+    "λ"    -> skipToVar l \_ -> empty
+    "U"    -> skipToVar l \_ -> pure $ U l
+    _      -> do {identStartChar; manyIdents; r <- getPos; ws; pure (Var (Span l r))}
+            |])
 
--- | Parse a reference value, then parse something else which must be
---   more indented than the reference.
-indent :: Parser a -> (a -> Parser b) -> Parser b
-indent ref p = do
-  lvl <- L.indentLevel
-  a   <- ref
-  local (const (lvl <> mkPos 1)) (p a)
+atom :: Parser Tm
+atom = lvl >> atomBase
 
+atom' :: Parser Tm
+atom' = lvl' >> atomBase `cut` [Msg "atomic expression"]
 
--- Lexing
---------------------------------------------------------------------------------
+skipToApp :: Pos -> (Pos -> Parser Tm) -> Parser Tm
+skipToApp l p = branch identChar
+  (do {manyIdents; r <- getPos; ws; goApp (Var (Span l r))})
+  (do {r <- getPos; ws; p r})
+{-# inline skipToApp #-}
 
-ws :: Parser ()
-ws = L.space C.space1 (L.skipLineComment "--") (L.skipBlockComment "{-" "-}")
-{-# inline ws #-}
+goApp :: Tm -> Parser Tm
+goApp t = branch braceL
+  (do optioned (ident <* eq)
+        (\x -> do
+          u <- tm'
+          braceR'
+          goApp (App t u (Named x)))
+        (do
+          u <- tm'
+          braceR'
+          goApp (App t u (NoName Impl))))
+  (pure t)
 
--- | We check indentation before reading a token, and consume whitespace
---   after the token.
-lexeme :: Parser a -> Parser a
-lexeme p = do
-  level  <- ask
-  actual <- L.indentLevel
-  if (actual < level)
-    then indentError
-    else p <* ws
-{-# inline lexeme #-}
+app' :: Parser Tm
+app' = goApp =<< atom'
 
-symbol s   = lexeme (C.string s)
-char c     = lexeme (C.char c)
-satisfy f  = lexeme (Text.Megaparsec.satisfy f)
-parens p   = char '(' *> p <* char ')'
-brackets p = char '[' *> p <* char ']'
-braces p = char '{' *> p <* char '}'
+bind :: Parser Bind
+bind = branch $(symbol "_") (pure DontBind) (Bind <$> identBase)
 
-keyword :: Text -> Bool
-keyword x = x == "let" || x == "in" || x == "λ" || x == "U" || x == "assume"
+bind' :: Parser Bind
+bind' = branch $(symbol' "_") (pure DontBind) (Bind <$> identBase)
+        `cut'` Msg "binder"
 
+pi' :: Parser Tm
+pi' = do
+  l <- getPos
+  lvl' >> $(switch [| case _ of
 
--- Parsing
---------------------------------------------------------------------------------
+    "{" -> ws >>
+      some ident >>= \(x:xs) -> do
+      holepos <- getPos
+      a <- optioned (colon *> tm') pure (pure (Hole holepos))
+      braceR'
+      optional_ arrow
+      b <- pi'
+      let !res = foldr' (\x@(Span x1 x2) -> Pi x1 (Bind x) Impl a) b xs
+      pure $! Pi l (Bind x) Impl a res
 
-pIdent :: Parser Name
-pIdent = try $ lexeme $ do
-  o   <- getOffset
-  txt <- takeWhile1P Nothing isAlphaNum
-  unless (isAlpha $ T.head txt) $
-    failWithOffset o "identifier must start with an alphabetic character"
-  when (keyword txt) $
-    failWithOffset o $ printf "unexpected keyword \"%s\", expected an identifier" txt
-  pure (TS.fromText txt)
+    "(" -> ws >> do
+      optioned (some ident <* colon)
+        (\(x:xs) -> do
+            a <- tm' <* parR'
+            optional_ arrow
+            b <- pi'
+            let !res = foldr' (\x@(Span x1 x2) -> Pi x1 (Bind x) Expl a) b xs
+            pure $! Pi l (Bind x) Expl a res)
+        (do t <- tm' <* parR'
+            branch arrow
+              (Pi l DontBind Expl t <$> pi')
+              (pure t))
 
-withPos :: Parser a -> Parser (Posed a)
-withPos p = Posed <$> getSourcePos <*> p
+    _   -> ws >> do
+      t <- app'
+      branch arrow (Pi l DontBind Expl t <$> pi') (pure t)
+    |])
 
-pBind    = pIdent <|> (mempty @Name <$ char '_')
-pVar     = withPos (Var <$> pIdent)
-pU       = withPos (U <$ char 'U')
-pHole    = withPos (Hole <$ char '_')
+goLam :: Parser Tm
+goLam = do
+  pos <- getPos
+  lvl' >> $(switch [| case _ of
 
-pLamBinder :: Parser (Posed (Named NameOrIcit))
-pLamBinder = withPos (
-      (flip Named NOExpl <$> pBind)
-  <|> try (flip Named NOImpl <$> braces pBind)
-  <|> braces ((\x y → Named y (NOName x)) <$> (pIdent <* char '=') <*> pBind))
+    "{" -> ws >> do
+      branch $(symbol "_")
+        (Lam pos DontBind (NoName Impl) <$> uoptional (colon *> tm') <*> (braceR' *> goLam))
+        (do x <- ident'
+            branch eq
+              (do y <- ident'
+                  Lam pos (Bind y) (Named x) UNothing <$> (braceR' *> goLam))
+              (Lam pos (Bind x) (NoName Impl) <$> uoptional (colon *> tm') <*> (braceR' *> goLam)))
 
-pLam :: Parser Tm
-pLam = withPos $ do
-  satisfy (\c -> c == 'λ' || c == '\\')
-  unPosed <$> chainr1 (\(Posed p (Named x ni)) t -> Posed p (Lam x ni t))
-                    pLamBinder
-                    (char '.' *> pTm)
+    "(" -> ws >> do
+      x <- ident'
+      a <- colon' *> tm' <* parR'
+      Lam pos (Bind x) (NoName Expl) (UJust a) <$> goLam
 
--- | Parse a spine argument or meta insertion stopping.
-pArg :: Parser (Maybe (T2 Tm (Posed NameOrIcit)))
-pArg =
-      (Just <$> (
-            try (do {t <- braces pTm; pure (T2 t (Posed (posOf t) NOImpl))})
-        <|> braces (do
-              i <- withPos (NOName <$> (pIdent <* char '='))
-              t <- pTm
-              pure (T2 t i))
-        <|> (do {t <- pAtom; pure (T2 t (Posed (posOf t) NOExpl))})))
-  <|> (Nothing <$ char '!')
+    "." -> ws >> tm'
+    "_" -> ws >> Lam pos DontBind (NoName Expl) UNothing <$> goLam
 
-pSpine :: Parser Tm
-pSpine = chainl
-  (\t -> maybe (Posed (posOf t) (StopMetaIns t))
-               (\(T2 u (Posed p ni)) -> Posed (posOf t) (App t u ni)))
-  pArg
-  pAtom
+    _ -> ws >> do
+      x <- lvl' >> identBase `cut` [Msg "binder", "."]
+      Lam pos (Bind x) (NoName Expl) UNothing <$> goLam
+      |])
 
-pArrow :: Parser Text
-pArrow = symbol "->" <|> symbol "→"
+lam' :: Pos -> Parser Tm
+lam' pos = lvl' >> $(switch [| case _ of
 
-pLet :: Parser Tm
-pLet = withPos $ do
-  symbol "let"
-  T3 x a t <- indent (withPos pIdent) $ \(Posed pos x) -> do
-    a <- optional (char ':' *> pTm)
-    t <- char '=' *> pTm
-    case a of
-      Just a  -> pure (T3 x a t)
-      Nothing -> pure (T3 x (Posed pos Hole) t)
-  u <- symbol "in" *> pTm
-  pure (Let x a t u)
+  "{" -> ws >>
+    branch $(symbol "_")
+      (Lam pos DontBind (NoName Impl) <$> uoptional (colon *> tm') <*> (braceR' *> goLam))
+      (do x <- ident'
+          branch eq
+            (do y <- ident'
+                Lam pos (Bind y) (Named x) UNothing <$> (braceR' *> goLam))
+            (Lam pos (Bind x) (NoName Impl) <$> uoptional (colon *> tm') <*> (braceR' *> goLam)))
 
-pPiBinder :: Parser (Posed (T3 [Posed Name] Tm Icit))
-pPiBinder = withPos (
-      braces ((\x y -> T3 x y Impl)
-                <$> some (withPos pBind)
-                <*> ((char ':' *> pTm) <|> withPos (pure Hole)))
-  <|> parens ((\x y -> T3 x y Expl)
-                <$> some (withPos pBind)
-                <*> (char ':' *> pTm)))
+  "(" -> ws >> do
+    x <- ident'
+    a <- colon' *> tm' <* parR'
+    Lam pos (Bind x) (NoName Expl) (UJust a) <$> goLam
 
-pPi :: Parser Tm
-pPi =
-  chainr1
-    (\(Posed p (T3 xs a i)) b ->
-         Posed p (unPosed $ foldr (\(Posed p x) b -> Posed p (Pi (Named x i) a b)) b xs))
-    pPiBinder
-    (pArrow *> pTm)
+  "_" -> ws >> Lam pos DontBind (NoName Expl) UNothing <$> goLam
+  _ -> ws >> do
+    x <- lvl' >> identBase `cut` [Msg "binder", "."]
+    Lam pos (Bind x) (NoName Expl) UNothing <$> goLam
+    |])
 
-pFunOrSpine :: Parser Tm
-pFunOrSpine = do
-  Posed pos sp <- pSpine
-  optional pArrow >>= \case
-    Nothing -> pure (Posed pos sp)
-    Just{}  -> do
-      b <- pTm
-      pure (Posed pos (Fun (Posed pos sp) b))
+pLet' :: Pos -> Parser Tm
+pLet' l = do
+  x <- ident'
+  a <- uoptional (colon `notFollowedBy` eq *> tm')
+  eq'
+  t <- tm'
+  semi'
+  u <- tm'
+  pure $ Let l x a t u
 
-pAtom :: Parser Tm
-pAtom = pU <|> pVar <|> pHole <|> parens pTm
+tmBase :: Parser Tm
+tmBase = do
+  l <- getPos
+  $(switch [| case _ of
+    "λ"    -> skipToApp l \_ -> lam' l
+    "\\"   -> ws >> lam' l
+    "let"  -> skipToApp l \_ -> pLet' l
+    _      -> ws >> pi' |])
+{-# inline tmBase #-}
 
-pTm :: Parser Tm
-pTm = pLam <|> pLet <|> try pPi <|> pFunOrSpine
+tm' :: Parser Tm
+tm' = lvl' >> tmBase `cut` [Msg "lambda expression", "let"]
 
-pPostulate :: Parser TopEntry
-pPostulate = nonIndented $
-  indent (symbol "assume") $ \_ ->
-    TEPostulate <$> withPos pIdent <*> (char ':' *> pTm)
-
-pProfiling :: Parser (Maybe Profiling)
-pProfiling = optional $ brackets $
-  (PElabTime <$ symbol "elaborate") <|> (PNormalizeTime <$ symbol "normalize")
-
-pDefinition :: Parser TopEntry
-pDefinition = nonIndented $ indent (withPos pIdent) $ \x@(Posed pos _) -> do
-  profiling <- pProfiling
-  a <- optional (char ':' *> pTm)
-  t <- char '=' *> pTm
-  case a of
-    Just a  -> pure (TEDefinition x profiling a t)
-    Nothing -> pure (TEDefinition x profiling (Posed pos Hole) t)
-
-pProgram :: Parser Program
-pProgram = many (pPostulate <|> pDefinition)
-
-pFile :: Parser Program
-pFile = ws *> pProgram <* eof
-
-parseTm :: Text -> Either (ParseErrorBundle Text Void) Tm
-parseTm = parse (runReaderT (ws *> pTm <* eof) (mkPos 1)) ""
-
-parseFile :: String -> Text -> Either (ParseErrorBundle Text Void) Program
-parseFile = parse (runReaderT pFile (mkPos 1))
 
 --------------------------------------------------------------------------------
 
--- parseTest' :: Show a => Parser a -> Text -> IO ()
--- parseTest' p t = parseTest (runReaderT p (mkPos 1)) t
+topDef :: Span -> Parser TopLevel
+topDef x = local (const 1) do
+  a <- uoptional (colon `notFollowedBy` eq *> tm')
+  eq'
+  rhs <- tm'
+  local (const 0) (Definition x a rhs <$> top)
 
--- test = T.unlines [
---    "f = (g (g (g (g (g x)))))"
---    ]
+top :: Parser TopLevel
+top =  (exactLvl 0 >> (ident >>= topDef))
+   <|> (Nil <$ eof `cut` [Msg "end of input", Msg "top-level declaration or definition"])
+
+--------------------------------------------------------------------------------
+
+src :: Parser TopLevel
+src = ws *> top
+
+parse :: B.ByteString -> Result Error TopLevel
+parse = runParser src
+
+parseString :: String -> (B.ByteString, Result Error TopLevel)
+parseString  (packUTF8 -> str) = (str, parse str)
+{-# inline parseString #-}
+
+test :: String -> IO ()
+test str = do
+  let (src, res) = parseString str
+  case res of
+    OK a _ _ -> print a
+    Fail     -> putStrLn "parser failure"
+    Err e    -> putStrLn $ prettyError src e

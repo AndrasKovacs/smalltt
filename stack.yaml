@@ -1,9 +1,19 @@
 
-resolver: lts-14.0
+# resolver: lts-16.25
+# resolver: lts-18.10
+resolver: nightly-2021-09-18
 
 packages:
 - .
 
+ghc-options:
+  "$everything": -split-sections
+
 extra-deps:
-  - text-short-0.1.2
-  - ./dynamic-array
+- git: https://github.com/AndrasKovacs/flatparse.git
+  commit: c6703fecb8f3bc356e23ee7eff5f10496bbd18ad
+- git: https://github.com/AndrasKovacs/dynamic-array.git
+  commit: 5912241a67c01af48b418cf0af0576d82af57077
+- git: https://github.com/AndrasKovacs/primdata.git
+  commit: a6b05e301f60f66a65497ec2105176c1f22b4317
+- bytestring-0.11.1.0
