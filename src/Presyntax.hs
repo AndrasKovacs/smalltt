@@ -55,3 +55,8 @@ data Tm
   | U Pos
   | Hole Pos
   deriving Show
+
+topLen :: TopLevel -> Int
+topLen = go 0 where
+  go acc Nil = acc
+  go acc (Definition _ _ _ t) = go (acc+1) t

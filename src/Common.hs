@@ -4,13 +4,14 @@ module Common (
     module Common
   , Span(..)
   , Pos(..)
+  , Result(..)
   , module IO ) where
 
 import GHC.Stack
 import GHC.Exts
 import IO
 import Data.Bits
-import FlatParse.Stateful (Span(..), Pos(..), packUTF8, unpackUTF8)
+import FlatParse.Stateful (Span(..), Pos(..), packUTF8, unpackUTF8, Result(..))
 import qualified Data.ByteString as B
 
 --------------------------------------------------------------------------------

@@ -1,3 +1,4 @@
+{-# language UnboxedTuples, UnboxedSums #-}
 
 module Lexer where
 
@@ -11,6 +12,7 @@ import Common
 import qualified Data.Set as S
 import Data.Char
 import Data.String
+import GHC.Exts
 
 --------------------------------------------------------------------------------
 
@@ -33,7 +35,7 @@ data Error = Error !Pos !Error'
   deriving Show
 
 merge :: Error -> Error -> Error
-merge err@(Error p e) err'@(Error p' e')
+merge ~err@(Error p e) ~err'@(Error p' e')
   | p < p'    = err'
   | p' < p    = err
   | otherwise = case (e, e') of
@@ -47,6 +49,13 @@ merge err@(Error p e) err'@(Error p' e')
 {-# noinline merge #-}
 
 type Parser = FP.Parser Error
+
+uoptioned :: FP.Parser e a -> (UMaybe a -> FP.Parser e b) -> FP.Parser e b
+uoptioned (FP.Parser f) k = FP.Parser \ ~fp !r eob s n -> case f fp r eob s n of
+  OK# a s n -> runParser# (k (UJust a)) fp r eob s n
+  Fail#     -> runParser# (k UNothing)  fp r eob s n
+  x         -> unsafeCoerce# x
+{-# inline uoptioned #-}
 
 uoptional :: FP.Parser e a -> FP.Parser e (UMaybe a)
 uoptional p = (UJust <$> p) <|> pure UNothing
@@ -221,8 +230,8 @@ inlineIdentChar = fusedSatisfy
   isLetter
 {-# inline inlineIdentChar #-}
 
-manyIdents :: Parser ()
-manyIdents = many_ inlineIdentChar
+manyIdentChars :: Parser ()
+manyIdentChars = many_ inlineIdentChar
 
 -- | Parse a non-keyword string.
 symbol :: String -> Q Exp

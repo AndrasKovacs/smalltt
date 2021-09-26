@@ -52,7 +52,8 @@ ghc-options:
   - -Wno-unused-do-bind
   - -Wno-unticked-promoted-constructors
   - -fmax-worker-args=12
-  # - -O2
+  - -O2
+  - -fllvm
   # - -ddump-simpl
   # - -ddump-to-file
   # - -dsuppress-all

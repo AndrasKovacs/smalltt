@@ -1,0 +1,13 @@
+*~
+*.hi
+*.o
+./dist
+*#
+TAGS
+.stack-work/
+dist-newstyle/
+*.cabal
+*.agdai
+*.vo
+*.aux
+*.glob
