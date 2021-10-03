@@ -5,19 +5,23 @@ module Common (
   , Span(..)
   , Pos(..)
   , Result(..)
+  , coerce
+  , HasCallStack
   , module IO ) where
 
-import GHC.Stack
-import GHC.Exts
-import IO
 import Data.Bits
-import FlatParse.Stateful (Span(..), Pos(..), packUTF8, unpackUTF8, Result(..))
-import qualified Data.ByteString as B
+import FlatParse.Stateful (Span(..), Pos(..), Result(..))
+import GHC.Exts
+import GHC.Stack
+import IO
+
+import qualified Data.ByteString      as B
 
 --------------------------------------------------------------------------------
 
 -- type Dbg = () :: Constraint
 type Dbg = HasCallStack
+type Src = B.ByteString
 
 uf :: a
 uf = undefined
@@ -31,17 +35,28 @@ infixl 9 $$!
 ($$!) f a = f $! a
 {-# inline ($$!) #-}
 
+infixl 4 <*!>
+(<*!>) :: Monad m => m (a -> b) -> m a -> m b
+(<*!>) mf ma = do
+  f <- mf
+  a <- ma
+  pure $! f a
+{-# inline (<*!>) #-}
+
+infixl 4 <$!>
+(<$!>) :: Monad f => (a -> b) -> f a -> f b
+(<$!>) f fa = do
+  a <- fa
+  pure $! f a
+{-# inline (<$!>) #-}
+
 ptrEq :: a -> a -> Bool
 ptrEq !x !y = isTrue# (reallyUnsafePtrEquality# x y)
 {-# inline ptrEq #-}
 
-readPartialWord :: Int# -> Addr# -> Word#
-readPartialWord len addr =
-  case indexWordOffAddr# addr 0# of
-    w -> case uncheckedIShiftL# (8# -# len) 3# of
-      sh -> case uncheckedShiftL# w sh of
-        w -> uncheckedShiftRL# w sh
-{-# inline readPartialWord #-}
+ctzInt :: Int -> Int
+ctzInt (I# n) = I# (word2Int# (ctz# (int2Word# n)))
+{-# inline ctzInt #-}
 
 -- Unboxed Maybe
 --------------------------------------------------------------------------------
@@ -120,25 +135,14 @@ icit Expl x y = y
 {-# inline icit #-}
 
 newtype Ix = Ix Int
-  deriving (Eq, Ord, Show, Num, Bits) via Int
+  deriving (Eq, Ord, Show, Num, Enum, Bits) via Int
 
 newtype Lvl = Lvl Int
-  deriving (Eq, Ord, Show, Num, Bits) via Int
+  deriving (Eq, Ord, Show, Num, Enum, Bits) via Int
 
-newtype MetaVar = MetaVar Int
+newtype MetaVar = MkMetaVar Int
   deriving (Eq, Ord, Show, Num) via Int
 
 lvlToIx :: Lvl -> Lvl -> Ix
 lvlToIx (Lvl envl) (Lvl l) = Ix (envl - l - 1)
 {-# inline lvlToIx #-}
-
---------------------------------------------------------------------------------
-
-newtype RawName = RawName {unRawName :: B.ByteString}
-  deriving (Semigroup, Monoid, Eq) via B.ByteString
-
-instance IsString RawName where
-  fromString = RawName . packUTF8
-
-instance Show RawName where
-  show = unpackUTF8 . unRawName

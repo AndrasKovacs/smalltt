@@ -17,12 +17,21 @@ build-type:     Simple
 library
   exposed-modules:
       Common
-      ElabState
+      CoreTypes
+      ElabCxt
+      Elaboration
+      EnvMask
+      Evaluation
+      Exceptions
       Lexer
+      LvlSet
+      MetaCxt
+      MIO
+      Name
       Parser
       Presyntax
       SymTable
-      Syntax
+      Unification
   other-modules:
       Paths_smalltt
   hs-source-dirs:
@@ -58,7 +67,7 @@ library
       TypeApplications
       TypeFamilies
       ViewPatterns
-  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -fllvm
+  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -fllvm -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg
   build-depends:
       base >=4.7 && <5
     , bytestring
@@ -69,10 +78,10 @@ library
     , template-haskell
   default-language: Haskell2010
 
-executable app
+executable smalltt
   main-is: Main.hs
   hs-source-dirs:
-      app
+      smalltt
   default-extensions:
       AllowAmbiguousTypes
       BangPatterns
@@ -104,7 +113,48 @@ executable app
       TypeApplications
       TypeFamilies
       ViewPatterns
-  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -fllvm -rtsopts
+  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -fllvm -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg -rtsopts -with-rtsopts=-A1G
+  build-depends:
+      base >=4.7 && <5
+    , smalltt
+  default-language: Haskell2010
+
+executable smalltt-parseonly
+  main-is: Main.hs
+  hs-source-dirs:
+      parseonly
+  default-extensions:
+      AllowAmbiguousTypes
+      BangPatterns
+      BlockArguments
+      ConstraintKinds
+      DataKinds
+      DeriveFoldable
+      DeriveFunctor
+      DeriveTraversable
+      DerivingVia
+      ExplicitNamespaces
+      FlexibleContexts
+      FlexibleInstances
+      FunctionalDependencies
+      GADTs
+      KindSignatures
+      LambdaCase
+      MagicHash
+      MultiParamTypeClasses
+      OverloadedStrings
+      PatternSynonyms
+      PolyKinds
+      RankNTypes
+      ScopedTypeVariables
+      StandaloneDeriving
+      Strict
+      TemplateHaskell
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      ViewPatterns
+  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -fllvm -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg -rtsopts -with-rtsopts=-A1G
   build-depends:
       base >=4.7 && <5
     , smalltt

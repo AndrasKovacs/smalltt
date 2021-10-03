@@ -56,6 +56,7 @@ data Tm
   | Hole Pos
   deriving Show
 
+-- | Length of top scope, used to sanity check parsing output.
 topLen :: TopLevel -> Int
 topLen = go 0 where
   go acc Nil = acc

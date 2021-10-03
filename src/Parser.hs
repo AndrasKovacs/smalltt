@@ -237,7 +237,7 @@ topDef x = local (const 1) do
 
 top :: Parser TopLevel
 top =  (exactLvl 0 >> (idented pure >>= topDef))
-   <|> (Nil <$ eof `cut` [Msg "top-level definition at column 1"])
+   <|> (Nil <$ eof `cut` [Msg "end of file", Msg "top-level definition at column 1"])
 
 --------------------------------------------------------------------------------
 

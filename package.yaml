@@ -54,11 +54,11 @@ ghc-options:
   - -fmax-worker-args=12
   - -O2
   - -fllvm
-  # - -ddump-simpl
-  # - -ddump-to-file
-  # - -dsuppress-all
-  # - -dno-suppress-type-signatures
-  # - -ddump-stg
+  - -ddump-simpl
+  - -ddump-to-file
+  - -dsuppress-all
+  - -dno-suppress-type-signatures
+  - -ddump-stg
 
 library:
   source-dirs:
@@ -72,13 +72,28 @@ library:
     - containers
 
 executables:
-  app:
+  smalltt-parseonly:
     source-dirs:
-      - app
+      - parseonly
     main:
       Main.hs
     ghc-options:
       - -rtsopts
+      - -with-rtsopts=-A1G
+    dependencies:
+      - smalltt
+    when:
+    - condition: false
+      other-modules: Paths_smalltt
+
+  smalltt:
+    source-dirs:
+      - smalltt
+    main:
+      Main.hs
+    ghc-options:
+      - -rtsopts
+      - -with-rtsopts=-A1G
     dependencies:
       - smalltt
     when:
