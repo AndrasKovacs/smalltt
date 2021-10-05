@@ -6,16 +6,20 @@ module Common (
   , Pos(..)
   , Result(..)
   , coerce
-  , HasCallStack
-  , module IO ) where
+  , TYPE
+  , RuntimeRep(..)
+  , HasCallStack) where
 
+import Prelude hiding (Monad(..), Applicative(..), IO)
 import Data.Bits
 import FlatParse.Stateful (Span(..), Pos(..), Result(..))
 import GHC.Exts
 import GHC.Stack
-import IO
 
-import qualified Data.ByteString      as B
+import qualified Data.ByteString as B
+import qualified UIO
+
+#include "deriveCanIO.h"
 
 --------------------------------------------------------------------------------
 
@@ -29,26 +33,6 @@ uf = undefined
 impossible :: Dbg => a
 impossible = error "impossible"
 {-# inline impossible #-}
-
-infixl 9 $$!
-($$!) :: (a -> b) -> a -> b
-($$!) f a = f $! a
-{-# inline ($$!) #-}
-
-infixl 4 <*!>
-(<*!>) :: Monad m => m (a -> b) -> m a -> m b
-(<*!>) mf ma = do
-  f <- mf
-  a <- ma
-  pure $! f a
-{-# inline (<*!>) #-}
-
-infixl 4 <$!>
-(<$!>) :: Monad f => (a -> b) -> f a -> f b
-(<$!>) f fa = do
-  a <- fa
-  pure $! f a
-{-# inline (<$!>) #-}
 
 ptrEq :: a -> a -> Bool
 ptrEq !x !y = isTrue# (reallyUnsafePtrEquality# x y)
@@ -86,6 +70,11 @@ boxUMaybe = uMaybe Nothing Just
 
 instance Show a => Show (UMaybe a) where
   showsPrec n = showsPrec n . boxUMaybe
+
+type UMaybeRepRep = SumRep [ LiftedRep, TupleRep '[]]
+type UMaybeRep a  = (# a | (# #) #)
+
+CAN_IO(UMaybe a, UMaybeRepRep, UMaybeRep a, UMaybe# x, CoeUMaybe)
 
 --------------------------------------------------------------------------------
 

@@ -26,11 +26,11 @@ library
       Lexer
       LvlSet
       MetaCxt
-      MIO
-      Name
       Parser
       Presyntax
       SymTable
+      Test
+      UIO
       Unification
   other-modules:
       Paths_smalltt
@@ -40,32 +40,34 @@ library
       AllowAmbiguousTypes
       BangPatterns
       BlockArguments
+      CPP
       ConstraintKinds
       DataKinds
-      DeriveFoldable
-      DeriveFunctor
-      DeriveTraversable
       DerivingVia
       ExplicitNamespaces
       FlexibleContexts
       FlexibleInstances
       FunctionalDependencies
       GADTs
+      InstanceSigs
       KindSignatures
       LambdaCase
       MagicHash
       MultiParamTypeClasses
-      OverloadedStrings
+      PackageImports
       PatternSynonyms
       PolyKinds
+      QualifiedDo
       RankNTypes
       ScopedTypeVariables
       StandaloneDeriving
+      StandaloneKindSignatures
       Strict
       TemplateHaskell
-      TupleSections
       TypeApplications
       TypeFamilies
+      TypeFamilyDependencies
+      UndecidableInstances
       ViewPatterns
   ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -fllvm -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg
   build-depends:
@@ -86,32 +88,34 @@ executable smalltt
       AllowAmbiguousTypes
       BangPatterns
       BlockArguments
+      CPP
       ConstraintKinds
       DataKinds
-      DeriveFoldable
-      DeriveFunctor
-      DeriveTraversable
       DerivingVia
       ExplicitNamespaces
       FlexibleContexts
       FlexibleInstances
       FunctionalDependencies
       GADTs
+      InstanceSigs
       KindSignatures
       LambdaCase
       MagicHash
       MultiParamTypeClasses
-      OverloadedStrings
+      PackageImports
       PatternSynonyms
       PolyKinds
+      QualifiedDo
       RankNTypes
       ScopedTypeVariables
       StandaloneDeriving
+      StandaloneKindSignatures
       Strict
       TemplateHaskell
-      TupleSections
       TypeApplications
       TypeFamilies
+      TypeFamilyDependencies
+      UndecidableInstances
       ViewPatterns
   ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -fllvm -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg -rtsopts -with-rtsopts=-A1G
   build-depends:
@@ -127,32 +131,34 @@ executable smalltt-parseonly
       AllowAmbiguousTypes
       BangPatterns
       BlockArguments
+      CPP
       ConstraintKinds
       DataKinds
-      DeriveFoldable
-      DeriveFunctor
-      DeriveTraversable
       DerivingVia
       ExplicitNamespaces
       FlexibleContexts
       FlexibleInstances
       FunctionalDependencies
       GADTs
+      InstanceSigs
       KindSignatures
       LambdaCase
       MagicHash
       MultiParamTypeClasses
-      OverloadedStrings
+      PackageImports
       PatternSynonyms
       PolyKinds
+      QualifiedDo
       RankNTypes
       ScopedTypeVariables
       StandaloneDeriving
+      StandaloneKindSignatures
       Strict
       TemplateHaskell
-      TupleSections
       TypeApplications
       TypeFamilies
+      TypeFamilyDependencies
+      UndecidableInstances
       ViewPatterns
   ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -fllvm -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg -rtsopts -with-rtsopts=-A1G
   build-depends:

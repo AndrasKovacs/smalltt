@@ -1,7 +1,9 @@
+{-# language MagicHash, UnboxedTuples #-}
 
 module Elaboration where
 
 -- import qualified Data.ByteString as B
+import GHC.Exts
 
 import Common
 import CoreTypes
@@ -18,12 +20,20 @@ import qualified Presyntax as P
 import Exceptions
 import Evaluation
 
-
+{-
 --------------------------------------------------------------------------------
 
-data Infer = Infer Tm ~VTy
+data Infer = Infer# (# Tm, VTy #)
 
--- TODO: put fresh meta counter somewhere!
+pattern Infer :: Tm -> VTy -> Infer
+pattern Infer t a <- Infer# (# t, a #) where
+  Infer t a = Infer# (# t, a #)
+
+instance RunIO Infer where
+  runIO (IO f) = Infer# (runRW# \s -> case f s of (# _, Infer# x #) -> x)
+  {-# inline runIO #-}
+
+--------------------------------------------------------------------------------
 
 evalCxt :: Cxt -> Tm -> Val
 evalCxt cxt t = eval (mcxt cxt) (env cxt) t
@@ -73,8 +83,8 @@ infer cxt = \case
     b   = binding cxt x i va \cxt -> check cxt pb VU
     in Infer (Pi x i a b) VU
 
-  -- P.Lam _ b inf pma pt ->
-  --   uf
+  P.Lam _ b inf pma pt ->
+    uf
 
   P.U _ ->
     Infer U VU
@@ -91,22 +101,5 @@ check cxt t a = case (,) $$! t $$! a of
     in Lam x i t
 
   (t, a) ->
-    U
-
-
-
-
-
-
-
-
-
-  -- P.Let _ x ma t u -> _
-  -- P.Pi _ x i a b -> _
-  -- P.Lam _ x inf ma t -> _
-  -- P.U _ -> _
-  -- P.Hole _ -> runIO _
-
--- check :: Cxt -> P.Tm -> VTy -> Tm
--- check cxt t a = case (,) $$! t $$! a of
---   (
+    uf
+-}

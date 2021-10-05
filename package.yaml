@@ -15,32 +15,34 @@ default-extensions:
   - AllowAmbiguousTypes
   - BangPatterns
   - BlockArguments
+  - CPP
   - ConstraintKinds
   - DataKinds
-  - DeriveFoldable
-  - DeriveFunctor
-  - DeriveTraversable
   - DerivingVia
   - ExplicitNamespaces
   - FlexibleContexts
   - FlexibleInstances
   - FunctionalDependencies
   - GADTs
+  - InstanceSigs
   - KindSignatures
   - LambdaCase
   - MagicHash
   - MultiParamTypeClasses
-  - OverloadedStrings
+  - PackageImports
   - PatternSynonyms
   - PolyKinds
+  - QualifiedDo
   - RankNTypes
   - ScopedTypeVariables
   - StandaloneDeriving
+  - StandaloneKindSignatures
   - Strict
   - TemplateHaskell
-  - TupleSections
   - TypeApplications
   - TypeFamilies
+  - TypeFamilyDependencies
+  - UndecidableInstances
   - ViewPatterns
 
 ghc-options:

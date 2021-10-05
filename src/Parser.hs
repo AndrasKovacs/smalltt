@@ -1,4 +1,4 @@
-{-# language UnboxedTuples, UnboxedSums #-}
+{-# language UnboxedTuples, UnboxedSums, OverloadedStrings #-}
 
 module Parser (src, parse, parseString, parseFile) where
 

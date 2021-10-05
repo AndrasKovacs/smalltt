@@ -1,9 +1,13 @@
+{-# language UnboxedTuples #-}
 {-# options_ghc -funbox-strict-fields #-}
 
 module CoreTypes where
 
+import qualified UIO
 import Common
 import EnvMask
+
+#include "deriveCanIO.h"
 
 data Spine
   = SId
@@ -40,3 +44,6 @@ data Tm
   | Pi Span Icit Ty Ty
   | Irrelevant
   | U
+
+CAN_IO(Tm, LiftedRep, Tm, x, CoeTm)
+CAN_IO(Val, LiftedRep, Val, x, CoeVal)

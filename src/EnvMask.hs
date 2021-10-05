@@ -19,9 +19,8 @@ looked x (EnvMask xs is) notfound found
 {-# inline looked #-}
 
 assocs :: EnvMask -> [(Lvl, Icit)]
-assocs mask = do
-  x <- [0..63::Lvl]
-  looked x mask [] (\i -> pure (x, i))
+assocs mask =
+  concatMap (\x -> looked x mask [] (\i -> [(x, i)])) [0..63::Lvl]
 
 empty :: EnvMask
 empty = EnvMask mempty mempty
