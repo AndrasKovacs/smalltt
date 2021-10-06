@@ -7,6 +7,8 @@ module SymTable (
   , delete
   , insert
   , size
+  , eob
+  , Entry(..)
   , modify) where
 
 import qualified Data.Ref.UUU    as RUUU
@@ -45,7 +47,7 @@ data Entry
 --   show (Local x _) = show x
 --   show (Top x _ _ _ _) = show x
 
--- Key hashing
+-- Span hashing
 --------------------------------------------------------------------------------
 
 newtype Hash = Hash {unHash :: Word}
@@ -59,6 +61,11 @@ unW# :: Word -> Word#
 unW# (W# x) = x
 {-# inline unW# #-}
 
+foldedMultiply# :: Word# -> Word# -> Word#
+foldedMultiply# x y = case timesWord2# x y of
+  (# hi, lo #) -> xor# hi lo
+{-# inline foldedMultiply# #-}
+
 multiple :: Word
 multiple = 11400714819323198549
 {-# inline multiple #-}
@@ -66,30 +73,6 @@ multiple = 11400714819323198549
 salt :: Word
 salt = 3032525626373534813
 {-# inline salt #-}
-
-foldedMultiply# :: Word# -> Word# -> Word#
-foldedMultiply# x y = case timesWord2# x y of
-  (# hi, lo #) -> xor# hi lo
-{-# inline foldedMultiply# #-}
-
--- | Read between 1 and 7 bytes from an address.
-indexPartialWord# :: Int# -> Addr# -> Word#
-indexPartialWord# len addr =
-  case indexWordOffAddr# addr 0# of
-    w -> case uncheckedIShiftL# (8# -# len) 3# of
-      sh -> case uncheckedShiftL# w sh of
-        w -> uncheckedShiftRL# w sh
-{-# inline indexPartialWord# #-}
-
--- little endian!
-indexPartialWord'# :: Int# -> Addr# -> Word#
-indexPartialWord'# = go 0## 0# where
-  go acc shift 0# _  = acc
-  go acc shift l ptr =
-    go (or# acc (uncheckedShiftL# (indexWord8OffAddr# ptr 0#) shift))
-       (shift +# 8#)
-       (l -# 1#)
-       (plusAddr# ptr 1#)
 
 combine# :: Word# -> Word# -> Word#
 combine# x y = foldedMultiply# (xor# x y) (unW# multiple)
@@ -119,47 +102,6 @@ hash eob (Span (Pos (I# x)) (Pos (I# y))) = let
     _  -> Hash (W# (go  (unW# salt) start len))
 {-# inline hash #-}
 
-
--- Key equality
---------------------------------------------------------------------------------
-
-eqSpan# :: Addr# -> Span -> Span -> Int#
-eqSpan# eob (Span (Pos (I# x)) (Pos (I# y))) (Span (Pos (I# x')) (Pos (I# y'))) = let
-  len  = x -# y
-  len' = x' -# y'
-  in case len ==# len' of
-    1# -> let
-      start  = plusAddr# eob (negateInt# x )
-      start' = plusAddr# eob (negateInt# x')
-
-      go :: Addr# -> Addr# -> Int# -> Int#
-      go p p' len = case len <# 8# of
-        1# -> eqWord# (indexPartialWord# len p) (indexPartialWord# len p')
-        _  -> case eqWord# (indexWordOffAddr# p 0#) (indexWordOffAddr# p' 0#) of
-          1# -> go (plusAddr# p 8#) (plusAddr# p' 8#) (len -# 8#)
-          _  -> 0#
-
-      go' :: Addr# -> Addr# -> Int# -> Int#
-      go' p p' len = case len <# 8# of
-        1# -> case len of
-          0# -> 1#
-          _  -> case eqWord# (indexWord8OffAddr# p 0#) (indexWord8OffAddr# p' 0#) of
-            1# -> go' (plusAddr# p 1#) (plusAddr# p' 1#) (len -# 1#)
-            _  -> 0#
-        _  -> case eqWord# (indexWordOffAddr# p 0#) (indexWordOffAddr# p' 0#) of
-          1# -> go' (plusAddr# p 8#) (plusAddr# p' 8#) (len -# 8#)
-          _  -> 0#
-
-      in case orI# (y <# 8#) (y' <# 8#) of
-        1# -> go' start start' len
-        _  -> go  start start' len
-    _  -> 0#
-{-# inline eqSpan# #-}
-
-eqSpan :: Addr# -> Span -> Span -> Bool
-eqSpan eob s s' = isTrue# (eqSpan# eob s s')
-{-# inline eqSpan #-}
-
 -- Buckets
 --------------------------------------------------------------------------------
 
@@ -178,7 +120,7 @@ deleteFromBucket = go where
   go src size k topB = case topB of
     Empty -> (# Empty, size #)
     Cons h' k' v' b
-      | eqSpan src k k' -> let size' = size -# 1# in (# b, size' #)
+      | eqSpan# src k k' -> let size' = size -# 1# in (# b, size' #)
       | otherwise ->
          let !(# !b', size' #) = go src size k b
          in if ptrEq b b' then (# topB, size #) else (# Cons h' k' v' b', size' #)
@@ -187,7 +129,7 @@ lookedFromBucket :: forall a. Addr# -> Span -> Bucket -> U.IO a -> (Entry -> U.I
 lookedFromBucket src k b notfound found = go src k b where
   go src k Empty = notfound
   go src k (Cons h' k' v' b)
-    | eqSpan src k k' = found v'
+    | eqSpan# src k k' = found v'
     | otherwise       = go src k b
 {-# inline lookedFromBucket #-}
 
@@ -195,7 +137,7 @@ modifyBucket :: Addr# -> Span -> (Entry -> Entry) -> Bucket -> Bucket
 modifyBucket src k f b = go src k b where
   go src k Empty = Empty
   go src k this@(Cons h' k' v' b)
-    | eqSpan src k k' = Cons h' k' (f v') b
+    | eqSpan# src k k' = Cons h' k' (f v') b
     | otherwise       =
       let b' = go src k b
       in if ptrEq b b' then this else Cons h' k' v' b'
@@ -212,7 +154,7 @@ insertToBucket src size h k ~v ~b = go src size 0 h k v b b where
   go src size i h k ~v ~topB b = case b of
     Empty               -> let size' = size +# 1#; c = Cons h k v topB in (# c, size' #)
     Cons h' k' v' b
-      | eqSpan src k k' -> let b = writeBucketAtIx i h k v topB in (# b, size #)
+      | eqSpan# src k k' -> let b = writeBucketAtIx i h k v topB in (# b, size #)
       | otherwise       -> go src size (i + 1) h k v topB b
 
 
@@ -236,6 +178,12 @@ initSlotsBits = 5
 initSlots :: Int
 initSlots = unsafeShiftL 1 initSlotsBits
 {-# inline initSlots #-}
+
+eob :: SymTable -> IO (Ptr Word8)
+eob (SymTable tbl) = do
+  ref <- RUUU.readFst tbl
+  RFF.readSnd ref
+{-# inline eob #-}
 
 new'# :: Int -> Ptr Word8 -> ForeignPtrContents -> U.IO SymTable
 new'# slots eob fpc = U.do
@@ -367,7 +315,7 @@ testEqSpan :: B.ByteString -> Span -> Span -> Bool
 testEqSpan str s s' = runIO $ B.unsafeUseAsCString str \(Ptr addr) -> do
   let !(I# l) = B.length str
       eob = plusAddr# addr l
-  pure $ eqSpan eob s s'
+  pure $ eqSpan# eob s s'
 
 -- test = do
 --   tbl <- U.toIO $ new "xxy"

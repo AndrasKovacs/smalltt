@@ -28,7 +28,7 @@ catch (U.IO f) k = U.IO \s ->
 {-# inline catch #-}
 
 throw :: forall a. U.CanIO a => Exception -> U.IO a
-throw e = U.IO \s -> case raiseIO# e s of (# s, a #) -> U.pure# @a a s
+throw e = U.IO \s -> case raiseIO# (Exception# e) s of (# s, a #) -> U.pure# @a a s
 {-# inline throw #-}
 
 -- | Converts all unhandled custom exceptions to standard exceptions.

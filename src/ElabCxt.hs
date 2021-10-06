@@ -1,20 +1,18 @@
-{-# language RebindableSyntax #-}
 
 module ElabCxt where
 
-import Prelude hiding (
-  Functor(..), (<$>), (<$), Applicative(..), (<*), (*>), Monad(..), IO)
-
 import qualified Data.ByteString as B
+
+import qualified EnvMask as EM
+import qualified MetaCxt as MC
+import qualified SymTable as ST
+import qualified UIO as U
 
 import Common
 import CoreTypes
 import EnvMask (EnvMask(..))
-import qualified EnvMask as EM
-import SymTable (SymTable(..))
-import qualified SymTable as ST
 import MetaCxt (MetaCxt)
-import qualified MetaCxt  as MC
+import SymTable (SymTable(..))
 
 data Cxt = Cxt {
     lvl     :: Lvl
@@ -24,30 +22,32 @@ data Cxt = Cxt {
   , mcxt    :: MetaCxt
   }
 
--- empty :: B.ByteString -> IO Cxt
--- empty src = Cxt 0 ENil EM.empty <$!> ST.new src <*!> MC.new
+empty :: B.ByteString -> IO Cxt
+empty src = Cxt 0 ENil EM.empty <$> U.toIO (ST.new src) <*> MC.new
 
--- -- TODO: *very* dodgy runIO below!!!
--- -- check that it works, otherwise do some other workaround for IO result unboxing!
--- -- TODO: write symtable combined insert/delete which does not recompute hash!
+-- TODO: compute hashes only once!
 
--- binding :: CanIO a => Cxt -> Span -> Icit -> VTy -> (Cxt -> a) -> a
--- binding (Cxt lvl env mask tbl mcxt) x i ~va k = runIO do
---   ST.insert x (ST.Local lvl va) tbl
---   let res = k (Cxt (lvl + 1) (EDef env (VLocalVar lvl SId)) (EM.insert lvl i mask) tbl mcxt)
---   ST.delete x tbl
---   pure res
--- {-# inline binding #-}
+binding :: U.CanIO a => Cxt -> Name -> Icit -> VTy -> (Cxt -> Val -> U.IO a) -> U.IO a
+binding cxt NEmpty i ~va k = k cxt (VLocalVar (lvl cxt) SId)
+binding (Cxt lvl env mask tbl mcxt) (NSpan x) i ~va k = U.do
+  let v = VLocalVar lvl SId
+  ST.insert x (ST.Local lvl va) tbl
+  res <- k (Cxt (lvl + 1) (EDef env v) (EM.insert lvl i mask) tbl mcxt) v
+  ST.delete x tbl
+  U.pure res
+{-# inline binding #-}
 
--- defining :: CanIO a => Cxt -> Span -> VTy -> Val -> (Cxt -> a) -> a
--- defining (Cxt lvl env mask tbl mcxt) x ~va ~vt k = runIO do
---   ST.insert x (ST.Local lvl va) tbl
---   let res = k (Cxt (lvl + 1) (EDef env vt) mask tbl mcxt)
---   ST.delete x tbl
---   pure res
--- {-# inline defining #-}
+defining :: U.CanIO a => Cxt -> Name -> VTy -> Val -> (Cxt -> U.IO a) -> U.IO a
+defining cxt NEmpty ~va ~vt k = k cxt
+defining (Cxt lvl env mask tbl mcxt) (NSpan x) ~va ~vt k = U.do
+  ST.insert x (ST.Local lvl va) tbl
+  res <- k (Cxt (lvl + 1) (EDef env vt) mask tbl mcxt)
+  ST.delete x tbl
+  U.pure res
+{-# inline defining #-}
 
--- inserting :: Cxt -> Span -> VTy -> (Cxt -> a) -> a
--- inserting (Cxt lvl env mask tbl mcxt) x ~va k =
---   k (Cxt (lvl + 1) (EDef env (VLocalVar lvl SId)) (EM.insert lvl Impl mask) tbl mcxt)
--- {-# inline inserting #-}
+inserting :: Cxt -> VTy -> (Cxt -> Val -> U.IO a) -> U.IO a
+inserting (Cxt lvl env mask tbl mcxt) ~va k =
+  let v = VLocalVar lvl SId
+  in k (Cxt (lvl + 1) (EDef env v) (EM.insert lvl Impl mask) tbl mcxt) v
+{-# inline inserting #-}

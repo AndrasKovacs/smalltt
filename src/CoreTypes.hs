@@ -26,8 +26,8 @@ data Val
   = VLocalVar Lvl Spine
   | VMeta MetaVar Spine
   | VTopVar Lvl Spine ~Val
-  | VLam Span Icit Closure
-  | VPi Span Icit VTy Closure
+  | VLam Name Icit Closure
+  | VPi Name Icit VTy Closure
   | VU
   | VIrrelevant
 
@@ -36,12 +36,12 @@ type Ty = Tm
 data Tm
   = LocalVar Ix
   | TopVar Lvl ~Val
+  | Let Span Tm Tm Tm
+  | App Tm Tm Icit
+  | Lam Name Icit Tm
   | Meta MetaVar
   | InsertedMeta MetaVar EnvMask
-  | Let Span Tm Tm
-  | App Tm Tm Icit
-  | Lam Span Icit Tm
-  | Pi Span Icit Ty Ty
+  | Pi Name Icit Ty Ty
   | Irrelevant
   | U
 

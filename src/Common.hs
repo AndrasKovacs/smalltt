@@ -42,6 +42,11 @@ ctzInt :: Int -> Int
 ctzInt (I# n) = I# (word2Int# (ctz# (int2Word# n)))
 {-# inline ctzInt #-}
 
+infixl 0 $$!
+($$!) :: (a -> b) -> a -> b
+($$!) f x = f x
+{-# inline ($$!) #-}
+
 -- Unboxed Maybe
 --------------------------------------------------------------------------------
 
@@ -109,9 +114,9 @@ instance Show QuoteOption where
 
 newtype Icit = Icit# Int deriving Eq
 pattern Impl :: Icit
-pattern Impl = Icit# 0
+pattern Impl = Icit# (-1)
 pattern Expl :: Icit
-pattern Expl = Icit# 1
+pattern Expl = Icit# (-2)
 {-# complete Impl, Expl #-}
 
 instance Show Icit where
@@ -135,3 +140,82 @@ newtype MetaVar = MkMetaVar Int
 lvlToIx :: Lvl -> Lvl -> Ix
 lvlToIx (Lvl envl) (Lvl l) = Ix (envl - l - 1)
 {-# inline lvlToIx #-}
+
+-- Names
+--------------------------------------------------------------------------------
+
+-- data Name = NEmpty | NSpan Span
+data Name = Name# Int Int
+
+unName# :: Name -> (# (# #) | Span #)
+unName# (Name# (-1) _) = (# (# #) | #)
+unName# (Name# x y   ) = (# | Span (Pos x) (Pos y) #)
+{-# inline unName# #-}
+
+pattern NEmpty :: Name
+pattern NEmpty <- (unName# -> (# (# #) | #))  where
+  NEmpty = Name# (-1) 0
+
+pattern NSpan :: Span -> Name
+pattern NSpan sp <- (unName# -> (# | sp #)) where
+  NSpan (Span (Pos x) (Pos y)) = Name# x y
+{-# complete NEmpty, NSpan #-}
+
+instance Show Name where
+  showsPrec d NEmpty    = ('_':)
+  showsPrec d (NSpan x) = showsPrec d x
+
+-- Span equality internals
+--------------------------------------------------------------------------------
+
+-- | Read between 1 and 7 bytes from an address.
+indexPartialWord# :: Int# -> Addr# -> Word#
+indexPartialWord# len addr =
+  case indexWordOffAddr# addr 0# of
+    w -> case uncheckedIShiftL# (8# -# len) 3# of
+      sh -> case uncheckedShiftL# w sh of
+        w -> uncheckedShiftRL# w sh
+{-# inline indexPartialWord# #-}
+
+-- little endian!
+indexPartialWord'# :: Int# -> Addr# -> Word#
+indexPartialWord'# = go 0## 0# where
+  go acc shift 0# _  = acc
+  go acc shift l ptr =
+    go (or# acc (uncheckedShiftL# (indexWord8OffAddr# ptr 0#) shift))
+       (shift +# 8#)
+       (l -# 1#)
+       (plusAddr# ptr 1#)
+
+eqSpanGo :: Addr# -> Addr# -> Int# -> Int#
+eqSpanGo p p' len = case len <# 8# of
+  1# -> eqWord# (indexPartialWord# len p) (indexPartialWord# len p')
+  _  -> case eqWord# (indexWordOffAddr# p 0#) (indexWordOffAddr# p' 0#) of
+    1# -> eqSpanGo (plusAddr# p 8#) (plusAddr# p' 8#) (len -# 8#)
+    _  -> 0#
+
+eqSpanGo' :: Addr# -> Addr# -> Int# -> Int#
+eqSpanGo' p p' len = case len <# 8# of
+  1# -> case len of
+    0# -> 1#
+    _  -> case eqWord# (indexWord8OffAddr# p 0#) (indexWord8OffAddr# p' 0#) of
+      1# -> eqSpanGo' (plusAddr# p 1#) (plusAddr# p' 1#) (len -# 1#)
+      _  -> 0#
+  _  -> case eqWord# (indexWordOffAddr# p 0#) (indexWordOffAddr# p' 0#) of
+    1# -> eqSpanGo' (plusAddr# p 8#) (plusAddr# p' 8#) (len -# 8#)
+    _  -> 0#
+
+eqSpan# :: Addr# -> Span -> Span -> Bool
+eqSpan# _   s s' | s == s' = True
+eqSpan# eob (Span (Pos (I# x)) (Pos (I# y))) (Span (Pos (I# x')) (Pos (I# y'))) = let
+  len  = x -# y
+  len' = x' -# y'
+  in case len ==# len' of
+    1# -> let
+      start  = plusAddr# eob (negateInt# x )
+      start' = plusAddr# eob (negateInt# x')
+      in case orI# (y <# 8#) (y' <# 8#) of
+        1# -> isTrue# (eqSpanGo' start start' len)
+        _  -> isTrue# (eqSpanGo  start start' len)
+    _  -> False
+{-# inline eqSpan# #-}

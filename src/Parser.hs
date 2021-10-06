@@ -105,25 +105,22 @@ goApp t = branch braceL
 app' :: Parser Tm
 app' = goApp =<< atom'
 
-bind :: Parser Bind
-bind = branch $(symbol "_") (pure DontBind) (Bind <$> identBased pure)
+bind :: Parser Name
+bind = branch $(symbol "_") (pure NEmpty) (NSpan <$> identBased pure)
 
-bind' :: Parser Bind
-bind' = branch $(symbol' "_") (pure DontBind) (Bind <$> identBased pure)
+bind' :: Parser Name
+bind' = branch $(symbol' "_") (pure NEmpty) (NSpan <$> identBased pure)
         `cut'` Msg "binder"
 
 data Spans = SNil | SCons {-# unpack #-} Span Spans
 
-foldrSpans :: forall b. (Span -> b -> b) -> b -> Spans -> b
-foldrSpans f b xs = go xs where
-  go SNil         = b
-  go (SCons x xs) = f x $! go xs
-{-# inline foldrSpans #-}
+spansToPi :: Span ->  Icit ->  Tm -> Tm -> Spans -> Tm
+spansToPi x i a b = \case
+  SNil                 -> b
+  SCons (Span x1 _) xs -> Pi x1 (NSpan x) i a (spansToPi x i a b xs)
 
 manyIdents :: Parser Spans
-manyIdents =
-      (idented \x -> SCons x <$> manyIdents)
-  <|> pure SNil
+manyIdents = (idented \x -> SCons x <$> manyIdents) <|> pure SNil
 
 someIdented :: (Span -> Spans -> Parser a) -> Parser a
 someIdented k = idented \x -> do {xs <- manyIdents; k x xs}
@@ -141,8 +138,8 @@ pi' = do
         braceR'
         optional_ arrow
         b <- pi'
-        let !res = foldrSpans (\x@(Span x1 x2) -> Pi x1 (Bind x) Impl a) b xs
-        pure $! Pi l (Bind x) Impl a res
+        let !res = spansToPi x Impl a b xs
+        pure $! Pi l (NSpan x) Impl a res
 
     "(" -> ws >>
       (someIdented \x xs -> do
@@ -150,17 +147,17 @@ pi' = do
           a <- tm' <* parR'
           optional_ arrow
           b <- pi'
-          let !res = foldrSpans (\x@(Span x1 x2) -> Pi x1 (Bind x) Expl a) b xs
-          pure $! Pi l (Bind x) Expl a res)
+          let !res = spansToPi x Expl a b xs
+          pure $! Pi l (NSpan x) Expl a res)
       <|>
       (do t <- tm' <* parR'
           branch arrow
-            (Pi l DontBind Expl t <$> pi')
+            (Pi l NEmpty Expl t <$> pi')
             (pure t))
 
     _   -> ws >> do
       t <- app'
-      branch arrow (Pi l DontBind Expl t <$> pi') (pure t)
+      branch arrow (Pi l NEmpty Expl t <$> pi') (pure t)
     |])
 
 goLamBraceL :: Pos -> Parser Tm
@@ -168,20 +165,20 @@ goLamBraceL pos = do
   ws
   branch $(symbol "_")
     (uoptioned (colon *> tm') \a -> do
-        Lam pos DontBind (NoName Impl) a <$> (braceR' *> goLam))
+        Lam pos NEmpty (NoName Impl) a <$> (braceR' *> goLam))
     (idented' \x -> do
         branch eq
           (idented' \y ->
-             Lam pos (Bind y) (Named x) UNothing <$> (braceR' *> goLam))
+             Lam pos (NSpan y) (Named x) UNothing <$> (braceR' *> goLam))
           (uoptioned (colon *> tm') \a ->
-            Lam pos (Bind x) (NoName Impl) a <$> (braceR' *> goLam)))
+            Lam pos (NSpan x) (NoName Impl) a <$> (braceR' *> goLam)))
 
 goLamParL :: Pos -> Parser Tm
 goLamParL pos = do
   ws
   idented' \x -> do
     a <- colon' *> tm' <* parR'
-    Lam pos (Bind x) (NoName Expl) (UJust a) <$> goLam
+    Lam pos (NSpan x) (NoName Expl) (UJust a) <$> goLam
 
 goLam :: Parser Tm
 goLam = do
@@ -190,16 +187,16 @@ goLam = do
     "{" -> goLamBraceL pos
     "(" -> goLamParL pos
     "." -> ws >> tm'
-    "_" -> ws >> Lam pos DontBind (NoName Expl) UNothing <$> goLam
-    _   -> ws >> idented' \x -> Lam pos (Bind x) (NoName Expl) UNothing <$> goLam
+    "_" -> ws >> Lam pos NEmpty (NoName Expl) UNothing <$> goLam
+    _   -> ws >> idented' \x -> Lam pos (NSpan x) (NoName Expl) UNothing <$> goLam
       |])
 
 lam' :: Pos -> Parser Tm
 lam' pos = lvl' >> $(switch [| case _ of
   "{" -> goLamBraceL pos
   "(" -> goLamParL pos
-  "_" -> ws >> Lam pos DontBind (NoName Expl) UNothing <$> goLam
-  _   -> ws >> idented' \x -> Lam pos (Bind x) (NoName Expl) UNothing <$> goLam
+  "_" -> ws >> Lam pos NEmpty (NoName Expl) UNothing <$> goLam
+  _   -> ws >> idented' \x -> Lam pos (NSpan x) (NoName Expl) UNothing <$> goLam
     |])
 
 pLet' :: Pos -> Parser Tm
