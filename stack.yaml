@@ -15,5 +15,5 @@ extra-deps:
 - git: https://github.com/AndrasKovacs/dynamic-array.git
   commit: b5b0e9e4c737c7b72cc8d31232bc3d1fc36be0ad
 - git: https://github.com/AndrasKovacs/primdata.git
-  commit: 2d101e74dcd21331456bb5d4ea98d2192ea07bdc
+  commit: 44cac2350fb24dd57bdfa8cbee46b45c9332e50c
 - bytestring-0.11.1.0

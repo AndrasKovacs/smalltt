@@ -15,6 +15,7 @@ import Data.Bits
 import FlatParse.Stateful (Span(..), Pos(..), Result(..))
 import GHC.Exts
 import GHC.Stack
+import Data.Flat
 
 import qualified Data.ByteString as B
 import qualified UIO
@@ -62,6 +63,12 @@ uMaybe :: b -> (a -> b) -> UMaybe a -> b
 uMaybe n j UNothing  = n
 uMaybe n j (UJust a) = j a
 {-# inline uMaybe #-}
+
+-- | Returns 1 for `UJust`, 2 for `UNothing`.
+tag :: UMaybe a -> Int
+tag (UMaybe# x) = case unsafeCoerce# x :: (# Int#, () #) of
+  (# t, _ #) -> I# t
+{-# inline tag #-}
 
 instance Eq a => Eq (UMaybe a) where
   UNothing == UNothing = True
@@ -119,6 +126,8 @@ pattern Expl :: Icit
 pattern Expl = Icit# (-2)
 {-# complete Impl, Expl #-}
 
+CAN_IO(Icit, IntRep, Int#, Icit# (I# x), CoeIcit)
+
 instance Show Icit where
   show Impl = "Impl"
   show Expl = "Expl"
@@ -132,7 +141,9 @@ newtype Ix = Ix Int
   deriving (Eq, Ord, Show, Num, Enum, Bits) via Int
 
 newtype Lvl = Lvl Int
-  deriving (Eq, Ord, Show, Num, Enum, Bits) via Int
+  deriving (Eq, Ord, Show, Num, Enum, Bits, Flat) via Int
+
+CAN_IO(Lvl, IntRep, Int#, Lvl (I# x), CoeLvl)
 
 newtype MetaVar = MkMetaVar Int
   deriving (Eq, Ord, Show, Num) via Int
@@ -144,25 +155,31 @@ lvlToIx (Lvl envl) (Lvl l) = Ix (envl - l - 1)
 -- Names
 --------------------------------------------------------------------------------
 
--- data Name = NEmpty | NSpan Span
+-- data Name = NX | NEmpty | NSpan Span
 data Name = Name# Int Int
 
-unName# :: Name -> (# (# #) | Span #)
-unName# (Name# (-1) _) = (# (# #) | #)
-unName# (Name# x y   ) = (# | Span (Pos x) (Pos y) #)
+unName# :: Name -> (# (# #) | (# #) | Span #)
+unName# (Name# (-1) _) = (# (# #) | | #)
+unName# (Name# (-2) _) = (# |(# #) | #)
+unName# (Name# x y   ) = (# | | Span (Pos x) (Pos y) #)
 {-# inline unName# #-}
 
+pattern NX :: Name
+pattern NX <- (unName# -> (# (# #) | | #)) where
+  NX = Name# (-1) 0
+
 pattern NEmpty :: Name
-pattern NEmpty <- (unName# -> (# (# #) | #))  where
-  NEmpty = Name# (-1) 0
+pattern NEmpty <- (unName# -> (# | (# #) | #))  where
+  NEmpty = Name# (-2) 0
 
 pattern NSpan :: Span -> Name
-pattern NSpan sp <- (unName# -> (# | sp #)) where
+pattern NSpan sp <- (unName# -> (# | | sp #)) where
   NSpan (Span (Pos x) (Pos y)) = Name# x y
-{-# complete NEmpty, NSpan #-}
+{-# complete NX, NEmpty, NSpan #-}
 
 instance Show Name where
   showsPrec d NEmpty    = ('_':)
+  showsPrec d NX        = ('x':)
   showsPrec d (NSpan x) = showsPrec d x
 
 -- Span equality internals
@@ -205,8 +222,8 @@ eqSpanGo' p p' len = case len <# 8# of
     1# -> eqSpanGo' (plusAddr# p 8#) (plusAddr# p' 8#) (len -# 8#)
     _  -> 0#
 
-eqSpan# :: Addr# -> Span -> Span -> Bool
-eqSpan# _   s s' | s == s' = True
+eqSpan# :: Addr# -> Span -> Span -> Int#
+eqSpan# _   s s' | s == s' = 1#
 eqSpan# eob (Span (Pos (I# x)) (Pos (I# y))) (Span (Pos (I# x')) (Pos (I# y'))) = let
   len  = x -# y
   len' = x' -# y'
@@ -215,7 +232,7 @@ eqSpan# eob (Span (Pos (I# x)) (Pos (I# y))) (Span (Pos (I# x')) (Pos (I# y'))) 
       start  = plusAddr# eob (negateInt# x )
       start' = plusAddr# eob (negateInt# x')
       in case orI# (y <# 8#) (y' <# 8#) of
-        1# -> isTrue# (eqSpanGo' start start' len)
-        _  -> isTrue# (eqSpanGo  start start' len)
-    _  -> False
+        1# -> eqSpanGo' start start' len
+        _  -> eqSpanGo  start start' len
+    _  -> 0#
 {-# inline eqSpan# #-}

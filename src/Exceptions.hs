@@ -6,10 +6,11 @@ import GHC.Exts
 import qualified Control.Exception as E
 
 import qualified UIO as U
+import IO
 
 --------------------------------------------------------------------------------
 
-data Exception = Exception
+data Exception = CantUnify | Exception | CSFlexSolution
 
 --------------------------------------------------------------------------------
 
@@ -17,14 +18,13 @@ data Exception#
   = forall e. E.Exception e => SomeException e
   | Exception# Exception
 
+catchIO :: forall a. IO a -> (Exception -> IO a) -> IO a
+catchIO (IO f) k = IO (catch# f (\case e@(SomeException _) -> raiseIO# e
+                                       Exception# e        -> unIO (k e)))
+{-# inline catchIO #-}
+
 catch :: forall a. U.CanIO a => U.IO a -> (Exception -> U.IO a) -> U.IO a
-catch (U.IO f) k = U.IO \s ->
-  case catch# (U.bind @a f (\a s -> (# s , a #)))
-              (\e s -> case e of
-                  SomeException _ -> raiseIO# e s
-                  Exception# e    -> U.bind @a (U.unIO (k e)) (\a s -> (# s , a #)) s)
-              s of
-    (# s, a #) -> U.pure# @a a s
+catch ma k = U.io $ catchIO (U.toIO ma) (\e -> U.toIO (k e))
 {-# inline catch #-}
 
 throw :: forall a. U.CanIO a => Exception -> U.IO a

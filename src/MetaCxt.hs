@@ -1,6 +1,7 @@
 
 module MetaCxt where
 
+import Common
 import CoreTypes
 import qualified Data.Array.Dynamic.L as ADL
 import qualified UIO as U
@@ -18,3 +19,10 @@ fresh ms = U.do
   U.io $ ADL.push ms MEUnsolved
   U.pure x
 {-# inlinable fresh #-}
+
+solve :: MetaCxt -> MetaVar -> Val -> U.IO ()
+solve ms x ~v = U.io $ do
+  ADL.read ms (coerce x) >>= \case
+    MESolved _ -> impossible
+    _          -> ADL.write ms (coerce x) (MESolved v)
+{-# inline solve #-}

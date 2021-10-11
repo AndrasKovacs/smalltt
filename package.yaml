@@ -53,9 +53,9 @@ ghc-options:
   - -Wno-missing-signatures
   - -Wno-unused-do-bind
   - -Wno-unticked-promoted-constructors
-  - -fmax-worker-args=12
+  - -fmax-worker-args=20
   - -O2
-  - -fllvm
+  # - -fllvm
   - -ddump-simpl
   - -ddump-to-file
   - -dsuppress-all

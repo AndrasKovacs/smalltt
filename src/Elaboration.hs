@@ -1,17 +1,16 @@
 {-# language UnboxedTuples #-}
+{-# options_ghc -Wno-orphans #-}
 
-module Elaboration where
+module Elaboration (infer) where
 
 -- import qualified Data.ByteString as B
 import GHC.Exts
 import Common
 import CoreTypes
 -- import EnvMask (EnvMask(..))
--- import qualified EnvMask as EM
+import qualified EnvMask as EM
 -- import SymTable (SymTable(..))
-
 import qualified MetaCxt as MC
-
 import qualified SymTable as ST
 import ElabCxt
 
@@ -22,59 +21,91 @@ import Evaluation
 import Unification
 
 import qualified UIO as U
+import qualified UIO
 
 import IO
 
+#include "deriveCanIO.h"
+
 --------------------------------------------------------------------------------
--- TODO:
---  - hammer out symtable operations
---    - general insert: takes UMaybe entry, deletes if UNothing, return UMaybe entry of the
---      entry which is already in table
---      (may also take hash, so that we don't recompute!)
---  - remorselessly add CanIO boilerplate everywhere! Otherwise we really don't get unboxing.
+
+-- TODO: separate Name & RawName, SymTable indexed by latter
 
 --------------------------------------------------------------------------------
 
 data Infer = Infer Tm VTy
 
+CAN_IO2(Infer, TupleRep [LiftedRep COMMA LiftedRep], (# Tm, VTy #), Infer x y, CoeInfer)
+
 eqName :: Cxt -> Name -> Name -> Bool
 eqName cxt NEmpty    NEmpty     = True
 eqName cxt (NSpan x) (NSpan x') = runIO do
   Ptr eob <- ST.eob (tbl cxt)
-  pure $! eqSpan# eob x x'
-eqName _ _ _ = False
+  pure $! isTrue# (eqSpan# eob x x')
+eqName _   _         _          = False
 
 evalCxt :: Cxt -> Tm -> Val
 evalCxt cxt t = eval (mcxt cxt) (env cxt) t
 {-# inline evalCxt #-}
 
 forceMTCxt :: Cxt -> Val -> Val
-forceMTCxt cxt t = forceMT (mcxt cxt) t
+forceMTCxt cxt t = forceFU (mcxt cxt) t
 {-# inline forceMTCxt #-}
 
+-- TODO: freshMetaVal, freshMetaVal1
+
+-- | Create fresh meta.
 freshMeta :: Cxt -> U.IO Tm
 freshMeta cxt = U.do
   x <- MC.fresh (mcxt cxt)
   U.pure (InsertedMeta (coerce x) (mask cxt))
 
--- fresh meta under extra binder
-freshMeta1 :: Cxt -> U.IO Tm
-freshMeta1 = uf
+-- | Create fresh meta under extra binder.
+freshMeta1 :: Cxt -> Icit -> U.IO Tm
+freshMeta1 cxt i = U.do
+  x <- MC.fresh (mcxt cxt)
+  U.pure (InsertedMeta (coerce x) (EM.insert (lvl cxt) i (mask cxt)))
 
 unifyCxt :: Cxt -> Val -> Val -> U.IO ()
-unifyCxt cxt = unify (mcxt cxt) (lvl cxt)
+unifyCxt cxt = unify (mcxt cxt) (lvl cxt) CSRigid
 {-# inline unifyCxt #-}
 
-insert' :: Cxt -> U.IO Infer -> U.IO Infer
-insert' = uf
+goInsert' :: Cxt -> Infer -> U.IO Infer
+goInsert' cxt (Infer t va) = case forceMTCxt cxt va of
+  VPi x Impl a b -> U.do
+    m <- freshMeta cxt
+    let mv = evalCxt cxt m
+    goInsert' cxt (Infer (App t m Impl) (appCl (mcxt cxt) b mv))
+  va -> U.pure (Infer t va)
 
+-- | Insert fresh implicit applications.
+insert' :: Cxt -> U.IO Infer -> U.IO Infer
+insert' cxt act = goInsert' cxt U.=<< act where
+{-# inline insert' #-}
+
+-- | Insert fresh implicit applications to a term which is not
+--   an implicit lambda (i.e. neutral).
 insert :: Cxt -> U.IO Infer -> U.IO Infer
 insert cxt act = act U.>>= \case
   res@(Infer (Lam _ Impl _) _) -> U.pure res
   res                          -> insert' cxt (U.pure res)
+{-# inline insert #-}
 
+-- | Insert fresh implicit applications until we hit a Pi with
+--   a particular binder name.
 insertUntilName :: Cxt -> Span -> U.IO Infer -> U.IO Infer
-insertUntilName cxt x act = uf
+insertUntilName cxt name act = go cxt U.=<< act where
+  go cxt (Infer t va) = case forceMTCxt cxt va of
+    va@(VPi x Impl a b) -> U.do
+      if eqName cxt x (NSpan name) then
+        U.pure (Infer t va)
+      else U.do
+        m <- freshMeta cxt
+        let mv = evalCxt cxt m
+        go cxt (Infer (App t m Impl) (appCl (mcxt cxt) b mv))
+    _ ->
+      throw Exception
+{-# inline insertUntilName #-}
 
 --------------------------------------------------------------------------------
 
@@ -88,38 +119,39 @@ infer cxt = \case
       UJust (ST.Top x _ va _ vt) -> U.pure (Infer (TopVar x vt) va)
 
   P.Let _ x ma t u -> U.do
-    a <- case ma of UNothing -> freshMeta cxt
-                    UJust a  -> check cxt a VU
-    let ~va = evalCxt cxt a
-    t <- check cxt t va
-    let ~vt = evalCxt cxt t
-    Infer u vb <- defining cxt (NSpan x) va vt \cxt -> infer cxt u
-    U.pure (Infer (Let x a t u) vb)
+      a <- checkAnnot cxt ma
+      let ~va = evalCxt cxt a
+      t <- check cxt t va
+      let ~vt = evalCxt cxt t
+      Infer u vb <- defining cxt (NSpan x) va vt \cxt -> infer cxt u
+      U.pure (Infer (Let x a t u) vb)
 
-  -- dodgy!
-  P.App t u inf -> U.io do
-    (!i, !t, !tty) <- case inf of
-      P.Named x -> do
-        Infer t tty <- U.toIO $ insertUntilName cxt x $ infer cxt t
-        pure (Impl, t, tty)
-      P.NoName Impl -> do
-        Infer t tty <- U.toIO $ infer cxt t
-        pure (Impl, t, tty)
-      P.NoName Expl -> do
-        Infer t tty <- U.toIO $ insert' cxt $ infer cxt t
-        pure (Expl, t, tty)
+  P.App t u inf ->
 
-    (a, b) <- case forceMTCxt cxt tty of
-      VPi x i' a b | i == i'   -> pure (a, b)
-                   | otherwise -> uf
-      tty -> do
-        a <- evalCxt cxt <$> U.toIO (freshMeta cxt)
-        b <- Closure (env cxt) <$> U.toIO (freshMeta1 cxt)
-        U.toIO $ unifyCxt cxt tty (VPi NEmpty i a b)
-        pure (a, b)
+    U.bind3 (\pure -> case inf of
+      P.Named x -> U.do
+        Infer t tty <- insertUntilName cxt x $ infer cxt t
+        pure Impl t tty
+      P.NoName Impl -> U.do
+        Infer t tty <- infer cxt t
+        pure Impl t tty
+      P.NoName Expl -> U.do
+        Infer t tty <- insert' cxt $ infer cxt t
+        pure Expl t tty)
+    \i t tty ->
 
-    u <- U.toIO $ check cxt u a
-    pure (Infer (App t u i) (appCl (mcxt cxt) b (evalCxt cxt u)))
+    U.bind2 (\pure -> case forceMTCxt cxt tty of
+      VPi x i' a b | i == i'   -> pure a b
+                   | otherwise -> undefined
+      tty -> U.do
+        a <- evalCxt cxt U.<$> freshMeta cxt
+        b <- Closure (env cxt) U.<$> freshMeta1 cxt i
+        unifyCxt cxt tty (VPi NEmpty i a b)
+        pure a b)
+    \a b -> U.do
+
+    u <- check cxt u a
+    U.pure (Infer (App t u i) (appCl (mcxt cxt) b (evalCxt cxt u)))
 
   P.Pi _ x i a b -> U.do
     a <- check cxt a VU
@@ -137,6 +169,12 @@ infer cxt = \case
     va <- evalCxt cxt U.<$> freshMeta cxt
     t  <- freshMeta cxt
     U.pure $ Infer t va
+
+checkAnnot :: Cxt -> UMaybe P.Tm -> U.IO Tm
+checkAnnot cxt = \case
+  UNothing -> freshMeta cxt
+  UJust a  -> check cxt a VU
+{-# inline checkAnnot #-}
 
 check :: Cxt -> P.Tm -> VTy -> U.IO Tm
 check cxt t a = case (,) $$! t $$! a of
@@ -156,8 +194,7 @@ check cxt t a = case (,) $$! t $$! a of
     U.pure (Lam x Impl t)
 
   (P.Let _ x ma t u, a') -> U.do
-    a <- case ma of UNothing -> freshMeta cxt
-                    UJust a  -> check cxt a VU
+    a <- checkAnnot cxt ma
     let ~va = evalCxt cxt a
     t <- check cxt t va
     let ~vt = evalCxt cxt t
@@ -169,22 +206,5 @@ check cxt t a = case (,) $$! t $$! a of
 
   (t, expected) -> U.do
     Infer t inferred <- insert cxt $ infer cxt t
-    uf
-
--- boilerplate
---------------------------------------------------------------------------------
-
-type instance U.RepRep Infer = TupleRep [ LiftedRep, LiftedRep ]
-type family CoeInfer (x :: TYPE (TupleRep [ LiftedRep, LiftedRep ])) :: TYPE (U.RepRep Infer) where
-  CoeInfer x = x
-type instance U.Rep Infer = CoeInfer (# Tm, VTy #)
-
-instance U.CanIO Infer where
-  bind  :: forall r (b :: TYPE r). (U.RW -> (# U.RW, (# Tm, VTy #) #))
-           -> (Infer -> U.RW -> (# U.RW, b #)) -> U.RW -> (# U.RW, b #)
-  bind f g s = case f s of (# s, (# x, y #) #) -> g (Infer x y) s
-  {-# inline bind #-}
-
-  pure# :: Infer -> U.RW -> (# U.RW, (# Tm, VTy #) #)
-  pure# (Infer x y) s = (# s, (# x, y #) #)
-  {-# inline pure# #-}
+    unifyCxt cxt inferred expected
+    U.pure t

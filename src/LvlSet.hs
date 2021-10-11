@@ -22,10 +22,14 @@ instance Monoid LvlSet where
   mempty = LvlSet 0
   {-# inline mempty #-}
 
+-- insert :: Lvl -> LvlSet -> LvlSet
+-- insert (Lvl x) (LvlSet s)
+--   | x > 63    = outOfRange
+--   | otherwise = LvlSet (unsafeShiftL 1 x .|. s)
+-- {-# inline insert #-}
+
 insert :: Lvl -> LvlSet -> LvlSet
-insert (Lvl x) (LvlSet s)
-  | x > 63    = outOfRange
-  | otherwise = LvlSet (unsafeShiftL 1 x .|. s)
+insert (Lvl x) (LvlSet s) = LvlSet (unsafeShiftL 1 x .|. s)
 {-# inline insert #-}
 
 single :: Lvl -> LvlSet

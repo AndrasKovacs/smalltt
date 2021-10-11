@@ -3,6 +3,7 @@
 
 module CoreTypes where
 
+import GHC.Exts
 import qualified UIO
 import Common
 import EnvMask
@@ -13,8 +14,12 @@ data Spine
   = SId
   | SApp Spine Val Icit
 
+CAN_IO(Spine, LiftedRep, Spine, x, CoeSpine)
+
 data Closure
   = Closure Env Tm
+
+CAN_IO2(Closure, TupleRep [ LiftedRep COMMA LiftedRep ], (# Env, Tm #), Closure x y, CoeClosure)
 
 data Env
   = ENil
@@ -24,12 +29,14 @@ type VTy = Val
 
 data Val
   = VLocalVar Lvl Spine
-  | VMeta MetaVar Spine
-  | VTopVar Lvl Spine ~Val
+  | VFlex MetaVar Spine
+  | VUnfold UnfoldHead Spine ~Val
   | VLam Name Icit Closure
   | VPi Name Icit VTy Closure
   | VU
   | VIrrelevant
+
+------------------------------------------------------------
 
 type Ty = Tm
 
@@ -47,3 +54,23 @@ data Tm
 
 CAN_IO(Tm, LiftedRep, Tm, x, CoeTm)
 CAN_IO(Val, LiftedRep, Val, x, CoeVal)
+
+------------------------------------------------------------
+
+-- data UnfoldHead = UHTopVar Lvl | UHSolved MetaVar
+newtype UnfoldHead = UnfoldHead# Int
+  deriving Eq via Int
+
+unpackUH# :: UnfoldHead -> (# Lvl | MetaVar #)
+unpackUH# (UnfoldHead# (I# i)) = case i <=# 0# of
+  1# -> (# Lvl (I# (negateInt# i)) | #)
+  _  -> (# | MkMetaVar (I# i) #)
+{-# inline unpackUH# #-}
+
+pattern UHTopVar :: Lvl -> UnfoldHead
+pattern UHTopVar x <- (unpackUH# -> (# x | #)) where
+  UHTopVar (Lvl x) = UnfoldHead# (negate x)
+
+pattern UHSolved :: MetaVar -> UnfoldHead
+pattern UHSolved x <- (unpackUH# -> (# | x #)) where
+  UHSolved (MkMetaVar x) = UnfoldHead# x

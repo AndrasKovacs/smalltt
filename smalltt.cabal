@@ -23,6 +23,7 @@ library
       EnvMask
       Evaluation
       Exceptions
+      Experiment
       Lexer
       LvlSet
       MetaCxt
@@ -69,7 +70,7 @@ library
       TypeFamilyDependencies
       UndecidableInstances
       ViewPatterns
-  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -fllvm -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg
+  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=20 -O2 -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg
   build-depends:
       base >=4.7 && <5
     , bytestring
@@ -117,7 +118,7 @@ executable smalltt
       TypeFamilyDependencies
       UndecidableInstances
       ViewPatterns
-  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -fllvm -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg -rtsopts -with-rtsopts=-A1G
+  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=20 -O2 -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg -rtsopts -with-rtsopts=-A1G
   build-depends:
       base >=4.7 && <5
     , smalltt
@@ -160,7 +161,7 @@ executable smalltt-parseonly
       TypeFamilyDependencies
       UndecidableInstances
       ViewPatterns
-  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=12 -O2 -fllvm -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg -rtsopts -with-rtsopts=-A1G
+  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=20 -O2 -ddump-simpl -ddump-to-file -dsuppress-all -dno-suppress-type-signatures -ddump-stg -rtsopts -with-rtsopts=-A1G
   build-depends:
       base >=4.7 && <5
     , smalltt

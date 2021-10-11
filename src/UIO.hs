@@ -16,6 +16,7 @@ import qualified Data.Ref.UUU    as RUUU
 import qualified Data.Ref.FF     as RFF
 import qualified Data.Ref.L      as RL
 import qualified Data.Array.LM   as ALM
+import qualified Data.Array.FM   as AFM
 import qualified Data.Array.UM   as AUM
 
 #include "deriveCanIO.h"
@@ -50,6 +51,10 @@ infixl 1 >>=
 (>>=) :: CanIO a => IO a -> (a -> IO b) -> IO b
 (>>=) f g = IO (bind (unIO f) (\a -> unIO (g a)))
 {-# inline (>>=) #-}
+
+infixr 1 =<<
+(=<<) f g = g >>= f
+{-# inline (=<<) #-}
 
 infixl 1 >>
 (>>) :: CanIO a => IO a -> IO b -> IO b
@@ -92,6 +97,27 @@ fail :: String -> a
 fail = error
 {-# inline fail #-}
 
+--------------------------------------------------------------------------------
+
+
+bind1 :: (CanIO a) => ((a -> IO b) -> IO b) -> (a -> IO b) -> IO b
+bind1 f g = IO \s -> let cont = oneShot g in unIO (f cont) s
+{-# inline bind1 #-}
+
+bind2 :: (CanIO a, CanIO b) => ((a -> b -> IO c) -> IO c) -> (a -> b -> IO c) -> IO c
+bind2 f g = IO \s -> let cont = oneShot g in unIO (f cont) s
+{-# inline bind2 #-}
+
+bind3 :: (CanIO a, CanIO b, CanIO c) => ((a -> b -> c -> IO d) -> IO d) -> (a -> b -> c -> IO d) -> IO d
+bind3 f g = IO \s -> let cont = oneShot g in unIO (f cont) s
+{-# inline bind3 #-}
+
+when :: Bool -> IO () -> IO ()
+when True act = act
+when False _  = pure ()
+{-# inline when #-}
+
+
 -- Instances
 --------------------------------------------------------------------------------
 
@@ -100,6 +126,7 @@ CAN_IO(RUUU.Ref a b c, UnliftedRep, MutableArrayArray# RealWorld, RUUU.Ref (AUM.
 CAN_IO(RFF.Ref a b, UnliftedRep, MutableByteArray# RealWorld, RFF.Ref x, CoeRFF)
 CAN_IO(RL.Ref a, UnliftedRep, MutVar# RealWorld a, RL.Ref x, CoeRL)
 CAN_IO(ALM.Array a, UnliftedRep, MutableArray# RealWorld a, ALM.Array x, CoeALM)
+CAN_IO(AFM.Array a, UnliftedRep, MutableByteArray# RealWorld, AFM.Array x, CoeAFM)
 CAN_IO(Ptr a, AddrRep, Addr#, Ptr x, CoePtr)
 
 type instance RepRep () = TupleRep '[]
