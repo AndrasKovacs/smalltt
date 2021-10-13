@@ -13,7 +13,7 @@ import GHC.Exts
 import qualified "primdata" IO as StdIO
 
 import qualified Data.Ref.UUU    as RUUU
-import qualified Data.Ref.FF     as RFF
+import qualified Data.Ref.FFF    as RFFF
 import qualified Data.Ref.L      as RL
 import qualified Data.Array.LM   as ALM
 import qualified Data.Array.FM   as AFM
@@ -123,7 +123,7 @@ when False _  = pure ()
 
 CAN_IO(Int, IntRep, Int#, I# x, CoeInt)
 CAN_IO(RUUU.Ref a b c, UnliftedRep, MutableArrayArray# RealWorld, RUUU.Ref (AUM.Array x), CoeRUU)
-CAN_IO(RFF.Ref a b, UnliftedRep, MutableByteArray# RealWorld, RFF.Ref x, CoeRFF)
+CAN_IO(RFFF.Ref a b c, UnliftedRep, MutableByteArray# RealWorld, RFFF.Ref x, CoeRFF)
 CAN_IO(RL.Ref a, UnliftedRep, MutVar# RealWorld a, RL.Ref x, CoeRL)
 CAN_IO(ALM.Array a, UnliftedRep, MutableArray# RealWorld a, ALM.Array x, CoeALM)
 CAN_IO(AFM.Array a, UnliftedRep, MutableByteArray# RealWorld, AFM.Array x, CoeAFM)

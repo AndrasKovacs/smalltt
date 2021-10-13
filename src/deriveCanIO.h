@@ -71,3 +71,21 @@ instance UIO.CanIO (ty) where {\
   {-# inline bind #-};\
   {-# inline pure# #-};\
 }
+
+#define CAN_IO5(ty, reprep, rep, ctr, coe)\
+type instance UIO.RepRep (ty) = (reprep);\
+type family coe (x :: TYPE (reprep)) :: TYPE (UIO.RepRep (ty)) where {\
+  coe x = x;};\
+type instance UIO.Rep (ty) = coe (rep);\
+\
+instance UIO.CanIO (ty) where {\
+  bind :: forall r (out :: TYPE r). (UIO.RW -> (# UIO.RW, (rep) #))\
+       -> ((ty) -> UIO.RW -> (# UIO.RW, out #)) -> UIO.RW -> (# UIO.RW, out #);\
+  bind f g s = case f s of {(# s, (# a, b, c, d, e #) #) -> g (ctr) s};	\
+\
+  pure#  :: (ty) -> UIO.RW -> (# UIO.RW, rep #);\
+  pure# (ctr) s = (# s, (# a, b, c, d, e #) #);	\
+\
+  {-# inline bind #-};\
+  {-# inline pure# #-};\
+}

@@ -18,10 +18,13 @@ import qualified Data.Array.FM as AFM
 
 --------------------------------------------------------------------------------
 
+
+-- TODO: organize modules somehow
+
 -- TODO: eta-short solution + long retry
 --       flex-flex
---       glued rename
---       approximate occurs check
+--       meta freezing
+--       glued renaming
 --       occurs caching
 
 --------------------------------------------------------------------------------
@@ -60,9 +63,9 @@ invertSp ms gamma m sp = U.do
                 (-1) -> U.do
                   U.io $ AFM.write ren (coerce x) dom
                   U.pure (dom + 1)
-                y    -> throw Exception -- non-linear
+                y    -> throw $ UnifyEx Conversion -- non-linear
             _ ->
-              throw Exception -- non-var in spine
+              throw $ UnifyEx Conversion -- non-var in spine
 
   dom <- go ms ren sp
   U.pure (PRen m dom gamma ren)
@@ -85,7 +88,7 @@ rename ms pren v = U.do
 
   case forceFU ms v of
 
-    VFlex m' sp | occurs pren == m' -> throw Exception -- occurs check
+    VFlex m' sp | occurs pren == m' -> throw $ UnifyEx Conversion -- occurs check
                 | otherwise         -> goSp (Meta m') sp
 
     VLocalVar x sp -> U.do
@@ -93,7 +96,7 @@ rename ms pren v = U.do
       if x < renLen then U.do
         y <- U.io $ AFM.read (ren pren) (coerce x)
         case y of
-          (-1) -> throw Exception -- scope error
+          (-1) -> throw $ UnifyEx Conversion -- scope error
           y    -> goSp (LocalVar (lvlToIx (dom pren) y)) sp
       else
         goSp (LocalVar (lvlToIx (dom pren) (x - (cod pren - renLen)))) sp
@@ -110,7 +113,7 @@ lams (SApp sp t i) acc = lams sp (Lam NX i acc)
 
 solve :: MetaCxt -> Lvl -> ConvState -> MetaVar -> Spine -> Val -> U.IO ()
 solve ms l cs x sp rhs = U.do
-  U.when (cs == CSFlex) $ throw CSFlexSolution
+  U.when (cs == CSFlex) $ throw $ UnifyEx CSFlexSolution
   pren <- invertSp ms l x sp
   rhs <- lams sp U.<$> rename ms pren rhs
   MC.solve ms x (eval ms ENil rhs)
@@ -119,7 +122,7 @@ unifySp :: MetaCxt -> Lvl -> ConvState -> Spine -> Spine -> U.IO ()
 unifySp ms l cs sp sp' = case (sp, sp') of
   (SId,         SId          ) -> U.pure ()
   (SApp sp t i, SApp sp' t' _) -> unifySp ms l cs sp sp' U.>> unify ms l cs t t'
-  _                            -> throw CantUnify
+  _                            -> throw $ UnifyEx Conversion
 
 unify :: MetaCxt -> Lvl -> ConvState -> Val -> Val -> U.IO ()
 unify ms l cs t t' = let
@@ -134,7 +137,7 @@ unify ms l cs t t' = let
   goSp = unifySp ms l cs
   {-# inline goSp #-}
 
-  err = throw CantUnify
+  err = throw $ UnifyEx Conversion
   {-# inline err #-}
 
   goEq :: forall a. Eq a => a -> a -> U.IO ()
@@ -156,7 +159,7 @@ unify ms l cs t t' = let
     -- unfoldings
     (VUnfold h sp t, VUnfold h' sp' t') -> case cs of
       CSRigid -> (goEq h h' U.>> unifySp ms l CSFlex sp sp')
-                 `catch` \case CantUnify -> unify ms l CSFull t t'
+                 `catch` \case UnifyEx{} -> unify ms l CSFull t t'
                                e         -> throw e
       CSFlex  -> err
       _       -> impossible

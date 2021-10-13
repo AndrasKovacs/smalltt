@@ -1,5 +1,5 @@
 {-# options_ghc -funbox-strict-fields #-}
-{-# language UnboxedSums #-}
+{-# language UnboxedSums, UnboxedTuples #-}
 
 module Presyntax where
 
@@ -39,8 +39,8 @@ data TopLevel
 data Tm
   = Var Span
   | Let Pos Span (UMaybe Tm) Tm Tm
-  | Pi Pos Name Icit Tm Tm
-  | Lam Pos Name ArgInfo (UMaybe Tm) Tm
+  | Pi Pos Bind Icit Tm Tm
+  | Lam Pos Bind ArgInfo (UMaybe Tm) Tm
   | App Tm Tm ArgInfo
   | U Pos
   | Hole Pos
@@ -51,3 +51,24 @@ topLen :: TopLevel -> Int
 topLen = go 0 where
   go acc Nil = acc
   go acc (Definition _ _ _ t) = go (acc+1) t
+
+span :: Tm -> Span
+span t = Span (left t) (right t) where
+
+  left = \case
+    Var (Span l r) -> l
+    Let l x ma t u -> l
+    Pi l x i a b   -> l
+    Lam l x i ma t -> l
+    App t u i      -> left t
+    U p            -> p
+    Hole p         -> p
+
+  right = \case
+    Var (Span l r) -> r
+    Let l x ma t u -> right u
+    Pi l x i a b   -> right b
+    Lam l x i ma t -> right t
+    App t u i      -> right u
+    U p            -> p
+    Hole p         -> p

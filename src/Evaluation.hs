@@ -1,7 +1,8 @@
+{-# language UnboxedTuples, UnboxedSums #-}
 
 module Evaluation (
   app, inlApp, appSp, appMask, eval,
-  forceF, forceFU, appCl, appCl') where
+  forceF, forceFU, appCl, appCl', quote, quote0) where
 
 import qualified Data.Array.Dynamic.L as ADL
 import qualified EnvMask as EM
@@ -69,7 +70,7 @@ appMask ms e v mask = (case go ms e v mask of ValLvl v _ -> v) where
 eval :: MetaCxt -> Env -> Tm -> Val
 eval ms e = \case
   LocalVar x          -> localVar e x
-  TopVar x v          -> VUnfold (UHTopVar x) SId v
+  TopVar x v          -> VUnfold (UHTopVar x v) SId v
   Meta x              -> meta ms x
   App t u i           -> inlApp ms (eval ms e t) (eval ms e u) i
   Let _ _ t u         -> let ~vt = eval ms e t in eval ms (EDef e vt) u
@@ -114,3 +115,35 @@ forceFUFlex ms x sp = runIO do
     MEUnsolved -> pure $ VFlex x sp
     MESolved v -> pure $! forceFU' ms $! appSp ms v sp
 {-# noinline forceFUFlex #-}
+
+--------------------------------------------------------------------------------
+
+quoteSp :: MetaCxt -> Lvl -> QuoteOption -> Tm -> Spine -> Tm
+quoteSp ms l opt hd = \case
+  SId         -> hd
+  SApp sp t i -> App (quoteSp ms l opt hd sp) (quote ms l opt t) i
+
+quote :: MetaCxt -> Lvl -> QuoteOption -> Val -> Tm
+quote ms l opt t = let
+  go       = quote ms l opt; {-# inline go #-}
+  goSp     = quoteSp ms l opt; {-# inline goSp #-}
+  goBind t = quote ms (l + 1) opt (appCl' ms t (VLocalVar l SId)); {-# inline goBind #-}
+
+  force t = case opt of UnfoldAll  -> forceFU ms t
+                        UnfoldFlex -> forceF ms t
+                        _          -> t
+  {-# inline force #-}
+
+  in case force t of
+    VFlex x sp                  -> goSp (Meta x) sp
+    VUnfold (UHSolved x)   sp _ -> goSp (Meta x) sp
+    VUnfold (UHTopVar x v) sp _ -> goSp (TopVar x v) sp
+    VLocalVar x sp              -> goSp (LocalVar (lvlToIx l x)) sp
+    VLam x i t                  -> Lam x i (goBind t)
+    VPi x i a b                 -> Pi x i (go a) (goBind b)
+    VU                          -> U
+    VIrrelevant                 -> Irrelevant
+
+quote0 :: MetaCxt -> QuoteOption -> Val -> Tm
+quote0 ms opt v = quote ms 0 opt v
+{-# inline quote0 #-}

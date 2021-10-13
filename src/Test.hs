@@ -1,20 +1,50 @@
 
 module Test where
 
-import qualified UIO as U
+import qualified Data.ByteString as B
+import FlatParse.Stateful (packUTF8)
+import System.Exit
 
-foo :: Int -> U.IO Int
-foo x = U.do
-  if x == 0 then
-    U.pure x
-  else U.do
-    y <- foo (x - 1)
-    U.pure $! x * y
+import qualified Data.Array.Dynamic.L as ADL
 
-data Tree = Leaf Int | Node Tree Tree
-  deriving Show
+import Common
+import CoreTypes
+import Elaboration
+import Evaluation
+-- import qualified UIO as U
+import Parser
+import Lexer
+import Exceptions
+import MetaCxt
+import Pretty
 
-foo2 :: Tree -> U.IO Int
-foo2 = \case
-  Leaf n   -> U.pure n
-  Node l r -> (+) U.<$> foo2 l U.<*> foo2 r
+
+test :: B.ByteString -> IO ()
+test src = standardize do
+  top <- case parse src of
+    OK top _ _ -> pure top
+    Fail       -> putStrLn "parse error" >> exitSuccess
+    Err e      -> putStrLn (prettyError src e) >> exitSuccess
+
+  -- print top
+
+  (ms, top) <- checkProg src top
+
+  ADL.forIx ms \i e -> case e of
+    MEUnsolved -> putStrLn $ show i ++ "?"
+    MESolved v -> putStrLn $ show i ++ "? = " ++ showTm0 src top (quote0 ms UnfoldNone v)
+  putStrLn ""
+
+  let goTop = \case
+        Nil -> pure ()
+        Definition x a t top -> do
+          goTop top
+          putStrLn ""
+          putStrLn $ showSpan src x ++ " : " ++ showTm0 src top a
+          putStrLn $ "  = " ++ showTm0 src top t
+  goTop top
+
+t1 = test $ packUTF8 $ unlines [
+  "id : (A : U) -> A -> A",
+  "  = \\A x. x"
+  ]

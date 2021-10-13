@@ -56,11 +56,11 @@ ghc-options:
   - -fmax-worker-args=20
   - -O2
   # - -fllvm
-  - -ddump-simpl
-  - -ddump-to-file
-  - -dsuppress-all
-  - -dno-suppress-type-signatures
-  - -ddump-stg
+  # - -ddump-simpl
+  # - -ddump-to-file
+  # - -dsuppress-all
+  # - -dno-suppress-type-signatures
+  # - -ddump-stg
 
 library:
   source-dirs:

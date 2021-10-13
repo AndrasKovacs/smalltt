@@ -1,5 +1,17 @@
 {-# language UnboxedTuples, OverloadedStrings #-}
 
+{-|
+A `SymTable` is a custom mutable hash table which is keyed by spans pointing to
+a particular `ByteString`. Every `SymTable` is initialized from a `ByteString`.
+The components of the `ByteString` are stored losslessly besides the table (but
+in a different layout).
+
+It is important that we get rid of unnecessary copying on common table
+operations. A table is defined as a nesting of mutable references. Writing the
+table size or modifying the underlying array of buckets requires no heap
+allocation.
+-}
+
 module SymTable (
     SymTable(..)
   , new
@@ -7,13 +19,19 @@ module SymTable (
   , deleteWithHash
   , insertWithHash
   , updateWithHash
+  , insert
+  , delete
   , size
   , eob
   , hash
+  , spanToString
+  , spanToByteString
+  -- , test
   , Entry(..)) where
 
+import qualified FlatParse.Basic as FP
 import qualified Data.Ref.UUU    as RUUU
-import qualified Data.Ref.FF     as RFF
+import qualified Data.Ref.FFF    as RFFF
 import qualified Data.Ref.L      as RL
 import qualified Data.Array.LM   as ALM
 import qualified Data.Array.LI   as ALI
@@ -41,11 +59,11 @@ import qualified UIO as U
 --------------------------------------------------------------------------------
 
 data Entry
-  = Top Lvl Ty ~VTy Tm ~Val  -- level, type, type val, def, def val
+  = Top Lvl Ty ~VTy Tm ~Val  -- name, level, type, type val, def, def val
   | Local Lvl ~VTy           -- level, type val
 
 instance Show Entry where
-  show (Local x _) = show x
+  show (Local x _)     = show x
   show (Top x _ _ _ _) = show x
 
 -- Span hashing
@@ -81,33 +99,32 @@ combine# :: Word# -> Word# -> Word#
 combine# x y = foldedMultiply# (xor# x y) (unW# multiple)
 {-# inline combine# #-}
 
+goHash :: Word# -> Addr# -> Int# -> Word#
+goHash hash ptr len = case len <# 8# of
+  1# -> case len of
+    0# -> hash
+    _  -> combine# hash (indexPartialWord# len ptr)
+  _  -> goHash (combine# hash (indexWordOffAddr# ptr 0#)) (plusAddr# ptr 8#) (len -# 8#)
+
+goHash' :: Word# -> Addr# -> Int# -> Word#
+goHash' hash ptr len = case len <# 8# of
+  1# -> case len of
+    0# -> hash
+    _  -> combine# hash (indexPartialWord'# len ptr)
+  _  -> goHash' (combine# hash (indexWordOffAddr# ptr 0#)) (plusAddr# ptr 8#) (len -# 8#)
+
 hash# :: Addr# -> Span -> Hash
 hash# eob (Span (Pos (I# x)) (Pos (I# y))) = let
   start = plusAddr# eob (negateInt# x)
   len   = x -# y
-
-  go :: Word# -> Addr# -> Int# -> Word#
-  go hash ptr len = case len <# 8# of
-    1# -> case len of
-      0# -> hash
-      _  -> combine# hash (indexPartialWord# len ptr)
-    _  -> go (combine# hash (indexWordOffAddr# ptr 0#)) (plusAddr# ptr 8#) (len -# 8#)
-
-  go' :: Word# -> Addr# -> Int# -> Word#
-  go' hash ptr len = case len <# 8# of
-    1# -> case len of
-      0# -> hash
-      _  -> combine# hash (indexPartialWord'# len ptr)
-    _  -> go' (combine# hash (indexWordOffAddr# ptr 0#)) (plusAddr# ptr 8#) (len -# 8#)
-
   in case y <# 8# of
-    1# -> Hash (W# (go' (unW# salt) start len))
-    _  -> Hash (W# (go  (unW# salt) start len))
+    1# -> Hash (W# (goHash' (unW# salt) start len))
+    _  -> Hash (W# (goHash (unW# salt) start len))
 {-# inline hash# #-}
 
 hash :: SymTable -> Span -> U.IO Hash
 hash (SymTable tbl) k = U.do
-  Ptr src  <- U.io $ RFF.readSnd =<< RUUU.readFst tbl
+  Ptr src  <- U.io $ RFFF.readSnd =<< RUUU.readFst tbl
   U.pure (hash# src k)
 {-# inline hash #-}
 
@@ -162,7 +179,7 @@ insertToBucket src h k ~v ~b = go src 0 h k v b b where
 --------------------------------------------------------------------------------
 
 newtype SymTable = SymTable
-  (RUUU.Ref (RFF.Ref Int (Ptr Word8))
+  (RUUU.Ref (RFFF.Ref Int (Ptr Word8) Int)
             (ALM.Array Bucket)
             (RL.Ref ForeignPtrContents))
 
@@ -182,28 +199,29 @@ initSlots = unsafeShiftL 1 initSlotsBits
 eob :: SymTable -> IO (Ptr Word8)
 eob (SymTable tbl) = do
   ref <- RUUU.readFst tbl
-  RFF.readSnd ref
+  RFFF.readSnd ref
 {-# inline eob #-}
 
-new'# :: Int -> Ptr Word8 -> ForeignPtrContents -> U.IO SymTable
-new'# slots eob fpc = U.do
-  ref        <- U.io $ RFF.new 0 eob
+new'# :: Int -> Ptr Word8 -> Int -> ForeignPtrContents -> U.IO SymTable
+new'# slots eob len fpc = U.do
+  ref        <- U.io $ RFFF.new 0 eob len
   fpcr       <- U.io $ RL.new fpc
   buckets    <- U.io $ ALM.new slots Empty
   table      <- U.io $ RUUU.new ref buckets fpcr
   U.pure $ SymTable table
 
-new# :: Ptr Word8 -> ForeignPtrContents -> U.IO SymTable
+new# :: Ptr Word8 -> Int -> ForeignPtrContents -> U.IO SymTable
 new# = new'# initSlots
 {-# inline new# #-}
 
 new :: B.ByteString -> U.IO SymTable
-new (B.BS (ForeignPtr base ftc) (I# len)) = new# (Ptr (plusAddr# base len)) ftc
+new (B.BS (ForeignPtr base ftc) (I# len)) =
+  new# (Ptr (plusAddr# base len)) (I# len) ftc
 
 lookup :: Span -> SymTable -> U.IO (UMaybe Entry)
 lookup k (SymTable tbl) = U.do
   buckets  <- U.io $ RUUU.readSnd tbl
-  Ptr src  <- U.io $ RFF.readSnd =<< RUUU.readFst tbl
+  Ptr src  <- U.io $ RFFF.readSnd =<< RUUU.readFst tbl
   let bucketsSize = ALM.size buckets
       shift       = 64 - ctzInt bucketsSize
       h           = hash# src k
@@ -229,8 +247,8 @@ resize# bucketsSize' (SymTable tbl) = U.do
 deleteWithHash :: Span -> Hash -> SymTable -> U.IO (UMaybe Entry)
 deleteWithHash k h (SymTable tbl) = U.do
   ref      <- U.io $ RUUU.readFst tbl
-  I# size  <- U.io $ RFF.readFst ref
-  Ptr src  <- U.io $ RFF.readSnd ref
+  I# size  <- U.io $ RFFF.readFst ref
+  Ptr src  <- U.io $ RFFF.readSnd ref
   buckets  <- U.io $ RUUU.readSnd tbl
   let bucketsSize = ALM.size buckets
       shift       = 64 - ctzInt bucketsSize
@@ -239,7 +257,7 @@ deleteWithHash k h (SymTable tbl) = U.do
   let !(# !b', old #) = deleteFromBucket src k b
   let size' = I# size + tag (UMaybe# old) - 1
   U.io $ ALM.write buckets ix b'
-  U.io $ RFF.writeFst ref size'
+  U.io $ RFFF.writeFst ref size'
   let downsize = unsafeShiftR bucketsSize 3
   U.when (size' <= downsize && downsize >= initSlots) $
     resize# (unsafeShiftR bucketsSize 1) (SymTable tbl)
@@ -248,8 +266,8 @@ deleteWithHash k h (SymTable tbl) = U.do
 insertWithHash :: Span -> Hash -> Entry -> SymTable -> U.IO (UMaybe Entry)
 insertWithHash k h v (SymTable tbl) = U.do
   ref      <- U.io $ RUUU.readFst tbl
-  I# size  <- U.io $ RFF.readFst ref
-  Ptr src  <- U.io $ RFF.readSnd ref
+  I# size  <- U.io $ RFFF.readFst ref
+  Ptr src  <- U.io $ RFFF.readSnd ref
   buckets  <- U.io $ RUUU.readSnd tbl
   let bucketsSize = ALM.size buckets
       shift       = 64 - ctzInt bucketsSize
@@ -258,7 +276,7 @@ insertWithHash k h v (SymTable tbl) = U.do
   let !(# b', old #) = insertToBucket src h k v b
   let size' = I# size + tag (UMaybe# old) - 1
   U.io $ ALM.write buckets ix b'
-  U.io $ RFF.writeFst ref size'
+  U.io $ RFFF.writeFst ref size'
   U.when (size' >= unsafeShiftR bucketsSize 1) $
     resize# (unsafeShiftL bucketsSize 1) (SymTable tbl)
   U.pure (UMaybe# old)
@@ -280,11 +298,33 @@ delete k tbl = U.do
   deleteWithHash k h tbl
 
 size :: SymTable -> U.IO Int
-size (SymTable tbl) = U.io $ RFF.readFst =<< RUUU.readFst tbl
+size (SymTable tbl) = U.io $ RFFF.readFst =<< RUUU.readFst tbl
 {-# inline size #-}
+
+byteString :: SymTable -> B.ByteString
+byteString (SymTable tbl) = runIO do
+  ref     <- RUUU.readFst tbl
+  Ptr end <- RFFF.readSnd ref
+  I# len  <- RFFF.readThd ref
+  fptr    <- RL.read =<< RUUU.readThd tbl
+  let start = plusAddr# end (negateInt# len)
+  pure $ B.BS (ForeignPtr start fptr) (I# len)
+
+spanToByteString :: SymTable -> Span -> B.ByteString
+spanToByteString (SymTable tbl) (Span (Pos (I# x)) (Pos (I# y))) = runIO do
+  Ptr end <- RFFF.readSnd =<< RUUU.readFst tbl
+  fptr    <- RL.read =<< RUUU.readThd tbl
+  let start = plusAddr# end (negateInt# x)
+      len   = x -# y
+  pure $ B.BS (ForeignPtr start fptr) (I# len)
+
+spanToString :: SymTable -> Span -> String
+spanToString tbl s = FP.unpackUTF8 (spanToByteString tbl s)
+
 
 -- testing
 --------------------------------------------------------------------------------
+
 
 assocs :: SymTable -> IO [(Span, Entry)]
 assocs (SymTable tbl) = do
@@ -311,7 +351,7 @@ testEqSpan str s s' = runIO $ B.unsafeUseAsCString str \(Ptr addr) -> do
   pure $ isTrue# (eqSpan# eob s s')
 
 -- test = do
---   tbl <- U.toIO $ new "yyyy"
+--   tbl <- U.toIO $ new ""
 --   U.toIO $ insert (Span (Pos 4) (Pos 2)) (Local 10 VU) tbl
 --   U.toIO $ insert (Span (Pos 2) (Pos 0)) (Local 20 VU) tbl
 --   mapM_ print =<< buckets tbl

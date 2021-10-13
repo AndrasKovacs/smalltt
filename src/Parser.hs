@@ -114,10 +114,10 @@ bind' = branch $(symbol' "_") (pure NEmpty) (NSpan <$> identBased pure)
 
 data Spans = SNil | SCons {-# unpack #-} Span Spans
 
-spansToPi :: Span ->  Icit ->  Tm -> Tm -> Spans -> Tm
+spansToPi :: Span ->  Icit -> Tm -> Tm -> Spans -> Tm
 spansToPi x i a b = \case
   SNil                 -> b
-  SCons (Span x1 _) xs -> Pi x1 (NSpan x) i a (spansToPi x i a b xs)
+  SCons (Span x1 _) xs -> Pi x1 (BSpan x) i a (spansToPi x i a b xs)
 
 manyIdents :: Parser Spans
 manyIdents = (idented \x -> SCons x <$> manyIdents) <|> pure SNil
@@ -139,7 +139,7 @@ pi' = do
         optional_ arrow
         b <- pi'
         let !res = spansToPi x Impl a b xs
-        pure $! Pi l (NSpan x) Impl a res
+        pure $! Pi l (BSpan x) Impl a res
 
     "(" -> ws >>
       (someIdented \x xs -> do
@@ -148,16 +148,16 @@ pi' = do
           optional_ arrow
           b <- pi'
           let !res = spansToPi x Expl a b xs
-          pure $! Pi l (NSpan x) Expl a res)
+          pure $! Pi l (BSpan x) Expl a res)
       <|>
       (do t <- tm' <* parR'
           branch arrow
-            (Pi l NEmpty Expl t <$> pi')
+            (Pi l BEmpty Expl t <$> pi')
             (pure t))
 
     _   -> ws >> do
       t <- app'
-      branch arrow (Pi l NEmpty Expl t <$> pi') (pure t)
+      branch arrow (Pi l BEmpty Expl t <$> pi') (pure t)
     |])
 
 goLamBraceL :: Pos -> Parser Tm
@@ -165,20 +165,20 @@ goLamBraceL pos = do
   ws
   branch $(symbol "_")
     (uoptioned (colon *> tm') \a -> do
-        Lam pos NEmpty (NoName Impl) a <$> (braceR' *> goLam))
+        Lam pos BEmpty (NoName Impl) a <$> (braceR' *> goLam))
     (idented' \x -> do
         branch eq
           (idented' \y ->
-             Lam pos (NSpan y) (Named x) UNothing <$> (braceR' *> goLam))
+             Lam pos (BSpan y) (Named x) UNothing <$> (braceR' *> goLam))
           (uoptioned (colon *> tm') \a ->
-            Lam pos (NSpan x) (NoName Impl) a <$> (braceR' *> goLam)))
+            Lam pos (BSpan x) (NoName Impl) a <$> (braceR' *> goLam)))
 
 goLamParL :: Pos -> Parser Tm
 goLamParL pos = do
   ws
   idented' \x -> do
     a <- colon' *> tm' <* parR'
-    Lam pos (NSpan x) (NoName Expl) (UJust a) <$> goLam
+    Lam pos (BSpan x) (NoName Expl) (UJust a) <$> goLam
 
 goLam :: Parser Tm
 goLam = do
@@ -187,16 +187,16 @@ goLam = do
     "{" -> goLamBraceL pos
     "(" -> goLamParL pos
     "." -> ws >> tm'
-    "_" -> ws >> Lam pos NEmpty (NoName Expl) UNothing <$> goLam
-    _   -> ws >> idented' \x -> Lam pos (NSpan x) (NoName Expl) UNothing <$> goLam
+    "_" -> ws >> Lam pos BEmpty (NoName Expl) UNothing <$> goLam
+    _   -> ws >> idented' \x -> Lam pos (BSpan x) (NoName Expl) UNothing <$> goLam
       |])
 
 lam' :: Pos -> Parser Tm
 lam' pos = lvl' >> $(switch [| case _ of
   "{" -> goLamBraceL pos
   "(" -> goLamParL pos
-  "_" -> ws >> Lam pos NEmpty (NoName Expl) UNothing <$> goLam
-  _   -> ws >> idented' \x -> Lam pos (NSpan x) (NoName Expl) UNothing <$> goLam
+  "_" -> ws >> Lam pos BEmpty (NoName Expl) UNothing <$> goLam
+  _   -> ws >> idented' \x -> Lam pos (BSpan x) (NoName Expl) UNothing <$> goLam
     |])
 
 pLet' :: Pos -> Parser Tm
@@ -233,7 +233,7 @@ topDef x = local (const 1) do
     local (const 0) (Definition x a rhs <$> top)
 
 top :: Parser TopLevel
-top =  (exactLvl 0 >> (idented pure >>= topDef))
+top =  (exactLvl 0 >> idented topDef)
    <|> (Nil <$ eof `cut` [Msg "end of file", Msg "top-level definition at column 1"])
 
 --------------------------------------------------------------------------------
@@ -249,6 +249,7 @@ parseFile path = do
   src <- B.readFile path
   let res = parse src
   pure (src, res)
+
 
 parseString :: String -> (B.ByteString, Result Error TopLevel)
 parseString  (packUTF8 -> str) = (str, parse str)

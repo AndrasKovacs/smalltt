@@ -31,7 +31,7 @@ data Error'
 
   deriving Show
 
-data Error = Error !Pos !Error'
+data Error = Error !Pos !Error' | DontUnboxError
   deriving Show
 
 merge :: Error -> Error -> Error
@@ -62,7 +62,8 @@ uoptional p = (UJust <$> p) <|> pure UNothing
 {-# inline uoptional #-}
 
 prettyError :: B.ByteString -> Error -> String
-prettyError b (Error pos e) =
+prettyError _ DontUnboxError = impossible
+prettyError b (Error pos e)  =
 
   let ls       = FP.lines b
       [(l, c)] = posLineCols b [pos]

@@ -12,7 +12,7 @@ module Common (
 
 import Prelude hiding (Monad(..), Applicative(..), IO)
 import Data.Bits
-import FlatParse.Stateful (Span(..), Pos(..), Result(..))
+import FlatParse.Stateful (Span(..), Pos(..), Result(..), unsafeSlice, unpackUTF8)
 import GHC.Exts
 import GHC.Stack
 import Data.Flat
@@ -152,25 +152,26 @@ lvlToIx :: Lvl -> Lvl -> Ix
 lvlToIx (Lvl envl) (Lvl l) = Ix (envl - l - 1)
 {-# inline lvlToIx #-}
 
+
 -- Names
 --------------------------------------------------------------------------------
 
--- data Name = NX | NEmpty | NSpan Span
+-- data Name = NEmpty | NX | NSpan Span
 data Name = Name# Int Int
 
 unName# :: Name -> (# (# #) | (# #) | Span #)
 unName# (Name# (-1) _) = (# (# #) | | #)
-unName# (Name# (-2) _) = (# |(# #) | #)
+unName# (Name# (-2) _) = (# | (# #) | #)
 unName# (Name# x y   ) = (# | | Span (Pos x) (Pos y) #)
 {-# inline unName# #-}
 
-pattern NX :: Name
-pattern NX <- (unName# -> (# (# #) | | #)) where
-  NX = Name# (-1) 0
-
 pattern NEmpty :: Name
-pattern NEmpty <- (unName# -> (# | (# #) | #))  where
-  NEmpty = Name# (-2) 0
+pattern NEmpty <- (unName# -> (# (# #) | | #))  where
+  NEmpty = Name# (-1) 0
+
+pattern NX :: Name
+pattern NX <- (unName# -> (# | (# #) | #)) where
+  NX = Name# (-2) 0
 
 pattern NSpan :: Span -> Name
 pattern NSpan sp <- (unName# -> (# | | sp #)) where
@@ -181,6 +182,48 @@ instance Show Name where
   showsPrec d NEmpty    = ('_':)
   showsPrec d NX        = ('x':)
   showsPrec d (NSpan x) = showsPrec d x
+
+showSpan :: B.ByteString -> Span -> String
+showSpan src s = unpackUTF8 $ unsafeSlice src s
+
+showName :: B.ByteString -> Name -> String
+showName src = \case
+  NEmpty  -> "_"
+  NX      -> "x"
+  NSpan s -> showSpan src s
+
+-- Binders
+--------------------------------------------------------------------------------
+
+-- data Bind = BEmpty | BSpan Span
+data Bind = Bind# Int Int
+
+unBind# :: Bind -> (# (# #) | Span #)
+unBind# (Bind# (-1) _) = (# (# #) | #)
+unBind# (Bind# x y   ) = (# | Span (Pos x) (Pos y) #)
+{-# inline unBind# #-}
+
+pattern BEmpty :: Bind
+pattern BEmpty <- (unBind# -> (# (# #) | #))  where
+  BEmpty = Bind# (-1) 0
+
+pattern BSpan :: Span -> Bind
+pattern BSpan sp <- (unBind# -> (# | sp #)) where
+  BSpan (Span (Pos x) (Pos y)) = Bind# x y
+{-# complete BEmpty, BSpan #-}
+
+instance Show Bind where
+  showsPrec d BEmpty    = ('_':)
+  showsPrec d (BSpan x) = showsPrec d x
+
+bind :: Bind -> Name
+bind (Bind# x y) = Name# x y
+{-# inline bind #-}
+
+showBind :: B.ByteString -> Bind -> String
+showBind src BEmpty    = "_"
+showBind src (BSpan x) = showSpan src x
+
 
 -- Span equality internals
 --------------------------------------------------------------------------------
