@@ -16,19 +16,34 @@ import FlatParse.Stateful (Span(..), Pos(..), Result(..), unsafeSlice, unpackUTF
 import GHC.Exts
 import GHC.Stack
 import Data.Flat
+import GHC.ForeignPtr
+import Data.List
+-- import Debug.Trace
 
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Internal as B
+import qualified UIO as U
 import qualified UIO
 
 #include "deriveCanIO.h"
 
 --------------------------------------------------------------------------------
 
+debug :: [String] -> UIO.IO ()
+debug strs =
+  U.io $ putStrLn (intercalate " | " strs ++ " END")
+
+-- debug :: [String] -> UIO.IO ()
+-- debug strs = U.pure ()
+
 -- type Dbg = () :: Constraint
 type Dbg = HasCallStack
+
+--------------------------------------------------------------------------------
+
 type Src = B.ByteString
 
-uf :: a
+uf :: Dbg => a
 uf = undefined
 
 impossible :: Dbg => a
@@ -192,6 +207,8 @@ showName src = \case
   NX      -> "x"
   NSpan s -> showSpan src s
 
+
+
 -- Binders
 --------------------------------------------------------------------------------
 
@@ -225,7 +242,7 @@ showBind src BEmpty    = "_"
 showBind src (BSpan x) = showSpan src x
 
 
--- Span equality internals
+-- Span equality
 --------------------------------------------------------------------------------
 
 -- | Read between 1 and 7 bytes from an address.
@@ -279,3 +296,8 @@ eqSpan# eob (Span (Pos (I# x)) (Pos (I# y))) (Span (Pos (I# x')) (Pos (I# y'))) 
         _  -> eqSpanGo  start start' len
     _  -> 0#
 {-# inline eqSpan# #-}
+
+eqSpan :: B.ByteString -> Span -> Span -> Bool
+eqSpan (B.BS (ForeignPtr base _) (I# len)) s s' =
+  isTrue# (eqSpan# (plusAddr# base len) s s')
+{-# inline eqSpan #-}

@@ -24,8 +24,11 @@ module SymTable (
   , size
   , eob
   , hash
+  , byteString
   , spanToString
   , spanToByteString
+  , assocs
+  , buckets
   -- , test
   , Entry(..)) where
 
@@ -326,17 +329,21 @@ spanToString tbl s = FP.unpackUTF8 (spanToByteString tbl s)
 --------------------------------------------------------------------------------
 
 
-assocs :: SymTable -> IO [(Span, Entry)]
-assocs (SymTable tbl) = do
+assocs :: SymTable -> IO [(String, Entry)]
+assocs stbl@(SymTable tbl) = do
   buckets <- ALM.unsafeFreeze =<< RUUU.readSnd tbl
   pure $ ALI.foldl'
-    (\acc b -> foldlBucket (\acc _ k v -> (k, v):acc) acc b) [] buckets
+    (\acc b -> foldlBucket
+      (\acc _ k v -> (spanToString stbl k, v):acc) acc b)
+      [] buckets
 
-buckets :: SymTable -> IO [[(Hash, Span, Entry)]]
-buckets (SymTable tbl) = do
+buckets :: SymTable -> IO [[(Hash, String, Entry)]]
+buckets stbl@(SymTable tbl) = do
   buckets <- ALM.unsafeFreeze =<< RUUU.readSnd tbl
   pure $ ALI.foldl'
-    (\acc b -> foldlBucket (\acc h k v -> (h, k, v):acc) [] b : acc) [] buckets
+    (\acc b -> foldlBucket
+        (\acc h k v -> (h, spanToString stbl k, v):acc) [] b : acc)
+        [] buckets
 
 testHash :: B.ByteString -> Span -> Hash
 testHash str s = runIO $ B.unsafeUseAsCString str \(Ptr addr) -> do

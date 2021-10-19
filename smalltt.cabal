@@ -25,6 +25,7 @@ library
       EnvMask
       Evaluation
       Exceptions
+      InCxt
       Lexer
       LvlSet
       MetaCxt

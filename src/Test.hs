@@ -11,13 +11,10 @@ import Common
 import CoreTypes
 import Elaboration
 import Evaluation
--- import qualified UIO as U
 import Parser
 import Lexer
 import Exceptions
 import MetaCxt
-import Pretty
-
 
 test :: B.ByteString -> IO ()
 test src = standardize do
@@ -30,10 +27,10 @@ test src = standardize do
 
   (ms, top) <- checkProg src top
 
+  putStrLn (replicate 80 '-')
   ADL.forIx ms \i e -> case e of
     MEUnsolved -> putStrLn $ show i ++ "?"
     MESolved v -> putStrLn $ show i ++ "? = " ++ showTm0 src top (quote0 ms UnfoldNone v)
-  putStrLn ""
 
   let goTop = \case
         Nil -> pure ()
@@ -45,6 +42,8 @@ test src = standardize do
   goTop top
 
 t1 = test $ packUTF8 $ unlines [
-  "id : (A : U) -> A -> A",
-  "  = \\A x. x"
+
+  -- "Nat = (N : U) → (N → N) → N → N",
+  "zero = λ N s z. z"
+  -- "suc : Nat → Nat = λ n N s z. s (n N s z)"
   ]

@@ -128,6 +128,7 @@ CAN_IO(RL.Ref a, UnliftedRep, MutVar# RealWorld a, RL.Ref x, CoeRL)
 CAN_IO(ALM.Array a, UnliftedRep, MutableArray# RealWorld a, ALM.Array x, CoeALM)
 CAN_IO(AFM.Array a, UnliftedRep, MutableByteArray# RealWorld, AFM.Array x, CoeAFM)
 CAN_IO(Ptr a, AddrRep, Addr#, Ptr x, CoePtr)
+CAN_IO([a], LiftedRep, [a], x, CoeList)
 
 type instance RepRep () = TupleRep '[]
 type instance Rep ()    = (# #)

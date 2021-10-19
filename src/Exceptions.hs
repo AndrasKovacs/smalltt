@@ -3,17 +3,19 @@
 module Exceptions where
 
 import GHC.Exts
+import Text.Printf
 import qualified Control.Exception as E
 import qualified Data.ByteString as B
 import qualified FlatParse.Basic as FP
-import Text.Printf
 
 import Common
+import CoreTypes
 import Cxt.Types
 import IO
+import InCxt
+
 import qualified Presyntax as P
 import qualified UIO as U
-import CoreTypes
 
 --------------------------------------------------------------------------------
 
@@ -23,10 +25,11 @@ data UnifyEx
 
 data Exception
   = UnifyError Cxt P.Tm Val Val    -- checking, lhs, rhs
-  | TooManyLocals Span             -- offending binder
+  | TooManyLocals
   | UnifyEx UnifyEx
-  | NoNamedArgument P.Tm Span  -- checking, name
-  | NotInScope Span            -- offending name
+  | NoNamedArgument P.Tm Span      -- checking, name
+  | NotInScope Span                -- offending name
+  | Undefined
 
 --------------------------------------------------------------------------------
 
@@ -70,31 +73,15 @@ render src (Span pos _) msg = let
 showException :: B.ByteString -> Exception -> String
 showException src = \case
   UnifyError cxt t l r -> render src (P.span t) $
-    printf "Can't unify\n\n  %s\n\nwith\n\n  %s\n" (showTm  _
-      -- (showVal0 cxt t) (showVal0 cxt u)
-
-  -- = UnifyError P.Tm Val Val    -- checking, lhs, rhs
-  -- | TooManyLocals Span         -- offending binder
-  -- | UnifyEx UnifyEx
-  -- | NoNamedArgument P.Tm Span  -- checking, name
-  -- | NotInScope Span            -- offending name
-
--- showElabEx :: B.ByteString -> TopLevel -> Cxt -> ElabEx -> String
--- showElabEx src top cxt = \case
---   UnifyOuter t u -> uf
-    -- printf "Can't unify\n\n  %s\n\nwith\n\n  %s\n"
-    --   (showTm src top _) (showTm src top _)
-
--- showElabError :: B.ByteString -> TopLevel -> Cxt -> P.Tm -> ElabEx -> String
--- showElabError src top cxt t e = let
---   ls         = FP.lines src
---   Span pos _ = P.span t
---   [(l, c)]   = FP.posLineCols src [pos]
---   line       = if l < length ls then ls !! l else ""
---   linum      = show l
---   lpad       = map (const ' ') linum
---   in show l ++ ":" ++ show c ++ ":\n" ++
---      lpad   ++ "|\n" ++
---      linum  ++ "| " ++ line ++ "\n" ++
---      lpad   ++ "| " ++ replicate c ' ' ++ "^\n" ++
---      showElabEx src top cxt e
+    printf "Can't unify\n\n  %s\n\nwith\n\n  %s\n"
+      (showVal cxt l) (showVal cxt r)
+  TooManyLocals ->
+    "Too many local variables! You can't have more than 64."
+  UnifyEx _ ->
+    "Unhandled unification exception"
+  NoNamedArgument t x -> render src (P.span t) $
+    "No named implicit argument with name " ++ showSpan src x
+  NotInScope x -> render src x $
+    "Name not in scope " ++ showSpan src x
+  Undefined ->
+    "Undefined exception"

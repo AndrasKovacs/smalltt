@@ -8,6 +8,12 @@ author:      "András Kovács"
 maintainer:  "puttamalac@gmail.com"
 copyright:   "2021 András Kovács"
 
+flags:
+  dump:
+    description: dump core, stg and cmm to files
+    default: false
+    manual: true
+
 dependencies:
 - base >= 4.7 && < 5
 
@@ -56,11 +62,15 @@ ghc-options:
   - -fmax-worker-args=20
   - -O2
   # - -fllvm
-  # - -ddump-simpl
-  # - -ddump-to-file
-  # - -dsuppress-all
-  # - -dno-suppress-type-signatures
-  # - -ddump-stg
+when:
+  - condition: flag(dump)
+    ghc-options:
+      - -ddump-simpl
+      - -ddump-stg
+      - -ddump-cmm
+      - -dsuppress-all
+      - -dno-suppress-type-signatures
+      - -ddump-to-file
 
 library:
   source-dirs:

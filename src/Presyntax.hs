@@ -70,5 +70,5 @@ span t = Span (left t) (right t) where
     Pi l x i a b   -> right b
     Lam l x i ma t -> right t
     App t u i      -> right u
-    U p            -> p
+    U (Pos p)      -> Pos (p - 1)
     Hole p         -> p

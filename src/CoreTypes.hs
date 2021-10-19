@@ -15,20 +15,21 @@ module CoreTypes (
   , pattern UHTopVar
   , pattern UHSolved
   , Names(..)
-  , prettyTm
   , showTm0
+  , prettyTm
   ) where
 
 import qualified Data.ByteString as B
-import GHC.Exts
-
-import qualified UIO
-import Common
-import EnvMask (EnvMask)
 import qualified EnvMask as EM
+import qualified UIO
+
+import Common
 import Data.Bits
+import EnvMask (EnvMask)
 
 #include "deriveCanIO.h"
+
+--------------------------------------------------------------------------------
 
 data Spine
   = SId
@@ -62,8 +63,6 @@ data Val
 
 CAN_IO(Val, LiftedRep, Val, x, CoeVal)
 
-------------------------------------------------------------
-
 type Ty = Tm
 
 data Tm
@@ -89,9 +88,9 @@ data TopLevel
 CAN_IO(TopLevel, LiftedRep, TopLevel, x, CoeTopLevel)
 
 topSpan :: Lvl -> TopLevel -> Span
-topSpan 0 (Definition x _ _ _) = x
+topSpan 0 (Definition x _ _ _)   = x
 topSpan x (Definition _ _ _ top) = topSpan (x - 1) top
-topSpan _ _ = impossible
+topSpan _ _                      = impossible
 
 ------------------------------------------------------------
 
@@ -137,8 +136,8 @@ getTop :: Names -> TopLevel
 getTop (NNil top)   = top
 getTop (NCons ns _) = getTop ns
 
-showTop :: B.ByteString -> Names -> Lvl -> String
-showTop src ns x = showSpan src (topSpan x (getTop ns))
+showTop :: B.ByteString -> TopLevel -> Lvl -> String
+showTop src top x = showSpan src (topSpan x top)
 
 
 -- Pretty printing
@@ -155,19 +154,37 @@ letp  = 0  :: Int -- let, lambda
 par :: Int -> Int -> ShowS -> ShowS
 par p p' = showParen (p' < p)
 
-prettyTm :: Int -> B.ByteString -> Names -> [String] -> Tm -> ShowS
-prettyTm prec src ns = go prec where
+prettyTm :: Int -> B.ByteString -> Names -> Tm -> ShowS
+prettyTm prec src ns t = go prec ns t where
 
-  fresh :: [String] -> String -> String
-  fresh ns "_" = "_"
-  fresh ns x | elem x ns = fresh ns (x ++ "'")
-             | otherwise = x
+  eqName :: Name -> Name -> Bool
+  eqName (NSpan x) (NSpan x') = eqSpan src x x'
+  eqName NX        NX         = True
+  eqName NEmpty    NEmpty     = True
+  eqName _         _          = False
 
-  freshN :: [String] -> Name -> String
-  freshN ns = fresh ns . showName src
+  count :: Names -> Name -> Int
+  count ns n = go ns 0 where
+    go NNil{}        acc = acc
+    go (NCons ns n') acc
+      | eqName n n' = go ns (acc + 1)
+      | otherwise   = go ns acc
 
-  freshS :: [String] -> Span -> String
-  freshS ns = fresh ns . showSpan src
+  counted :: String -> Int -> String
+  counted x 0 = x
+  counted x n = x ++ show n
+
+  fresh :: Names -> Name -> (Name, String)
+  fresh ns NEmpty    = (NEmpty, "_")
+  fresh ns NX        = (NX, counted "x" (count ns NX))
+  fresh ns (NSpan x) = (NSpan x, counted (showSpan src x) (count ns (NSpan x)))
+
+  freshS ns x = fresh ns (NSpan x)
+
+  local :: Names -> Ix -> String
+  local (NCons ns n) 0 = snd (fresh ns n)
+  local (NCons ns n) x = local ns (x - 1)
+  local _            _ = impossible
 
   bracket :: ShowS -> ShowS
   bracket ss = ('{':).ss.('}':)
@@ -178,44 +195,46 @@ prettyTm prec src ns = go prec where
   lamBind x Impl = bracket (x++)
   lamBind x Expl = (x++)
 
-  goMask :: Int -> [String] -> MetaVar -> EM.EnvMask -> ShowS
+  goMask :: Int -> Names -> MetaVar -> EM.EnvMask -> ShowS
   goMask p ns m mask = fst (go ns) where
-    go :: [String] -> (ShowS, Lvl)
-    go []     = (((show m ++) . ('?':)), 0)
-    go (x:xs) = case go xs of
-      (s, l) -> EM.looked l mask (s, l + 1) (\_ -> ((par p appp $ s . (' ':) . (x++)), l + 1))
+    go :: Names -> (ShowS, Lvl)
+    go (NNil _) =
+      (((show m ++) . ('?':)), 0)
+    go (NCons ns (fresh ns -> (n, x))) = case go ns of
+      (s, l) -> EM.looked l mask
+        (s, l + 1)
+        (\_ -> ((par p appp $ s . (' ':) . (x++)), l + 1))
 
-  go :: Int -> [String] -> Tm -> ShowS
+  go :: Int -> Names -> Tm -> ShowS
   go p ns = \case
-    LocalVar x                 -> ((ns !! coerce x)++)
+    LocalVar x   -> (local ns x++)
+    App t u Expl -> par p appp $ go appp ns t . (' ':) . go atomp ns u
+    App t u Impl -> par p appp $ go appp ns t . (' ':) . bracket (go letp ns u)
 
-    App t u Expl               -> par p appp $ go appp ns t . (' ':) . go atomp ns u
-    App t u Impl               -> par p appp $ go appp ns t . (' ':) . bracket (go letp ns u)
+    Lam (fresh ns -> (n, x)) i t ->
+      par p letp $ ("λ "++) . lamBind x i . goLam (NCons ns n) t where
+        goLam ns (Lam (fresh ns -> (n, x)) i t) =
+          (' ':) . lamBind x i . goLam (NCons ns n) t
+        goLam ns t =
+          (". "++) . go letp ns t
 
-    Lam (freshN ns -> x) i t   -> par p letp $ ("λ "++) . lamBind x i . goLam (x:ns) t where
-                                    goLam ns (Lam (freshN ns -> x) i t) = (' ':) . lamBind x i . goLam (x:ns) t
-                                    goLam ns t                          = (". "++) . go letp ns t
+    U                   -> ("U"++)
+    Pi NEmpty Expl a b  -> par p pip $ go appp ns a . (" → "++) . go pip (NCons ns NEmpty) b
 
-    U                          -> ("U"++)
+    Pi (fresh ns -> (n, x)) i a b ->
+      par p pip $ piBind ns x i a . goPi (NCons ns n) b where
+        goPi ns (Pi (fresh ns -> (n, x)) i a b)
+          | x /= "_" = piBind ns x i a . goPi (NCons ns n) b
+        goPi ns b = (" → "++) . go pip ns b
 
-    Pi NEmpty Expl a b         -> par p pip $ go appp ns a . (" → "++) . go pip ("_":ns) b
+    Let (freshS ns -> (n, x)) a t u ->
+      par p letp $ ("let "++) . (x++) . (" : "++) . go letp ns a
+      . ("\n  = "++) . go letp ns t . (";\n\n"++) . go letp (NCons ns n) u
 
-    Pi (freshN ns -> x) i a b  -> par p pip $ piBind ns x i a . goPi (x:ns) b where
-                                   goPi ns (Pi (freshN ns -> x) i a b)
-                                     | x /= "_" = piBind ns x i a . goPi (x:ns) b
-                                   goPi ns b = (" → "++) . go pip ns b
+    Meta m              -> (show m ++) . ('?':)
+    InsertedMeta m mask -> goMask p ns m mask
+    TopVar x _          -> (showTop src (getTop ns) x ++)
+    Irrelevant          -> ("Irrelevant"++)
 
-    Let (freshS ns -> x) a t u -> par p letp $ ("let "++) . (x++) . (" : "++) . go letp ns a
-                                 . ("\n  = "++) . go letp ns t . (";\n\n"++) . go letp (x:ns) u
-
-    Meta m                     -> (show m ++) . ('?':)
-    InsertedMeta m mask        -> goMask p ns m mask
-    TopVar x _                 -> uf -- showTop src _ _ -- (showSpan src (topSpan x top) ++)
-    Irrelevant                 -> ("Irrelevant"++)
-
-
-showTm :: Cxt -> Tm -> String
-showTm cxt t = uf
-
-showTm0 :: B.ByteString -> Tm -> String
-showTm0 src t = prettyTm 0 src top [] t []
+showTm0 :: B.ByteString -> TopLevel -> Tm -> String
+showTm0 src top t = prettyTm 0 src (NNil top) t []
