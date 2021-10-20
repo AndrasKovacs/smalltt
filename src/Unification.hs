@@ -2,6 +2,10 @@
 
 module Unification where
 
+import IO
+import GHC.Exts
+import qualified Data.Array.FM as AFM
+
 import Common
 import CoreTypes
 import Evaluation
@@ -10,9 +14,6 @@ import qualified MetaCxt as MC
 import qualified UIO as U
 import qualified UIO
 import Exceptions
-
-import GHC.Exts
-import qualified Data.Array.FM as AFM
 
 #include "deriveCanIO.h"
 
@@ -35,6 +36,11 @@ data PartialRenaming = PRen {
   , cod    :: Lvl
   , ren    :: AFM.Array Lvl
   }
+
+instance Show PartialRenaming where
+  show (PRen occ dom cod ren) = runIO do
+    ren <- AFM.unsafeFreeze ren
+    pure $ show (occ, dom, cod, ren)
 
 CAN_IO4(PartialRenaming
      , TupleRep [ IntRep COMMA IntRep COMMA IntRep COMMA UnliftedRep ]
@@ -92,14 +98,13 @@ rename ms pren v = U.do
                 | otherwise         -> goSp (Meta m') sp
 
     VLocalVar x sp -> U.do
-      let renLen = coerce $ AFM.size (ren pren)
-      if x < renLen then U.do
+      if x < coerce (AFM.size (ren pren)) then U.do
         y <- U.io $ AFM.read (ren pren) (coerce x)
         case y of
           (-1) -> throw $ UnifyEx Conversion -- scope error
           y    -> goSp (LocalVar (lvlToIx (dom pren) y)) sp
       else
-        goSp (LocalVar (lvlToIx (dom pren) (x - (cod pren - renLen)))) sp
+        goSp (LocalVar (lvlToIx (dom pren) (x - (cod pren - dom pren)))) sp
 
     VLam x i t  -> Lam x i U.<$> goBind t
     VPi x i a b -> Pi x i U.<$> go a U.<*> goBind b
@@ -116,6 +121,7 @@ solve ms l cs x sp rhs = U.do
   U.when (cs == CSFlex) $ throw $ UnifyEx CSFlexSolution
   pren <- invertSp ms l x sp
   rhs <- lams sp U.<$> rename ms pren rhs
+  debug ["solve", show x, show pren, show rhs]
   MC.solve ms x (eval ms ENil rhs)
 
 unifySp :: MetaCxt -> Lvl -> ConvState -> Spine -> Spine -> U.IO ()

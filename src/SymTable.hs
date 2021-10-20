@@ -62,12 +62,12 @@ import qualified UIO as U
 --------------------------------------------------------------------------------
 
 data Entry
-  = Top Lvl Ty ~VTy Tm ~Val  -- name, level, type, type val, def, def val
+  = Top Lvl Ty ~VTy Tm ~Val  -- level, type, type val, def, def val
   | Local Lvl ~VTy           -- level, type val
 
 instance Show Entry where
-  show (Local x _)     = show x
-  show (Top x _ _ _ _) = show x
+  show (Local x _)     = "Loc " ++ show x
+  show (Top x _ _ _ _) = "Top " ++ show x
 
 -- Span hashing
 --------------------------------------------------------------------------------

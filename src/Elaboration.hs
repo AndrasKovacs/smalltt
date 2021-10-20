@@ -5,6 +5,7 @@ module Elaboration (checkProg) where
 
 import qualified Data.ByteString as B
 import System.Exit
+import GHC.Exts
 
 import Common
 import CoreTypes
@@ -96,7 +97,7 @@ insertUntilName topT cxt name act = go cxt U.=<< act where
 
 infer :: Cxt -> P.Tm -> U.IO Infer
 infer cxt topT = U.do
-  debug ["infer", showPTm cxt topT]
+  debug ["infer", showPTm cxt topT, show (P.span topT)]
 
   Infer t a <- case topT of
     P.Var px -> U.do
@@ -105,10 +106,13 @@ infer cxt topT = U.do
         UNothing                   -> throw $ NotInScope px
         UJust (ST.Local x va)      -> U.do
           foo <- U.io $ ST.assocs (tbl cxt)
-          debug ["local var", show foo, showSpan (src cxt) px, show x, show $ lvlToIx (lvl cxt) x, show $ lvl cxt]
-
+          debug ["local var", show foo, showSpan (src cxt) px, show x,
+                 show $ lvlToIx (lvl cxt) x, show $ lvl cxt]
           U.pure (Infer (LocalVar (lvlToIx (lvl cxt) x)) va)
-        UJust (ST.Top x _ va _ vt) -> U.pure (Infer (TopVar x vt) va)
+        UJust (ST.Top x _ va _ vt) -> U.do
+          foo <- U.io $ ST.assocs (tbl cxt)
+          debug ["top var", show foo, showSpan (src cxt) px, show x]
+          U.pure (Infer (TopVar x vt) va)
 
     P.Let _ x ma t u -> U.do
         a <- checkAnnot cxt ma
@@ -152,8 +156,16 @@ infer cxt topT = U.do
       U.pure (Infer (Pi (bind x) i a b) VU)
 
     P.Lam _ b inf ma t -> U.do
-      debug ["MALLAC"]
       throw Undefined
+
+    -- P.Lam x (Right i) ma t -> do
+    --   a  <- eval (env cxt) <$> case ma of
+    --     Nothing -> freshMeta cxt VU
+    --     Just a  -> check cxt a VU
+
+    --   let cxt' = bind cxt x a
+    --   (t, b) <- insert cxt' $ infer cxt' t
+    --   pure (Lam x i t, VPi x i a $ valToClosure cxt b)
 
     P.U _ ->
       U.pure $ Infer U VU
@@ -163,7 +175,7 @@ infer cxt topT = U.do
       t  <- freshMeta cxt
       U.pure $ Infer t va
 
-  debug ["inferred", showTm cxt t, showVal cxt a]
+  debug ["inferred", showTm cxt t, showVal cxt a, show (P.span topT)]
   U.pure (Infer t a)
 
 checkAnnot :: Cxt -> UMaybe P.Tm -> U.IO Tm
@@ -176,7 +188,7 @@ check :: Cxt -> P.Tm -> VTy -> U.IO Tm
 check cxt topT a = U.do
   debug ["check", showPTm cxt topT, showVal cxt a]
 
-  case (,) $$! topT $$! a of
+  case (topT, forceFU cxt a) of
     (P.Lam _ x inf ma t, VPi x' i a b)
       | (case inf of P.NoName i' -> i == i'
                      P.Named n   -> eqName cxt x' (NSpan n) && i == Impl) -> U.do
@@ -208,12 +220,15 @@ check cxt topT a = U.do
       unifyCxt cxt topT inferred expected
       U.pure t
 
-checkTopLevel :: SymTable -> MetaCxt -> Lvl -> P.TopLevel -> TopLevel -> U.IO TopLevel
+CAN_IO2((Lvl, TopLevel), TupleRep [IntRep COMMA LiftedRep], (# Int#, TopLevel #), (Lvl (I# x), y), CoeLvlTop)
+
+checkTopLevel :: SymTable -> MetaCxt -> Lvl -> P.TopLevel -> TopLevel -> U.IO (Lvl, TopLevel)
 checkTopLevel tbl ms topLvl ptop acc = case ptop of
   P.Nil ->
-    U.pure acc
+    U.pure (topLvl, acc)
   P.Definition x ma t u -> U.do
-    let cxt = empty tbl ms acc
+    debug ["TOP DEF", showSpan (ST.byteString tbl) x]
+    let cxt = empty tbl ms topLvl acc
     a <- checkAnnot cxt ma
     let ~va = E.eval ms ENil a
     t <- check cxt t va
@@ -221,11 +236,11 @@ checkTopLevel tbl ms topLvl ptop acc = case ptop of
     ST.insert x (ST.Top topLvl a va t vt) tbl
     checkTopLevel tbl ms (topLvl + 1) u (Definition x a t acc)
 
-checkProg :: B.ByteString -> P.TopLevel -> IO (MetaCxt, TopLevel)
+checkProg :: B.ByteString -> P.TopLevel -> IO (MetaCxt, Lvl, TopLevel)
 checkProg src top = do
   tbl <- U.toIO $ ST.new src
   ms  <- MC.new
-  top <- U.toIO $ checkTopLevel tbl ms 0 top Nil `catch` \e -> U.do
-           U.io $ putStrLn (showException src e)
-           U.io exitSuccess
-  pure (ms, top)
+  (len, top) <- U.toIO $ checkTopLevel tbl ms 0 top Nil `catch` \e -> U.do
+     U.io $ putStrLn (showException src e)
+     U.io exitSuccess
+  pure (ms, len, top)

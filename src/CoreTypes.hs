@@ -87,10 +87,15 @@ data TopLevel
 
 CAN_IO(TopLevel, LiftedRep, TopLevel, x, CoeTopLevel)
 
-topSpan :: Lvl -> TopLevel -> Span
+topSpan :: Dbg => Ix -> TopLevel -> Span
 topSpan 0 (Definition x _ _ _)   = x
 topSpan x (Definition _ _ _ top) = topSpan (x - 1) top
 topSpan _ _                      = impossible
+
+topLen :: TopLevel -> Int
+topLen = go 0 where
+  go acc Nil = acc
+  go acc (Definition _ _ _ t) = go (acc + 1) t
 
 ------------------------------------------------------------
 
@@ -124,7 +129,7 @@ instance Show UnfoldHead where
 --------------------------------------------------------------------------------
 
 data Names
-  = NNil TopLevel
+  = NNil Lvl TopLevel  -- ^ Number of top defs, top defs
   | NCons Names {-# unpack #-} Name
 
 showLocal :: B.ByteString -> Names -> Ix -> String
@@ -132,11 +137,11 @@ showLocal src (NCons _ x)  0 = showName src x
 showLocal src (NCons ns _) l = showLocal src ns (l - 1)
 showLocal _   _            _ = impossible
 
-getTop :: Names -> TopLevel
-getTop (NNil top)   = top
-getTop (NCons ns _) = getTop ns
+getTop :: Names -> (Lvl, TopLevel)
+getTop (NNil lvl top) = (lvl, top)
+getTop (NCons ns _)   = getTop ns
 
-showTop :: B.ByteString -> TopLevel -> Lvl -> String
+showTop :: Dbg => B.ByteString -> TopLevel -> Ix -> String
 showTop src top x = showSpan src (topSpan x top)
 
 
@@ -198,12 +203,18 @@ prettyTm prec src ns t = go prec ns t where
   goMask :: Int -> Names -> MetaVar -> EM.EnvMask -> ShowS
   goMask p ns m mask = fst (go ns) where
     go :: Names -> (ShowS, Lvl)
-    go (NNil _) =
+    go (NNil _ _) =
       (((show m ++) . ('?':)), 0)
     go (NCons ns (fresh ns -> (n, x))) = case go ns of
       (s, l) -> EM.looked l mask
         (s, l + 1)
         (\_ -> ((par p appp $ s . (' ':) . (x++)), l + 1))
+
+  goTop :: Lvl -> ShowS
+  goTop x = case getTop ns of
+    (len, top) -> UIO.run UIO.do
+      debug ["pretty.goTop", show len, show x, show $ topLen top]
+      UIO.pure (showTop src top (lvlToIx len x) ++)
 
   go :: Int -> Names -> Tm -> ShowS
   go p ns = \case
@@ -233,8 +244,8 @@ prettyTm prec src ns t = go prec ns t where
 
     Meta m              -> (show m ++) . ('?':)
     InsertedMeta m mask -> goMask p ns m mask
-    TopVar x _          -> (showTop src (getTop ns) x ++)
+    TopVar x _          -> goTop x
     Irrelevant          -> ("Irrelevant"++)
 
-showTm0 :: B.ByteString -> TopLevel -> Tm -> String
-showTm0 src top t = prettyTm 0 src (NNil top) t []
+showTm0 :: B.ByteString -> Lvl -> TopLevel -> Tm -> String
+showTm0 src len top t = prettyTm 0 src (NNil len top) t []
