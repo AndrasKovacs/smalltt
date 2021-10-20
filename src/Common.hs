@@ -18,7 +18,6 @@ import GHC.Stack
 import Data.Flat
 import GHC.ForeignPtr
 import Data.List
--- import Debug.Trace
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Internal as B

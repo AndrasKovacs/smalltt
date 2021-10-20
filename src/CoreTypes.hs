@@ -213,7 +213,7 @@ prettyTm prec src ns t = go prec ns t where
   goTop :: Lvl -> ShowS
   goTop x = case getTop ns of
     (len, top) -> UIO.run UIO.do
-      debug ["pretty.goTop", show len, show x, show $ topLen top]
+      -- debug ["pretty.goTop", show len, show x, show $ topLen top]
       UIO.pure (showTop src top (lvlToIx len x) ++)
 
   go :: Int -> Names -> Tm -> ShowS

@@ -16,6 +16,8 @@ import Lexer
 import Exceptions
 import MetaCxt
 
+-- TODO: use some sensible array instead of list shenanigans for TopLevel
+
 test :: B.ByteString -> IO ()
 test src = standardize do
   top <- case parse src of
@@ -45,14 +47,13 @@ t1 = test $ packUTF8 $ unlines [
 
   "Nat  : U   = (N : U) → (N → N) → N → N",
   "zero : Nat = λ N s z. z",
-  "foo  = zero"
-  -- "suc  : Nat → Nat = λ n N s z. s (n N s z)",
-  -- "add  : Nat → Nat → Nat = λ a b N s z. a N s (b N s z)",
-  -- "mul  : Nat → Nat → Nat = λ a b N s. a N (b N s)",
-  -- "n5   : Nat = λ N s z. s (s (s (s (s z))))",
-  -- "n2 : Nat = λ N s z. s (s z)",
-  -- "n4       = add n2 n2"
-  -- "n10b  = mul n5 n2"
-  -- "n100  = mul n10 n10",
-  -- "n100b = mul n10b n10b"
+  "suc  : Nat → Nat = λ n N s z. s (n N s z)",
+  "add  : Nat → Nat → Nat = λ a b N s z. a N s (b N s z)",
+  "mul  : Nat → Nat → Nat = λ a b N s. a N (b N s)",
+  "n5   : Nat = λ N s z. s (s (s (s (s z))))",
+  "n2   : Nat = λ N s z. s (s z)",
+  "n10   = add n5 n5",
+  "n10b  = mul n5 n2",
+  "n100  = mul n10 n10",
+  "n100b = mul n10b n10b"
   ]
