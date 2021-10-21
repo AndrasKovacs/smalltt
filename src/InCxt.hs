@@ -59,3 +59,8 @@ eqName cxt (NSpan x) (NSpan x') = runIO do
   Ptr eob <- ST.eob (tbl cxt)
   pure $! isTrue# (eqSpan# eob x x')
 eqName _   _         _          = False
+
+valToClosure :: Cxt -> Val -> Closure
+valToClosure cxt t =
+  Closure (env cxt) (E.quote (mcxt cxt) (lvl cxt + 1) UnfoldNone t)
+{-# inline valToClosure #-}

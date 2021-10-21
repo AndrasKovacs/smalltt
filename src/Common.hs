@@ -1,4 +1,5 @@
 {-# language UnboxedTuples, UnboxedSums #-}
+{-# options_ghc -Wno-unused-imports #-}
 
 module Common (
     module Common
@@ -28,15 +29,15 @@ import qualified UIO
 
 --------------------------------------------------------------------------------
 
-debug :: [String] -> UIO.IO ()
-debug strs =
-  U.io $ putStrLn (intercalate " | " strs ++ " END")
-
 -- debug :: [String] -> UIO.IO ()
--- debug strs = U.pure ()
+-- debug strs =
+--   U.io $ putStrLn (intercalate " | " strs ++ " END")
 
--- type Dbg = () :: Constraint
-type Dbg = HasCallStack
+debug :: [String] -> UIO.IO ()
+debug strs = U.pure ()
+
+type Dbg = () :: Constraint
+-- type Dbg = HasCallStack
 
 --------------------------------------------------------------------------------
 

@@ -9,6 +9,7 @@ module UIO where
 import Prelude hiding (
   Functor(..), (<$>), (<$), Applicative(..), (<*), (*>), Monad(..), IO)
 
+import FlatParse.Stateful (Pos(..), Span(..))
 import GHC.Exts
 import qualified "primdata" IO as StdIO
 
@@ -129,6 +130,7 @@ CAN_IO(ALM.Array a, UnliftedRep, MutableArray# RealWorld a, ALM.Array x, CoeALM)
 CAN_IO(AFM.Array a, UnliftedRep, MutableByteArray# RealWorld, AFM.Array x, CoeAFM)
 CAN_IO(Ptr a, AddrRep, Addr#, Ptr x, CoePtr)
 CAN_IO([a], LiftedRep, [a], x, CoeList)
+CAN_IO2(Span, TupleRep [IntRep COMMA IntRep], (# Int#, Int# #), Span (Pos (I# x)) (Pos (I# y)), CoeSpan)
 
 type instance RepRep () = TupleRep '[]
 type instance Rep ()    = (# #)

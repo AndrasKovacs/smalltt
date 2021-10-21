@@ -13,8 +13,8 @@ import MetaCxt (MetaCxt)
 import SymTable (SymTable(..))
 import Exceptions
 
-empty :: SymTable -> MetaCxt -> Lvl -> TopLevel -> Cxt
-empty tbl ms len top = Cxt 0 ENil EM.empty tbl ms (NNil len top)
+empty :: SymTable -> MetaCxt -> TopLevel -> Cxt
+empty tbl ms top = Cxt 0 ENil EM.empty tbl ms (NNil top)
 {-# inline empty #-}
 
 binding :: U.CanIO a => Cxt -> Bind -> Icit -> VTy -> (Cxt -> Val -> U.IO a) -> U.IO a

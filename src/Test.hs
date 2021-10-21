@@ -6,6 +6,7 @@ import FlatParse.Stateful (packUTF8)
 import System.Exit
 
 import qualified Data.Array.Dynamic.L as ADL
+import qualified Data.Array.LM as ALM
 
 import Common
 import CoreTypes
@@ -27,24 +28,29 @@ test src = standardize do
 
   -- print top
 
-  (ms, len, top) <- checkProg src top
+  (ms, top) <- checkProg src top
 
+  putStrLn ""
   putStrLn (replicate 80 '-')
+  putStrLn ""
   ADL.forIx ms \i e -> case e of
     MEUnsolved -> putStrLn $ show i ++ "?"
-    MESolved v -> putStrLn $ show i ++ "? = " ++ showTm0 src len top (quote0 ms UnfoldNone v)
+    MESolved v -> putStrLn $ show i ++ "? = " ++ showTm0 src top (quote0 ms UnfoldNone v)
 
-  let goTop (pred -> len) = \case
-        Nil -> pure ()
-        Definition x a t top -> do
-          goTop len top
-          putStrLn ""
-          putStrLn $ showSpan src x ++ " : " ++ showTm0 src len top a
-          putStrLn $ "  = " ++ showTm0 src len top t
-  goTop len top
+  ALM.for (topDefs top) \(TopEntry x a t) -> do
+    putStrLn ""
+    putStrLn $ showSpan src x ++ " : " ++ showTm0 src top a
+    putStrLn $ "  = " ++ showTm0 src top t
+
+t2 = test $ packUTF8 $ unlines [
+  "Nat  : U   = (N : U) → (N → N) → N → N",
+  "zero : Nat = λ N s z. z",
+  "suc  : Nat → Nat = λ n N s z. s (n N s z)",
+  "add  : Nat → Nat → Nat = λ a b N s z. a N s (b N s z)",
+  "foo = λ x. add (suc (suc x)) (suc zero)"
+  ]
 
 t1 = test $ packUTF8 $ unlines [
-
   "Nat  : U   = (N : U) → (N → N) → N → N",
   "zero : Nat = λ N s z. z",
   "suc  : Nat → Nat = λ n N s z. s (n N s z)",

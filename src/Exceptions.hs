@@ -30,6 +30,7 @@ data Exception
   | NoNamedArgument P.Tm Span      -- checking, name
   | NotInScope Span                -- offending name
   | Undefined
+  | InferNamedLam
 
 --------------------------------------------------------------------------------
 
@@ -85,3 +86,5 @@ showException src = \case
     "Name not in scope " ++ showSpan src x
   Undefined ->
     "Undefined exception"
+  InferNamedLam ->
+    "Cannot infer type for lambda with named argument"

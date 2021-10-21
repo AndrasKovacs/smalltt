@@ -10,7 +10,10 @@ module CoreTypes (
   , Val(..)
   , Tm(..)
   , TopLevel(..)
+  , TopEntry(..)
   , topSpan
+  , topDefine
+  , newTop
   , UnfoldHead
   , pattern UHTopVar
   , pattern UHSolved
@@ -20,8 +23,13 @@ module CoreTypes (
   ) where
 
 import qualified Data.ByteString as B
+import qualified Data.Array.LM   as ALM
+
+import GHC.Exts
+
 import qualified EnvMask as EM
 import qualified UIO
+import qualified UIO as U
 
 import Common
 import Data.Bits
@@ -80,22 +88,35 @@ data Tm
 
 CAN_IO(Tm, LiftedRep, Tm, x, CoeTm)
 
-data TopLevel
-  = Nil
-  | Definition Span Tm Tm TopLevel
-  deriving Show
+--------------------------------------------------------------------------------
 
-CAN_IO(TopLevel, LiftedRep, TopLevel, x, CoeTopLevel)
+data TopEntry = TopEntry {-# unpack #-} Span Tm Tm  -- name, type, definition
 
-topSpan :: Dbg => Ix -> TopLevel -> Span
-topSpan 0 (Definition x _ _ _)   = x
-topSpan x (Definition _ _ _ top) = topSpan (x - 1) top
-topSpan _ _                      = impossible
+-- | Stores top-level definitions. The stored length indicates the part of the array
+--   which is defined, the rest is un-initialized.
+data TopLevel = TopLevel {topLen :: Lvl , topDefs :: ALM.Array TopEntry }
 
-topLen :: TopLevel -> Int
-topLen = go 0 where
-  go acc Nil = acc
-  go acc (Definition _ _ _ t) = go (acc + 1) t
+CAN_IO2(TopLevel,
+       TupleRep [IntRep COMMA UnliftedRep],
+       (# Int#, MutableArray# RealWorld TopEntry #), TopLevel (Lvl (I# x)) (ALM.Array y), CoeTopLevel)
+
+newTop :: Int -> U.IO TopLevel
+newTop l = U.do
+  defs <- U.io $ ALM.new l (error "undefined top-level entry")
+  U.pure (TopLevel 0 defs)
+{-# inline newTop #-}
+
+topDefine :: Span -> Tm -> Ty -> TopLevel -> U.IO TopLevel
+topDefine x a t (TopLevel len defs) = U.do
+  U.io $ ALM.write defs (coerce len) (TopEntry x a t)
+  U.pure (TopLevel (len + 1) defs)
+{-# inline topDefine #-}
+
+topSpan :: Lvl -> TopLevel -> U.IO Span
+topSpan x (TopLevel _ defs) = U.io do
+  TopEntry x _ _  <- ALM.read defs (coerce x)
+  pure x
+{-# inline topSpan #-}
 
 ------------------------------------------------------------
 
@@ -128,8 +149,12 @@ instance Show UnfoldHead where
 
 --------------------------------------------------------------------------------
 
+-- | Data structure holding enough name information to pretty print things.
+--   This is a bit peculiar, because it is optimized for fast extension during
+--   elab. The top env is stored at the end, and we can extend it with local
+--   names with just single NCons.
 data Names
-  = NNil Lvl TopLevel  -- ^ Number of top defs, top defs
+  = NNil {-# unpack #-} TopLevel
   | NCons Names {-# unpack #-} Name
 
 showLocal :: B.ByteString -> Names -> Ix -> String
@@ -137,12 +162,12 @@ showLocal src (NCons _ x)  0 = showName src x
 showLocal src (NCons ns _) l = showLocal src ns (l - 1)
 showLocal _   _            _ = impossible
 
-getTop :: Names -> (Lvl, TopLevel)
-getTop (NNil lvl top) = (lvl, top)
-getTop (NCons ns _)   = getTop ns
+getTop :: Names -> TopLevel
+getTop (NNil top)   = top
+getTop (NCons ns _) = getTop ns
 
-showTop :: Dbg => B.ByteString -> TopLevel -> Ix -> String
-showTop src top x = showSpan src (topSpan x top)
+-- showTop :: Dbg => B.ByteString -> TopLevel -> Ix -> String
+-- showTop src top x = showSpan src (topSpan x top)
 
 
 -- Pretty printing
@@ -203,7 +228,7 @@ prettyTm prec src ns t = go prec ns t where
   goMask :: Int -> Names -> MetaVar -> EM.EnvMask -> ShowS
   goMask p ns m mask = fst (go ns) where
     go :: Names -> (ShowS, Lvl)
-    go (NNil _ _) =
+    go NNil{} =
       (((show m ++) . ('?':)), 0)
     go (NCons ns (fresh ns -> (n, x))) = case go ns of
       (s, l) -> EM.looked l mask
@@ -211,10 +236,8 @@ prettyTm prec src ns t = go prec ns t where
         (\_ -> ((par p appp $ s . (' ':) . (x++)), l + 1))
 
   goTop :: Lvl -> ShowS
-  goTop x = case getTop ns of
-    (len, top) -> UIO.run UIO.do
-      -- debug ["pretty.goTop", show len, show x, show $ topLen top]
-      UIO.pure (showTop src top (lvlToIx len x) ++)
+  goTop x =
+    ((U.run (showSpan src U.<$> topSpan x (getTop ns)))++)
 
   go :: Int -> Names -> Tm -> ShowS
   go p ns = \case
@@ -247,5 +270,5 @@ prettyTm prec src ns t = go prec ns t where
     TopVar x _          -> goTop x
     Irrelevant          -> ("Irrelevant"++)
 
-showTm0 :: B.ByteString -> Lvl -> TopLevel -> Tm -> String
-showTm0 src len top t = prettyTm 0 src (NNil len top) t []
+showTm0 :: B.ByteString -> TopLevel -> Tm -> String
+showTm0 src top t = prettyTm 0 src (NNil top) t []

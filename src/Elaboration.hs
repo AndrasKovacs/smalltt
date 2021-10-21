@@ -151,21 +151,18 @@ infer cxt topT = U.do
 
     P.Pi _ x i a b -> U.do
       a <- check cxt a VU
+      binding cxt x i (eval cxt a) \cxt _ -> U.do
+        b <- check cxt b VU
+        U.pure (Infer (Pi (bind x) i a b) VU)
+
+    P.Lam _ x P.Named{} ma t ->
+      throw InferNamedLam
+
+    P.Lam _ x (P.NoName i) ma t -> U.do
+      a <- checkAnnot cxt ma
       let ~va = eval cxt a
-      b <- binding cxt x i va \cxt _ -> check cxt b VU
-      U.pure (Infer (Pi (bind x) i a b) VU)
-
-    P.Lam _ b inf ma t -> U.do
-      throw Undefined
-
-    -- P.Lam x (Right i) ma t -> do
-    --   a  <- eval (env cxt) <$> case ma of
-    --     Nothing -> freshMeta cxt VU
-    --     Just a  -> check cxt a VU
-
-    --   let cxt' = bind cxt x a
-    --   (t, b) <- insert cxt' $ infer cxt' t
-    --   pure (Lam x i t, VPi x i a $ valToClosure cxt b)
+      Infer t vb <- binding cxt x i va \cxt _ -> insert cxt $ infer cxt t
+      U.pure (Infer (Lam (bind x) i t) (VPi (bind x) i va (valToClosure cxt vb)))
 
     P.U _ ->
       U.pure $ Infer U VU
@@ -197,20 +194,22 @@ check cxt topT a = U.do
         UJust a' -> U.do
           a' <- check cxt a' VU
           unifyCxt cxt topT a (eval cxt a')
-      t <- binding cxt x i a \cxt v -> check cxt t (appCl cxt b v)
-      U.pure (Lam (bind x) i t)
 
-    (t, VPi x Impl a b) -> U.do
-      t <- inserting cxt a \cxt _ -> check cxt t a
-      U.pure (Lam x Impl t)
+      binding cxt x i a \cxt v ->
+        Lam (bind x) i U.<$> check cxt t (appCl cxt b v)
+
+    (t, VPi x Impl a b) ->
+      inserting cxt a \cxt _ -> U.do
+        t <- check cxt t a
+        U.pure (Lam x Impl t)
 
     (P.Let _ x ma t u, a') -> U.do
       a <- checkAnnot cxt ma
       let ~va = eval cxt a
       t <- check cxt t va
       let ~vt = eval cxt t
-      u <- defining cxt x va vt \cxt -> check cxt u a'
-      U.pure (Let x a t u)
+      defining cxt x va vt \cxt ->
+        Let x a t U.<$> check cxt u a'
 
     (P.Hole _, a) ->
       freshMeta cxt
@@ -220,27 +219,27 @@ check cxt topT a = U.do
       unifyCxt cxt topT inferred expected
       U.pure t
 
-CAN_IO2((Lvl, TopLevel), TupleRep [IntRep COMMA LiftedRep], (# Int#, TopLevel #), (Lvl (I# x), y), CoeLvlTop)
-
-checkTopLevel :: SymTable -> MetaCxt -> Lvl -> P.TopLevel -> TopLevel -> U.IO (Lvl, TopLevel)
-checkTopLevel tbl ms topLvl ptop acc = case ptop of
+checkTopLevel :: SymTable -> MetaCxt -> TopLevel -> P.TopLevel -> U.IO TopLevel
+checkTopLevel tbl ms top ptop = case ptop of
   P.Nil ->
-    U.pure (topLvl, acc)
+    U.pure top
   P.Definition x ma t u -> U.do
     debug ["TOP DEF", showSpan (ST.byteString tbl) x]
-    let cxt = empty tbl ms topLvl acc
+    let cxt = empty tbl ms top
     a <- checkAnnot cxt ma
     let ~va = E.eval ms ENil a
     t <- check cxt t va
     let ~vt = E.eval ms ENil t
-    ST.insert x (ST.Top topLvl a va t vt) tbl
-    checkTopLevel tbl ms (topLvl + 1) u (Definition x a t acc)
+    ST.insert x (ST.Top (topLen top) a va t vt) tbl
+    top <- topDefine x a t top
+    checkTopLevel tbl ms top u
 
-checkProg :: B.ByteString -> P.TopLevel -> IO (MetaCxt, Lvl, TopLevel)
-checkProg src top = do
+checkProg :: B.ByteString -> P.TopLevel -> IO (MetaCxt, TopLevel)
+checkProg src ptop = do
   tbl <- U.toIO $ ST.new src
   ms  <- MC.new
-  (len, top) <- U.toIO $ checkTopLevel tbl ms 0 top Nil `catch` \e -> U.do
+  top <- U.toIO $ newTop (P.topLen ptop)
+  top <- U.toIO $ checkTopLevel tbl ms top ptop `catch` \e -> U.do
      U.io $ putStrLn (showException src e)
      U.io exitSuccess
-  pure (ms, len, top)
+  pure (ms, top)
