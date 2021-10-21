@@ -140,6 +140,6 @@ instance CanIO () where
   bind f g s = case f s of (# s, _ #) -> g () s
 
   pure# :: () -> RW -> (# RW, (# #) #)
-  pure# _ s = (# s, (# #) #)
+  pure# ~_ s = (# s, (# #) #)
   {-# inline bind #-}
   {-# inline pure# #-}

@@ -27,8 +27,8 @@ data Exception
   = UnifyError Cxt P.Tm Val Val    -- checking, lhs, rhs
   | TooManyLocals
   | UnifyEx UnifyEx
-  | NoNamedArgument P.Tm Span      -- checking, name
-  | NotInScope Span                -- offending name
+  | NoNamedArgument P.Tm {-# unpack #-} Span      -- checking, name
+  | NotInScope {-# unpack #-} Span                -- offending name
   | Undefined
   | InferNamedLam
 
@@ -44,7 +44,7 @@ catchIO (IO f) k = IO (catch# f (\case e@(SomeException _) -> raiseIO# e
 {-# inline catchIO #-}
 
 catch :: forall a. U.CanIO a => U.IO a -> (Exception -> U.IO a) -> U.IO a
-catch ma k = U.io $ catchIO (U.toIO ma) (\e -> U.toIO (k e))
+catch ma k = U.io (catchIO (U.toIO ma) (\e -> U.toIO (k e)))
 {-# inline catch #-}
 
 throw :: forall a. U.CanIO a => Exception -> U.IO a
@@ -70,6 +70,7 @@ render src (Span pos _) msg = let
      linum  ++ "| " ++ line ++ "\n" ++
      lpad   ++ "| " ++ replicate c ' ' ++ "^\n" ++
      msg
+{-# noinline render #-}
 
 showException :: B.ByteString -> Exception -> String
 showException src = \case
@@ -83,8 +84,9 @@ showException src = \case
   NoNamedArgument t x -> render src (P.span t) $
     "No named implicit argument with name " ++ showSpan src x
   NotInScope x -> render src x $
-    "Name not in scope " ++ showSpan src x
+    "Name not in scope: " ++ "\"" ++ showSpan src x ++ "\""
   Undefined ->
     "Undefined exception"
   InferNamedLam ->
     "Cannot infer type for lambda with named argument"
+{-# noinline showException #-}

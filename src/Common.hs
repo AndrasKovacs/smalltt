@@ -29,15 +29,24 @@ import qualified UIO
 
 --------------------------------------------------------------------------------
 
+-- type Dbg = HasCallStack
+
 -- debug :: [String] -> UIO.IO ()
 -- debug strs =
 --   U.io $ putStrLn (intercalate " | " strs ++ " END")
 
+-- debugging :: UIO.IO () -> UIO.IO ()
+-- debugging act = act
+
 debug :: [String] -> UIO.IO ()
 debug strs = U.pure ()
+{-# inline debug #-}
 
 type Dbg = () :: Constraint
--- type Dbg = HasCallStack
+
+debugging :: UIO.IO () -> UIO.IO ()
+debugging _ = U.pure ()
+{-# inline debugging #-}
 
 --------------------------------------------------------------------------------
 

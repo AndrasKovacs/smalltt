@@ -28,25 +28,30 @@ import qualified UIO as U
 
 --------------------------------------------------------------------------------
 
+-- TODO:
+-- Optimize fresh meta value creation
+
+--------------------------------------------------------------------------------
+
 
 data Infer = Infer Tm VTy
 
 CAN_IO2(Infer, TupleRep [LiftedRep COMMA LiftedRep], (# Tm, VTy #), Infer x y, CoeInfer)
 
 
--- TODO: freshMetaVal, freshMetaVal1
-
 -- | Create fresh meta.
 freshMeta :: Cxt -> U.IO Tm
 freshMeta cxt = U.do
   x <- MC.fresh (mcxt cxt)
   U.pure (InsertedMeta (coerce x) (mask cxt))
+{-# inline freshMeta #-}
 
 -- | Create fresh meta under extra binder.
 freshMeta1 :: Cxt -> Icit -> U.IO Tm
 freshMeta1 cxt i = U.do
   x <- MC.fresh (mcxt cxt)
   U.pure (InsertedMeta (coerce x) (EM.insert (lvl cxt) i (mask cxt)))
+{-# inline freshMeta1 #-}
 
 unifyCxt :: Cxt -> P.Tm -> Val -> Val -> U.IO ()
 unifyCxt cxt t l r = U.do
@@ -105,13 +110,17 @@ infer cxt topT = U.do
       case ma of
         UNothing                   -> throw $ NotInScope px
         UJust (ST.Local x va)      -> U.do
-          foo <- U.io $ ST.assocs (tbl cxt)
-          debug ["local var", show foo, showSpan (src cxt) px, show x,
-                 show $ lvlToIx (lvl cxt) x, show $ lvl cxt]
+          debugging U.do
+            foo <- U.io $ ST.assocs (tbl cxt)
+            debug ["local var", show foo, showSpan (src cxt) px, show x,
+                   show $ lvlToIx (lvl cxt) x, show $ lvl cxt]
+
           U.pure (Infer (LocalVar (lvlToIx (lvl cxt) x)) va)
         UJust (ST.Top x _ va _ vt) -> U.do
-          foo <- U.io $ ST.assocs (tbl cxt)
-          debug ["top var", show foo, showSpan (src cxt) px, show x]
+          debugging U.do
+            foo <- U.io $ ST.assocs (tbl cxt)
+            debug ["top var", show foo, showSpan (src cxt) px, show x]
+
           U.pure (Infer (TopVar x vt) va)
 
     P.Let _ x ma t u -> U.do
