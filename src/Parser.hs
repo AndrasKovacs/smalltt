@@ -114,10 +114,10 @@ bind' = branch $(symbol' "_") (pure NEmpty) (NSpan <$> identBased pure)
 
 data Spans = SNil | SCons {-# unpack #-} Span Spans
 
-spansToPi :: Span ->  Icit -> Tm -> Tm -> Spans -> Tm
-spansToPi x i a b = \case
-  SNil                 -> b
-  SCons (Span x1 _) xs -> Pi x1 (BSpan x) i a (spansToPi x i a b xs)
+spansToPi :: Pos ->  Icit -> Tm -> Tm -> Spans -> Tm
+spansToPi l i a b = \case
+  SNil       -> b
+  SCons x xs -> Pi l (BSpan x) i a (spansToPi l i a b xs)
 
 manyIdents :: Parser Spans
 manyIdents = (idented \x -> SCons x <$> manyIdents) <|> pure SNil
@@ -138,7 +138,7 @@ pi' = do
         braceR'
         optional_ arrow
         b <- pi'
-        let !res = spansToPi x Impl a b xs
+        let !res = spansToPi l Impl a b xs
         pure $! Pi l (BSpan x) Impl a res
 
     "(" -> ws >>
@@ -147,7 +147,7 @@ pi' = do
           a <- tm' <* parR'
           optional_ arrow
           b <- pi'
-          let !res = spansToPi x Expl a b xs
+          let !res = spansToPi l Expl a b xs
           pure $! Pi l (BSpan x) Expl a res)
       <|>
       (do t <- tm' <* parR'
@@ -249,7 +249,6 @@ parseFile path = do
   src <- B.readFile path
   let res = parse src
   pure (src, res)
-
 
 parseString :: String -> (B.ByteString, Result Error TopLevel)
 parseString  (packUTF8 -> str) = (str, parse str)

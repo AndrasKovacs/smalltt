@@ -29,24 +29,25 @@ import qualified UIO
 
 --------------------------------------------------------------------------------
 
--- type Dbg = HasCallStack
-
--- debug :: [String] -> UIO.IO ()
--- debug strs =
---   U.io $ putStrLn (intercalate " | " strs ++ " END")
-
--- debugging :: UIO.IO () -> UIO.IO ()
--- debugging act = act
+type Dbg = HasCallStack
 
 debug :: [String] -> UIO.IO ()
-debug strs = U.pure ()
-{-# inline debug #-}
-
-type Dbg = () :: Constraint
+debug strs = U.io $ putStrLn (intercalate " | " strs ++ " END")
 
 debugging :: UIO.IO () -> UIO.IO ()
-debugging _ = U.pure ()
+debugging act = act
 {-# inline debugging #-}
+
+
+-- type Dbg = () :: Constraint
+
+-- debug :: [String] -> UIO.IO ()
+-- debug strs = U.pure ()
+-- {-# inline debug #-}
+
+-- debugging :: UIO.IO () -> UIO.IO ()
+-- debugging _ = U.pure ()
+-- {-# inline debugging #-}
 
 --------------------------------------------------------------------------------
 
@@ -143,6 +144,9 @@ instance Show QuoteOption where
   show UnfoldFlex = "UnfoldFlex"
   show UnfoldNone = "UnfoldNone"
 
+--------------------------------------------------------------------------------
+
+-- WARNING: EnvMask.looked depends on internals below!
 newtype Icit = Icit# Int deriving Eq
 pattern Impl :: Icit
 pattern Impl = Icit# (-1)

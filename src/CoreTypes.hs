@@ -229,7 +229,7 @@ prettyTm prec src ns t = go prec ns t where
   goMask p ns m mask = fst (go ns) where
     go :: Names -> (ShowS, Lvl)
     go NNil{} =
-      (((show m ++) . ('?':)), 0)
+      ((('?':) . (show m ++) ), 0)
     go (NCons ns (fresh ns -> (n, x))) = case go ns of
       (s, l) -> EM.looked l mask
         (s, l + 1)
@@ -265,7 +265,7 @@ prettyTm prec src ns t = go prec ns t where
       par p letp $ ("let "++) . (x++) . (" : "++) . go letp ns a
       . ("\n  = "++) . go letp ns t . (";\n\n"++) . go letp (NCons ns n) u
 
-    Meta m              -> (show m ++) . ('?':)
+    Meta m              -> ('?':).(show m ++)
     InsertedMeta m mask -> goMask p ns m mask
     TopVar x _          -> goTop x
     Irrelevant          -> ("Irrelevant"++)

@@ -127,70 +127,83 @@ solve ms l cs x sp rhs = U.do
 unifySp :: MetaCxt -> Lvl -> ConvState -> Spine -> Spine -> U.IO ()
 unifySp ms l cs sp sp' = case (sp, sp') of
   (SId,         SId          ) -> U.pure ()
-  (SApp sp t i, SApp sp' t' _) -> unifySp ms l cs sp sp' U.>> unify ms l cs t t'
+  (SApp sp t _, SApp sp' t' _) -> unifySp ms l cs sp sp' U.>> unify ms l cs t t'
   _                            -> throw $ UnifyEx Conversion
 
 unify :: MetaCxt -> Lvl -> ConvState -> Val -> Val -> U.IO ()
-unify ms l cs t t' = let
-  go = unify ms l cs
-  {-# inline go #-}
+unify ms l cs t t' = U.do
+  let
+    go = unify ms l cs
+    {-# inline go #-}
 
-  goBind t t' =
-    let v = VLocalVar l SId
-    in  unify ms (l + 1) cs (appCl ms t v) (appCl ms t' v)
-  {-# inline goBind #-}
+    goBind t t' =
+      let v = VLocalVar l SId
+      in  unify ms (l + 1) cs (appCl ms t v) (appCl ms t' v)
+    {-# inline goBind #-}
 
-  goSp = unifySp ms l cs
-  {-# inline goSp #-}
+    goSp = unifySp ms l cs
+    {-# inline goSp #-}
 
-  err = throw $ UnifyEx Conversion
-  {-# inline err #-}
+    err = throw $ UnifyEx Conversion
+    {-# inline err #-}
 
-  goEq :: forall a. Eq a => a -> a -> U.IO ()
-  goEq x x' | x == x'   = U.pure()
-            | otherwise = err
-  {-# inline goEq #-}
+    goEq :: forall a. Eq a => a -> a -> U.IO ()
+    goEq x x' | x == x'   = U.pure()
+              | otherwise = err
+    {-# inline goEq #-}
 
-  force t = case cs of CSFull -> forceFU ms t
-                       _      -> forceF  ms t
-  {-# inline force #-}
+    force t = case cs of CSFull -> forceFU ms t
+                         _      -> forceF  ms t
+    {-# noinline force #-}
 
-  in case (,) (force t) (force t') of
+  let ft = force t
+  debug ["FOO", show t, show ft, show (force t)]
+
+  let ft' = force t'
+
+  debug ["unify", show cs, show t, show ft, show t', show ft']
+
+  case (ft, ft') of
 
     (VIrrelevant, _) -> U.pure ()
     (_, VIrrelevant) -> U.pure ()
 
     -- TODO: eta-short meta solutions here!
 
-    -- unfoldings
-    (VUnfold h sp t, VUnfold h' sp' t') -> case cs of
-      CSRigid -> (goEq h h' U.>> unifySp ms l CSFlex sp sp')
-                 `catch` \case UnifyEx{} -> unify ms l CSFull t t'
-                               e         -> throw e
-      CSFlex  -> err
-      _       -> impossible
-    (VUnfold h sp t, t') -> case cs of
-      CSRigid -> go t t'
-      CSFlex  -> err
-      _       -> impossible
-    (t, VUnfold h' sp' t') -> case cs of
-      CSRigid -> go t t'
-      CSFlex  -> err
-      _       -> impossible
+    -- -- unfoldings
+    -- (VUnfold h sp t, VUnfold h' sp' t') -> case cs of
+    --   CSRigid -> (goEq h h' U.>> unifySp ms l CSFlex sp sp')
+    --              `catch` \case UnifyEx{} -> unify ms l CSFull t t'
+    --                            e         -> throw e
+    --   CSFlex  -> err
+    --   _       -> impossible
+    -- (VUnfold h sp t, t') -> case cs of
+    --   CSRigid -> go t t'
+    --   CSFlex  -> err
+    --   _       -> impossible
+    -- (t, VUnfold h' sp' t') -> case cs of
+    --   CSRigid -> go t t'
+    --   CSFlex  -> err
+    --   _       -> impossible
 
     -- rigid & canonical
     (VLocalVar x sp, VLocalVar x' sp') | x == x' -> goSp sp sp'
-    (VLam _ _ t, VLam _ _ t') -> goBind t t'
-    (VPi _ i a b, VPi _ i' a' b') | i == i' -> go a a' U.>> goBind b b'
-    (VU, VU)         -> U.pure ()
+    (VLam _ _ t    , VLam _ _ t'     )           -> goBind t t'
+    (VPi _ i a b   , VPi _ i' a' b'  ) | i == i' -> go a a' U.>> goBind b b'
+    (VU            , VU              )           -> U.pure ()
 
     -- eta
-    (t, VLam _ i t') -> let v = VLocalVar l SId in unify ms (l + 1) cs (app ms t v i) (appCl' ms t' v)
-    (VLam _ i t, t') -> let v = VLocalVar l SId in unify ms (l + 1) cs (appCl' ms t v) (app ms t' v i)
+    (t, VLam _ i t') ->
+      let v = VLocalVar l SId in unify ms (l + 1) cs (app ms t v i) (appCl' ms t' v)
+    (VLam _ i t, t') ->
+      let v = VLocalVar l SId in unify ms (l + 1) cs (appCl' ms t v) (app ms t' v i)
 
     -- flex
     (VFlex x sp, VFlex x' sp') | x == x' -> goSp sp sp'
-    (VFlex x sp, t')  -> solve ms l cs x sp t'
+    (VFlex x sp, t')  -> U.do
+       debug ["BAR", show t, show ft, show (force t)]
+       debug ["pre-solve", show (VFlex x sp), show (force (VFlex x sp)), show t']
+       solve ms l cs x sp t'
     (t, VFlex x' sp') -> solve ms l cs x' sp' t
 
     _ -> err

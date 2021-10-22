@@ -17,8 +17,6 @@ import Lexer
 import Exceptions
 import MetaCxt
 
--- TODO: use some sensible array instead of list shenanigans for TopLevel
-
 test :: B.ByteString -> IO ()
 test src = standardize do
   top <- case parse src of
@@ -34,8 +32,8 @@ test src = standardize do
   putStrLn (replicate 80 '-')
   putStrLn ""
   ADL.forIx ms \i e -> case e of
-    MEUnsolved -> putStrLn $ show i ++ "?"
-    MESolved v -> putStrLn $ show i ++ "? = " ++ showTm0 src top (quote0 ms UnfoldNone v)
+    MEUnsolved -> putStrLn $ '?':show i ++ " unsolved"
+    MESolved v -> putStrLn $ '?':show i ++ " = " ++ showTm0 src top (quote0 ms UnfoldNone v)
 
   ALM.for (topDefs top) \(TopEntry x a t) -> do
     putStrLn ""
@@ -43,15 +41,19 @@ test src = standardize do
     putStrLn $ "  = " ++ showTm0 src top t
 
 t2 = test $ packUTF8 $ unlines [
-  "Nat  : U   = (N : U) → (N → N) → N → N",
-  "zero : Nat = λ N s z. z",
-  "suc  : Nat → Nat = λ n N s z. s (n N s z)",
-  "add  : Nat → Nat → Nat = λ a b N s z. a N s (b N s z)",
-  "foo = λ x. add (suc (suc x)) (suc zero)"
+  -- "Nat  : U   = (N : U) → (N → N) → N → N",
+  -- "zero : Nat = λ N s z. z",
+  -- "suc  : Nat → Nat = λ n N s z. s (n N s z)",
+  -- "add  : Nat → Nat → Nat = λ a b N s z. a N s (b N s z)",
+  -- "foo = λ x. add (suc (suc x)) (suc zero)",o
+  "the  : (A : U) → A → A = λ A x. x",
+  "Eq   : {A} → A → A → U = λ {A} x y. (P : A → U) → P x → P y",
+  "refl : {A x} → Eq {A} x x = λ P px. px",
+  "test1 : Eq {U} U U = refl {U}{_}"
   ]
 
 t1 = test $ packUTF8 $ unlines [
-  "Nat  : U   = (N : U) → (N → N) → N → N",
+  "Nat  : U   = (N : U)(s : N → N)(z : N) → N",
   "zero : Nat = λ N s z. z",
   "suc  : Nat → Nat = λ n N s z. s (n N s z)",
   "add  : Nat → Nat → Nat = λ a b N s z. a N s (b N s z)",

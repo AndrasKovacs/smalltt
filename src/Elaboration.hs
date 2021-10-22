@@ -30,6 +30,7 @@ import qualified UIO as U
 
 -- TODO:
 -- Optimize fresh meta value creation
+-- shortcut to infer in annotation-less defs
 
 --------------------------------------------------------------------------------
 
@@ -102,7 +103,7 @@ insertUntilName topT cxt name act = go cxt U.=<< act where
 
 infer :: Cxt -> P.Tm -> U.IO Infer
 infer cxt topT = U.do
-  debug ["infer", showPTm cxt topT, show (P.span topT)]
+  debug ["infer", showPTm cxt topT]
 
   Infer t a <- case topT of
     P.Var px -> U.do
@@ -151,7 +152,7 @@ infer cxt topT = U.do
         tty -> U.do
           a <- eval cxt U.<$> freshMeta cxt
           b <- Closure (env cxt) U.<$> freshMeta1 cxt i
-          unifyCxt cxt topT tty (VPi NEmpty i a b)
+          unifyCxt cxt topT tty (VPi NX i a b)
           pure a b)
       \a b -> U.do
 
@@ -181,7 +182,7 @@ infer cxt topT = U.do
       t  <- freshMeta cxt
       U.pure $ Infer t va
 
-  debug ["inferred", showTm cxt t, showVal cxt a, show (P.span topT)]
+  debug ["inferred", showTm cxt t, showVal cxt a]
   U.pure (Infer t a)
 
 checkAnnot :: Cxt -> UMaybe P.Tm -> U.IO Tm
@@ -208,8 +209,8 @@ check cxt topT a = U.do
         Lam (bind x) i U.<$> check cxt t (appCl cxt b v)
 
     (t, VPi x Impl a b) ->
-      inserting cxt a \cxt _ -> U.do
-        t <- check cxt t a
+      inserting cxt x a \cxt v -> U.do
+        t <- check cxt t (appCl cxt b v)
         U.pure (Lam x Impl t)
 
     (P.Let _ x ma t u, a') -> U.do
@@ -233,10 +234,11 @@ checkTopLevel tbl ms top ptop = case ptop of
   P.Nil ->
     U.pure top
   P.Definition x ma t u -> U.do
-    debug ["TOP DEF", showSpan (ST.byteString tbl) x]
+    debug ["\nTOP DEF ANNOT", showSpan (ST.byteString tbl) x]
     let cxt = empty tbl ms top
     a <- checkAnnot cxt ma
     let ~va = E.eval ms ENil a
+    debug ["\nTOP DEF CHECK", showSpan (ST.byteString tbl) x]
     t <- check cxt t va
     let ~vt = E.eval ms ENil t
     ST.insert x (ST.Top (topLen top) a va t vt) tbl

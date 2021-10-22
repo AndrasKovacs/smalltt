@@ -45,8 +45,8 @@ defining (Cxt lvl env mask tbl mcxt ns) x ~va ~vt k = U.do
   U.pure res
 {-# inline defining #-}
 
-inserting :: Cxt -> VTy -> (Cxt -> Val -> U.IO a) -> U.IO a
-inserting (Cxt lvl env mask tbl mcxt ns) ~va k =
+inserting :: Cxt -> Name -> VTy -> (Cxt -> Val -> U.IO a) -> U.IO a
+inserting (Cxt lvl env mask tbl mcxt ns) x ~va k =
   let v = VLocalVar lvl SId
-  in k (Cxt (lvl + 1) (EDef env v) (EM.insert lvl Impl mask) tbl mcxt (NCons ns NX)) v
+  in k (Cxt (lvl + 1) (EDef env v) (EM.insert lvl Impl mask) tbl mcxt (NCons ns x)) v
 {-# inline inserting #-}

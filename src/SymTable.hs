@@ -58,6 +58,10 @@ import qualified UIO as U
 
 #include "deriveCanIO.h"
 
+--------------------------------------------------------------------------------
+-- TODO: factor out all the shared reads from insert/delete for Cxt.Extension
+
+
 -- Symtable entries
 --------------------------------------------------------------------------------
 

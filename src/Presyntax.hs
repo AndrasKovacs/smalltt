@@ -26,8 +26,8 @@ pattern Named sp <- (unArgInfo# -> (# | sp #)) where
 {-# complete NoName, Named #-}
 
 instance Show ArgInfo where
-  showsPrec n (NoName i) = showParen (n > 10) (showString "NoName " . showsPrec (n + 1) i)
-  showsPrec n (Named sp) = showParen (n > 10) (showString "Name " . showsPrec (n + 1) sp)
+  showsPrec n (NoName i) = showParen (n > 10) (showString "NoName " . showsPrec 11 i)
+  showsPrec n (Named sp) = showParen (n > 10) (showString "Named "  . showsPrec 11 sp)
 
 --------------------------------------------------------------------------------
 

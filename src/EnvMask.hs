@@ -14,7 +14,7 @@ insert x i (EnvMask xs is) = EnvMask (LS.insert x xs) (LS.set' x (coerce i) is)
 
 looked :: Lvl -> EnvMask -> a -> (Icit -> a) -> a
 looked x (EnvMask xs is) notfound found
-  | LS.member x xs = found (coerce (LS.test' x is))
+  | LS.member x xs = found (coerce (LS.test' x is - 2)) -- WARNING: dependent on Icit rep
   | otherwise      = notfound
 {-# inline looked #-}
 
