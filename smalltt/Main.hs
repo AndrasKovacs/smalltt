@@ -15,10 +15,12 @@ module Main where
 
 -- import qualified Presyntax as P
 
+import Test
+
 --------------------------------------------------------------------------------
 
 main :: IO ()
-main = putStrLn "hello"
+main = t2
 
 -- helpMsg = unlines [
 --   "usage: elabzoo-first-class-poly [--help|nf|type]",

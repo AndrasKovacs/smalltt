@@ -63,7 +63,7 @@ unifyCxt cxt t l r = U.do
 {-# inline unifyCxt #-}
 
 goInsert' :: Cxt -> Infer -> U.IO Infer
-goInsert' cxt (Infer t va) = case forceFU cxt va of
+goInsert' cxt (Infer t va) = forceFUM cxt va U.>>= \case
   VPi x Impl a b -> U.do
     m <- freshMeta cxt
     let mv = eval cxt m
@@ -87,7 +87,7 @@ insert cxt act = act U.>>= \case
 --   a particular binder name.
 insertUntilName :: P.Tm -> Cxt -> Span -> U.IO Infer -> U.IO Infer
 insertUntilName topT cxt name act = go cxt U.=<< act where
-  go cxt (Infer t va) = case forceFU cxt va of
+  go cxt (Infer t va) = forceFUM cxt va U.>>= \case
     va@(VPi x Impl a b) -> U.do
       if eqName cxt x (NSpan name) then
         U.pure (Infer t va)
@@ -146,7 +146,7 @@ infer cxt topT = U.do
           pure Expl t tty)
       \i t tty ->
 
-      U.bind2 (\pure -> case forceFU cxt tty of
+      U.bind2 (\pure -> forceFUM cxt tty U.>>= \case
         VPi x i' a b | i == i'   -> pure a b
                      | otherwise -> undefined
         tty -> U.do
@@ -195,7 +195,8 @@ check :: Cxt -> P.Tm -> VTy -> U.IO Tm
 check cxt topT a = U.do
   debug ["check", showPTm cxt topT, showVal cxt a]
 
-  case (topT, forceFU cxt a) of
+  a <- forceFUM cxt a
+  case (topT, a) of
     (P.Lam _ x inf ma t, VPi x' i a b)
       | (case inf of P.NoName i' -> i == i'
                      P.Named n   -> eqName cxt x' (NSpan n) && i == Impl) -> U.do

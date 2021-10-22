@@ -11,6 +11,7 @@ import Common
 import qualified Evaluation as E
 import qualified SymTable as ST
 import qualified Presyntax as P
+import qualified UIO as U
 
 eval :: Cxt -> Tm -> Val
 eval cxt t = E.eval (mcxt cxt) (env cxt) t
@@ -39,6 +40,14 @@ forceFU cxt t = E.forceFU (mcxt cxt) t
 forceF :: Cxt -> Val -> Val
 forceF cxt t = E.forceF (mcxt cxt) t
 {-# inline forceF #-}
+
+forceFUM :: Cxt -> Val -> U.IO Val
+forceFUM cxt t = E.forceFUM (mcxt cxt) t
+{-# inline forceFUM #-}
+
+forceFM :: Cxt -> Val -> U.IO Val
+forceFM cxt t = E.forceFM (mcxt cxt) t
+{-# inline forceFM #-}
 
 app :: Cxt -> Val -> Val -> Icit -> Val
 app cxt t u i = E.app (mcxt cxt) t u i

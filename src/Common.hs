@@ -29,25 +29,24 @@ import qualified UIO
 
 --------------------------------------------------------------------------------
 
-type Dbg = HasCallStack
-
-debug :: [String] -> UIO.IO ()
-debug strs = U.io $ putStrLn (intercalate " | " strs ++ " END")
-
-debugging :: UIO.IO () -> UIO.IO ()
-debugging act = act
-{-# inline debugging #-}
-
-
--- type Dbg = () :: Constraint
+-- type Dbg = HasCallStack
 
 -- debug :: [String] -> UIO.IO ()
--- debug strs = U.pure ()
--- {-# inline debug #-}
+-- debug strs = U.io $ putStrLn (intercalate " | " strs ++ " END")
 
 -- debugging :: UIO.IO () -> UIO.IO ()
--- debugging _ = U.pure ()
+-- debugging act = act
 -- {-# inline debugging #-}
+
+type Dbg = () :: Constraint
+
+debug :: [String] -> UIO.IO ()
+debug strs = U.pure ()
+{-# inline debug #-}
+
+debugging :: UIO.IO () -> UIO.IO ()
+debugging _ = U.pure ()
+{-# inline debugging #-}
 
 --------------------------------------------------------------------------------
 
@@ -58,7 +57,7 @@ uf = undefined
 
 impossible :: Dbg => a
 impossible = error "impossible"
-{-# inline impossible #-}
+{-# noinline impossible #-}
 
 ptrEq :: a -> a -> Bool
 ptrEq !x !y = isTrue# (reallyUnsafePtrEquality# x y)

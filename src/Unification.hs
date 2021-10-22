@@ -62,7 +62,7 @@ invertSp ms gamma m sp = U.do
         SId         -> U.pure 0
         SApp sp t _ -> U.do
           dom <- go ms ren sp
-          case forceFU ms t of
+          forceFUM ms t U.>>= \case
             VLocalVar x SId -> U.do
               y <- U.io $ AFM.read ren (coerce x)
               case y of
@@ -92,7 +92,7 @@ rename ms pren v = U.do
                            (appCl' ms t (VLocalVar (cod pren) SId))
       {-# inline goBind #-}
 
-  case forceFU ms v of
+  forceFUM ms v U.>>= \case
 
     VFlex m' sp | occurs pren == m' -> throw $ UnifyEx Conversion -- occurs check
                 | otherwise         -> goSp (Meta m') sp
@@ -152,39 +152,35 @@ unify ms l cs t t' = U.do
               | otherwise = err
     {-# inline goEq #-}
 
-    force t = case cs of CSFull -> forceFU ms t
-                         _      -> forceF  ms t
-    {-# noinline force #-}
+    force t = case cs of CSFull -> forceFUM ms t
+                         _      -> forceFM  ms t
+    {-# inline force #-}
 
-  let ft = force t
-  debug ["FOO", show t, show ft, show (force t)]
+  t  <- force t
+  t' <- force t'
 
-  let ft' = force t'
-
-  debug ["unify", show cs, show t, show ft, show t', show ft']
-
-  case (ft, ft') of
+  case (t, t') of
 
     (VIrrelevant, _) -> U.pure ()
     (_, VIrrelevant) -> U.pure ()
 
     -- TODO: eta-short meta solutions here!
 
-    -- -- unfoldings
-    -- (VUnfold h sp t, VUnfold h' sp' t') -> case cs of
-    --   CSRigid -> (goEq h h' U.>> unifySp ms l CSFlex sp sp')
-    --              `catch` \case UnifyEx{} -> unify ms l CSFull t t'
-    --                            e         -> throw e
-    --   CSFlex  -> err
-    --   _       -> impossible
-    -- (VUnfold h sp t, t') -> case cs of
-    --   CSRigid -> go t t'
-    --   CSFlex  -> err
-    --   _       -> impossible
-    -- (t, VUnfold h' sp' t') -> case cs of
-    --   CSRigid -> go t t'
-    --   CSFlex  -> err
-    --   _       -> impossible
+    -- unfoldings
+    (VUnfold h sp t, VUnfold h' sp' t') -> case cs of
+      CSRigid -> (goEq h h' U.>> unifySp ms l CSFlex sp sp')
+                 `catch` \case UnifyEx{} -> unify ms l CSFull t t'
+                               e         -> throw e
+      CSFlex  -> err
+      _       -> impossible
+    (VUnfold h sp t, t') -> case cs of
+      CSRigid -> go t t'
+      CSFlex  -> err
+      _       -> impossible
+    (t, VUnfold h' sp' t') -> case cs of
+      CSRigid -> go t t'
+      CSFlex  -> err
+      _       -> impossible
 
     -- rigid & canonical
     (VLocalVar x sp, VLocalVar x' sp') | x == x' -> goSp sp sp'
@@ -201,8 +197,6 @@ unify ms l cs t t' = U.do
     -- flex
     (VFlex x sp, VFlex x' sp') | x == x' -> goSp sp sp'
     (VFlex x sp, t')  -> U.do
-       debug ["BAR", show t, show ft, show (force t)]
-       debug ["pre-solve", show (VFlex x sp), show (force (VFlex x sp)), show t']
        solve ms l cs x sp t'
     (t, VFlex x' sp') -> solve ms l cs x' sp' t
 
