@@ -76,7 +76,7 @@ showException :: B.ByteString -> Exception -> String
 showException src = \case
   UnifyError cxt t l r -> render src (P.span t) $
     printf "Can't unify\n\n  %s\n\nwith\n\n  %s\n"
-      (showVal cxt l) (showVal cxt r)
+      (showValOpt cxt l UnfoldFlex) (showValOpt cxt r UnfoldFlex)
   TooManyLocals ->
     "Too many local variables! You can't have more than 64."
   UnifyEx _ ->

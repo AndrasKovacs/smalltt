@@ -33,6 +33,10 @@ showVal :: Cxt -> Val -> String
 showVal cxt t = showTm cxt (quote cxt UnfoldAll t)
 {-# inline showVal #-}
 
+showValOpt :: Cxt -> Val -> QuoteOption -> String
+showValOpt cxt t opt = showTm cxt (quote cxt opt t)
+{-# inline showValOpt #-}
+
 forceFU :: Cxt -> Val -> Val
 forceFU cxt t = E.forceFU (mcxt cxt) t
 {-# inline forceFU #-}

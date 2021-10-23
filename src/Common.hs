@@ -55,6 +55,11 @@ type Src = B.ByteString
 uf :: Dbg => a
 uf = undefined
 
+infix 2 //
+(//) :: a -> b -> (a, b)
+a // b = (a, b)
+{-# inline (//) #-}
+
 impossible :: Dbg => a
 impossible = error "impossible"
 {-# noinline impossible #-}

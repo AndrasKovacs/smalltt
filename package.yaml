@@ -13,6 +13,10 @@ flags:
     description: dump core, stg and cmm to files
     default: false
     manual: true
+  llvm:
+    description: use llvm for codegen
+    default: false
+    manual: true
 
 dependencies:
 - base >= 4.7 && < 5
@@ -61,7 +65,7 @@ ghc-options:
   - -Wno-unticked-promoted-constructors
   - -fmax-worker-args=20
   - -O2
-  # - -fllvm
+
 when:
   - condition: flag(dump)
     ghc-options:
@@ -71,6 +75,9 @@ when:
       - -dsuppress-all
       - -dno-suppress-type-signatures
       - -ddump-to-file
+  - condition: flag(llvm)
+    ghc-options:
+      - -fllvm
 
 library:
   source-dirs:

@@ -9,13 +9,7 @@ import Common
 import Presyntax
 import Lexer
 
---------------------------------------------------------------------------------
-
--- problems:
---  - reboxing in UMaybe and Span results
---  - random cruft
-
--- atoms
+-- keywords & identifiers
 --------------------------------------------------------------------------------
 
 colon   = $(symbol ":")
@@ -29,6 +23,7 @@ eq      = $(symbol  "=")
 eq'     = $(symbol' "=")
 parR'   = $(symbol' ")")
 arrow   = token $(switch [| case _ of "->" -> pure (); "→" -> pure () |])
+arrow'  = token' $(switch [| case _ of "->" -> pure (); "→" -> pure () |])
 
 isKeyword :: Span -> Parser ()
 isKeyword span = inSpan span do
@@ -63,6 +58,9 @@ skipToVar l k = branch identChar
   (do {r <- getPos; ws; k r})
 {-# inline skipToVar #-}
 
+-- atomic expressions
+--------------------------------------------------------------------------------
+
 atomBase :: Parser Tm
 atomBase = do
   l <- getPos
@@ -80,6 +78,9 @@ atom = lvl >> atomBase
 
 atom' :: Parser Tm
 atom' = lvl' >> atomBase `cut` [Msg "atomic expression"]
+
+-- application
+--------------------------------------------------------------------------------
 
 skipToApp :: Pos -> (Pos -> Parser Tm) -> Parser Tm
 skipToApp l p = branch identChar
@@ -105,26 +106,46 @@ goApp t = branch braceL
 app' :: Parser Tm
 app' = goApp =<< atom'
 
-bind :: Parser Name
-bind = branch $(symbol "_") (pure NEmpty) (NSpan <$> identBased pure)
 
-bind' :: Parser Name
-bind' = branch $(symbol' "_") (pure NEmpty) (NSpan <$> identBased pure)
-        `cut'` Msg "binder"
+-- Pi
+--------------------------------------------------------------------------------
 
 data Spans = SNil | SCons {-# unpack #-} Span Spans
 
-spansToPi :: Pos ->  Icit -> Tm -> Tm -> Spans -> Tm
-spansToPi l i a b = \case
-  SNil       -> b
-  SCons x xs -> Pi l (BSpan x) i a (spansToPi l i a b xs)
-
 manyIdents :: Parser Spans
-manyIdents = (idented \x -> SCons x <$> manyIdents) <|> pure SNil
+manyIdents = go SNil where
+  go acc = (idented \x -> go (SCons x acc)) <|> pure acc
 
-someIdented :: (Span -> Spans -> Parser a) -> Parser a
-someIdented k = idented \x -> do {xs <- manyIdents; k x xs}
-{-# inline someIdented #-}
+spansToImplPi :: Pos -> Tm -> Tm -> Spans -> Tm
+spansToImplPi l a acc = \case
+  SNil       -> acc
+  SCons x xs -> spansToImplPi l a (Pi l (BSpan x) Impl a acc) xs
+
+spansToApps :: Span -> Spans -> Tm
+spansToApps x = \case
+  SNil        -> Var x
+  SCons x' xs -> App (spansToApps x xs) (Var x') (NoName Expl)
+
+piBrace :: Pos -> Parser Tm
+piBrace pos = idented \x -> do
+  holepos <- getPos
+  $(switch [| case _ of
+    ":" -> ws >> do
+      a <- tm' <* braceR'
+      optional_ arrow
+      Pi pos (BSpan x) Impl a <$> pi'
+    "}" -> ws >> do
+      let a = Hole holepos
+      optional_ arrow
+      Pi pos (BSpan x) Impl (Hole holepos) <$> pi'
+    _ -> do
+      b <- piBrace pos
+      case b of
+        Pi _ _ _ a _ -> do
+          pure $ Pi pos (BSpan x) Impl a b
+        _ ->
+          impossible
+    |])
 
 pi' :: Parser Tm
 pi' = do
@@ -132,33 +153,52 @@ pi' = do
   lvl' >> $(switch [| case _ of
 
     "{" -> ws >>
-      someIdented \x xs -> do
-        holepos <- getPos
-        a <- optioned (colon *> tm') pure (pure (Hole holepos))
-        braceR'
-        optional_ arrow
-        b <- pi'
-        let !res = spansToPi l Impl a b xs
-        pure $! Pi l (BSpan x) Impl a res
+      piBrace l
 
     "(" -> ws >>
-      (someIdented \x xs -> do
-          colon
-          a <- tm' <* parR'
-          optional_ arrow
-          b <- pi'
-          let !res = spansToPi l Expl a b xs
-          pure $! Pi l (BSpan x) Expl a res)
-      <|>
-      (do t <- tm' <* parR'
-          branch arrow
-            (Pi l BEmpty Expl t <$> pi')
-            (pure t))
+      (idented \x -> do
+        xs <- manyIdents
+        $(switch [| case _ of
+
+          ":" -> ws >> do
+            a <- tm' <* parR'
+            optional_ arrow
+            b <- pi'
+            pure $! (Pi l (BSpan x) Expl a $! spansToImplPi l a b xs)
+
+          ")" -> ws >> do
+            let t = spansToApps x xs
+            branch arrow
+              (goApp t)
+              (Pi l BEmpty Expl t <$> pi')
+
+          _ ->
+            branch arrow
+              (do a <- Pi l BEmpty Expl (spansToApps x xs) <$> (pi' <* parR')
+                  branch arrow
+                    (Pi l BEmpty Expl a <$> pi')
+                    (pure a))
+              (do a <- goApp (spansToApps x xs) <* parR'
+                  branch arrow
+                    (Pi l BEmpty Expl a <$> pi')
+                    (pure a))
+             |]))
+       <|>
+       (do t <- tm' <* parR'
+           branch arrow
+             (Pi l BEmpty Expl t <$> pi')
+             (pure t))
 
     _   -> ws >> do
       t <- app'
-      branch arrow (Pi l BEmpty Expl t <$> pi') (pure t)
+      branch arrow
+        (Pi l BEmpty Expl t <$> pi')
+        (pure t)
     |])
+
+
+-- Lambda
+--------------------------------------------------------------------------------
 
 goLamBraceL :: Pos -> Parser Tm
 goLamBraceL pos = do
@@ -199,6 +239,9 @@ lam' pos = lvl' >> $(switch [| case _ of
   _   -> ws >> idented' \x -> Lam pos (BSpan x) (NoName Expl) UNothing <$> goLam
     |])
 
+-- terms
+--------------------------------------------------------------------------------
+
 pLet' :: Pos -> Parser Tm
 pLet' l =
   idented' \x ->
@@ -208,20 +251,17 @@ pLet' l =
     semi'
     u <- tm'
     pure $ Let l x a t u
+{-# inline pLet' #-}
 
-tmBase :: Parser Tm
-tmBase = do
+tm' :: Parser Tm
+tm' = (do
   l <- getPos
-  $(switch [| case _ of
+  lvl' >> $(switch [| case _ of
     "λ"    -> skipToApp l \_ -> lam' l
     "\\"   -> ws >> lam' l
     "let"  -> skipToApp l \_ -> pLet' l
-    _      -> ws >> pi' |])
-{-# inline tmBase #-}
-
-tm' :: Parser Tm
-tm' = lvl' >> tmBase `cut` [Msg "lambda expression", "let-definition"]
-
+    _      -> ws >> pi' |]))
+  `cut` [Msg "lambda expression", "let-definition"]
 
 --------------------------------------------------------------------------------
 

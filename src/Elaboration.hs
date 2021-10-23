@@ -3,26 +3,27 @@
 
 module Elaboration (checkProg) where
 
-import qualified Data.ByteString as B
-import System.Exit
 import GHC.Exts
+import System.Exit
+
+import qualified Data.ByteString as B
 
 import Common
 import CoreTypes
 import Cxt
-import InCxt
-import qualified Evaluation as E
 import Exceptions
-import Unification
-import SymTable (SymTable)
+import InCxt
 import MetaCxt (MetaCxt)
+import SymTable (SymTable)
 
 import qualified EnvMask as EM
+import qualified Evaluation as E
 import qualified MetaCxt as MC
 import qualified Presyntax as P
 import qualified SymTable as ST
 import qualified UIO
 import qualified UIO as U
+import qualified Unification as Unif
 
 #include "deriveCanIO.h"
 
@@ -30,74 +31,83 @@ import qualified UIO as U
 
 -- TODO:
 -- Optimize fresh meta value creation
--- shortcut to infer in annotation-less defs
 
 --------------------------------------------------------------------------------
 
+type Infer = (Tm, VTy)
+CAN_IO2((Tm, Val), TupleRep [LiftedRep COMMA LiftedRep], (# Tm, Val #), (x, y), CoeTmVal)
 
-data Infer = Infer Tm VTy
-
-CAN_IO2(Infer, TupleRep [LiftedRep COMMA LiftedRep], (# Tm, VTy #), Infer x y, CoeInfer)
-
-
--- | Create fresh meta.
-freshMeta :: Cxt -> U.IO Tm
+-- | Create fresh meta both as a term and a value.
+freshMeta :: Cxt -> U.IO (Tm, Val)
 freshMeta cxt = U.do
-  x <- MC.fresh (mcxt cxt)
-  U.pure (InsertedMeta (coerce x) (mask cxt))
+
+  let goSp x l mask acc
+        | x == l    = acc
+        | otherwise = let acc' = EM.looked x mask acc (SApp acc (VLocalVar x SId))
+                      in goSp (x + 1) l mask acc'
+
+  mvar <- MC.fresh (mcxt cxt)
+  let mt = InsertedMeta (coerce mvar) (mask cxt)
+  let mv = VFlex (coerce mvar) (goSp 0 (lvl cxt) (mask cxt) SId)
+  U.pure (mt, mv)
 {-# inline freshMeta #-}
 
--- | Create fresh meta under extra binder.
-freshMeta1 :: Cxt -> Icit -> U.IO Tm
-freshMeta1 cxt i = U.do
-  x <- MC.fresh (mcxt cxt)
-  U.pure (InsertedMeta (coerce x) (EM.insert (lvl cxt) i (mask cxt)))
-{-# inline freshMeta1 #-}
+-- | Create fresh meta as a term, under an extra binder.
+freshMetaUnder :: Cxt -> Icit -> U.IO Tm
+freshMetaUnder cxt i = U.do
+  mvar <- MC.fresh (mcxt cxt)
+  U.pure (InsertedMeta (coerce mvar) (EM.insert (lvl cxt) i (mask cxt)))
+{-# inline freshMetaUnder #-}
 
-unifyCxt :: Cxt -> P.Tm -> Val -> Val -> U.IO ()
-unifyCxt cxt t l r = U.do
+unify :: Cxt -> P.Tm -> Val -> Val -> U.IO ()
+unify cxt t l r = U.do
   debug ["unify", showVal cxt l, showVal cxt r]
-  unify (mcxt cxt) (lvl cxt) CSRigid l r `catch` \case
+  Unif.unify (mcxt cxt) (lvl cxt) CSRigid l r `catch` \case
     UnifyEx _ -> throw $ UnifyError cxt t l r
     _         -> impossible
-{-# inline unifyCxt #-}
+{-# inline unify #-}
+
+solve :: Cxt -> P.Tm -> ConvState -> MetaVar -> Spine -> Val -> U.IO ()
+solve cxt pt cs x sp rhs = U.do
+  Unif.solve (mcxt cxt) (lvl cxt) cs x sp rhs `catch` \case
+    UnifyEx _ -> throw $ UnifyError cxt pt (VFlex x sp) rhs
+    _         -> impossible
+{-# inline solve #-}
 
 goInsert' :: Cxt -> Infer -> U.IO Infer
-goInsert' cxt (Infer t va) = forceFUM cxt va U.>>= \case
+goInsert' cxt (t, va) = forceFUM cxt va U.>>= \case
   VPi x Impl a b -> U.do
-    m <- freshMeta cxt
-    let mv = eval cxt m
-    goInsert' cxt (Infer (App t m Impl) (appCl cxt b mv))
-  va -> U.pure (Infer t va)
+    (m, mv) <- freshMeta cxt
+    goInsert' cxt (App t m Impl // appCl cxt b mv)
+  va -> U.pure (t, va)
 
 -- | Insert fresh implicit applications.
-insert' :: Cxt -> U.IO Infer -> U.IO Infer
-insert' cxt act = goInsert' cxt U.=<< act where
-{-# inline insert' #-}
+insertApps' :: Cxt -> U.IO Infer -> U.IO Infer
+insertApps' cxt act = goInsert' cxt U.=<< act where
+{-# inline insertApps' #-}
 
 -- | Insert fresh implicit applications to a term which is not
 --   an implicit lambda (i.e. neutral).
-insert :: Cxt -> U.IO Infer -> U.IO Infer
-insert cxt act = act U.>>= \case
-  res@(Infer (Lam _ Impl _) _) -> U.pure res
-  res                          -> insert' cxt (U.pure res)
-{-# inline insert #-}
+insertApps :: Cxt -> U.IO Infer -> U.IO Infer
+insertApps cxt act = act U.>>= \case
+  res@(Lam _ Impl _, _) -> U.pure res
+  res                   -> insertApps' cxt (U.pure res)
+{-# inline insertApps #-}
 
 -- | Insert fresh implicit applications until we hit a Pi with
 --   a particular binder name.
-insertUntilName :: P.Tm -> Cxt -> Span -> U.IO Infer -> U.IO Infer
-insertUntilName topT cxt name act = go cxt U.=<< act where
-  go cxt (Infer t va) = forceFUM cxt va U.>>= \case
+insertAppUntilName :: P.Tm -> Cxt -> Span -> U.IO Infer -> U.IO Infer
+insertAppUntilName topT cxt name act = go cxt U.=<< act where
+  go cxt (t, va) = forceFUM cxt va U.>>= \case
     va@(VPi x Impl a b) -> U.do
       if eqName cxt x (NSpan name) then
-        U.pure (Infer t va)
+        U.pure (t, va)
       else U.do
-        m <- freshMeta cxt
-        let mv = eval cxt m
-        go cxt (Infer (App t m Impl) (appCl cxt b mv))
+        (m, mv) <- freshMeta cxt
+        go cxt (App t m Impl // appCl cxt b mv)
     _ ->
       throw $ NoNamedArgument topT name
-{-# inline insertUntilName #-}
+{-# inline insertAppUntilName #-}
 
 --------------------------------------------------------------------------------
 
@@ -105,44 +115,44 @@ infer :: Cxt -> P.Tm -> U.IO Infer
 infer cxt topT = U.do
   debug ["infer", showPTm cxt topT]
 
-  Infer t a <- case topT of
+  (t, a) <- case topT of
     P.Var px -> U.do
       ma <- ST.lookup px (tbl cxt)
       case ma of
-        UNothing                   -> throw $ NotInScope px
-        UJust (ST.Local x va)      -> U.do
+        UNothing              -> throw $ NotInScope px
+        UJust (ST.Local x va) -> U.do
+
           debugging U.do
             foo <- U.io $ ST.assocs (tbl cxt)
             debug ["local var", show foo, showSpan (src cxt) px, show x,
                    show $ lvlToIx (lvl cxt) x, show $ lvl cxt]
 
-          U.pure (Infer (LocalVar (lvlToIx (lvl cxt) x)) va)
+          U.pure (LocalVar (lvlToIx (lvl cxt) x), va)
+
         UJust (ST.Top x _ va _ vt) -> U.do
+
           debugging U.do
             foo <- U.io $ ST.assocs (tbl cxt)
             debug ["top var", show foo, showSpan (src cxt) px, show x]
 
-          U.pure (Infer (TopVar x vt) va)
+          U.pure (TopVar x vt // va)
 
-    P.Let _ x ma t u -> U.do
-        a <- checkAnnot cxt ma
-        let ~va = eval cxt a
-        t <- check cxt t va
-        let ~vt = eval cxt t
-        Infer u vb <- defining cxt x va vt \cxt -> infer cxt u
-        U.pure (Infer (Let x a t u) vb)
+    P.Let _ x ma t u ->
+      checkWithAnnot cxt ma t \ t a va -> U.do
+        (u, vb) <- defining cxt x va (eval cxt t) \cxt -> infer cxt u
+        U.pure (Let x a t u // vb)
 
     topT@(P.App t u inf) ->
 
       U.bind3 (\pure -> case inf of
         P.Named x -> U.do
-          Infer t tty <- insertUntilName topT cxt x $ infer cxt t
+          (t, tty) <- insertAppUntilName topT cxt x $ infer cxt t
           pure Impl t tty
         P.NoName Impl -> U.do
-          Infer t tty <- infer cxt t
+          (t, tty) <- infer cxt t
           pure Impl t tty
         P.NoName Expl -> U.do
-          Infer t tty <- insert' cxt $ infer cxt t
+          (t, tty) <- insertApps' cxt $ infer cxt t
           pure Expl t tty)
       \i t tty ->
 
@@ -150,46 +160,68 @@ infer cxt topT = U.do
         VPi x i' a b | i == i'   -> pure a b
                      | otherwise -> undefined
         tty -> U.do
-          a <- eval cxt U.<$> freshMeta cxt
-          b <- Closure (env cxt) U.<$> freshMeta1 cxt i
-          unifyCxt cxt topT tty (VPi NX i a b)
+          a <- snd U.<$> freshMeta cxt
+          b <- Closure (env cxt) U.<$> freshMetaUnder cxt i
+          unify cxt topT tty (VPi NX i a b)
           pure a b)
       \a b -> U.do
 
       u <- check cxt u a
-      U.pure (Infer (App t u i) (appCl cxt b (eval cxt u)))
+      U.pure (App t u i // appCl cxt b (eval cxt u))
 
     P.Pi _ x i a b -> U.do
-      a <- check cxt a VU
+      a <- checkType cxt a
       binding cxt x i (eval cxt a) \cxt _ -> U.do
-        b <- check cxt b VU
-        U.pure (Infer (Pi (bind x) i a b) VU)
+        b <- checkType cxt b
+        U.pure (Pi (bind x) i a b // VU)
 
     P.Lam _ x P.Named{} ma t ->
       throw InferNamedLam
 
-    P.Lam _ x (P.NoName i) ma t -> U.do
-      a <- checkAnnot cxt ma
-      let ~va = eval cxt a
-      Infer t vb <- binding cxt x i va \cxt _ -> insert cxt $ infer cxt t
-      U.pure (Infer (Lam (bind x) i t) (VPi (bind x) i va (valToClosure cxt vb)))
+    P.Lam _ x (P.NoName i) ma t ->
+      U.bind2 (\pure -> case ma of
+        UNothing -> U.do (m, mv) <- freshMeta cxt
+                         pure m mv
+        UJust a  -> U.do a <- checkType cxt a
+                         let ~va = eval cxt a
+                         pure a va)
+      \ ~a ~va -> U.do
+      (t, vb) <- binding cxt x i va \cxt _ -> insertApps cxt (infer cxt t)
+      U.pure (Lam (bind x) i t // VPi (bind x) i va (valToClosure cxt vb))
 
     P.U _ ->
-      U.pure $ Infer U VU
+      U.pure (U, VU)
 
     P.Hole _ -> U.do
-      va <- eval cxt U.<$> freshMeta cxt
-      t  <- freshMeta cxt
-      U.pure $ Infer t va
+      (_, va) <- freshMeta cxt
+      (t, _ ) <- freshMeta cxt
+      U.pure (t // va)
 
   debug ["inferred", showTm cxt t, showVal cxt a]
-  U.pure (Infer t a)
+  U.pure (t, a)
 
-checkAnnot :: Cxt -> UMaybe P.Tm -> U.IO Tm
-checkAnnot cxt = \case
-  UNothing -> freshMeta cxt
-  UJust a  -> check cxt a VU
-{-# inline checkAnnot #-}
+-- | Choose between checking and inferring depending on an optional type annotation.
+checkWithAnnot :: U.CanIO a => Cxt -> UMaybe P.Tm -> P.Tm -> (Tm -> Ty -> VTy -> U.IO a) -> U.IO a
+checkWithAnnot cxt ma t k = case ma of
+  UNothing -> U.do
+    (t, va) <- insertApps cxt $ infer cxt t
+    let a = quote cxt UnfoldNone va
+    k t a va
+  UJust a -> U.do
+    a <- checkType cxt a
+    let va = eval cxt a
+    t <- check cxt t va
+    k t a va
+{-# inline checkWithAnnot #-}
+
+-- | Check that a preterm is a type.
+checkType :: Cxt -> P.Tm -> U.IO Tm
+checkType cxt pt = U.do
+  (t, tty) <- infer cxt pt
+  forceFUM cxt tty U.>>= \case
+    VU         -> U.pure t
+    VFlex x sp -> t U.<$ solve cxt pt CSRigid x sp VU
+    a          -> throw $ UnifyError cxt pt a VU
 
 check :: Cxt -> P.Tm -> VTy -> U.IO Tm
 check cxt topT a = U.do
@@ -203,8 +235,8 @@ check cxt topT a = U.do
       case ma of
         UNothing -> U.pure ()
         UJust a' -> U.do
-          a' <- check cxt a' VU
-          unifyCxt cxt topT a (eval cxt a')
+          a' <- checkType cxt a'
+          unify cxt topT a (eval cxt a')
 
       binding cxt x i a \cxt v ->
         Lam (bind x) i U.<$> check cxt t (appCl cxt b v)
@@ -214,20 +246,17 @@ check cxt topT a = U.do
         t <- check cxt t (appCl cxt b v)
         U.pure (Lam x Impl t)
 
-    (P.Let _ x ma t u, a') -> U.do
-      a <- checkAnnot cxt ma
-      let ~va = eval cxt a
-      t <- check cxt t va
-      let ~vt = eval cxt t
-      defining cxt x va vt \cxt ->
-        Let x a t U.<$> check cxt u a'
+    (P.Let _ x ma t u, a') ->
+      checkWithAnnot cxt ma t \ ~t ~a ~va ->
+        defining cxt x va (eval cxt t) \cxt ->
+          Let x a t U.<$> check cxt u a'
 
     (P.Hole _, a) ->
-      freshMeta cxt
+      fst U.<$> freshMeta cxt
 
     (topT, expected) -> U.do
-      Infer t inferred <- insert cxt $ infer cxt topT
-      unifyCxt cxt topT inferred expected
+      (t, inferred) <- insertApps cxt $ infer cxt topT
+      unify cxt topT inferred expected
       U.pure t
 
 checkTopLevel :: SymTable -> MetaCxt -> TopLevel -> P.TopLevel -> U.IO TopLevel
@@ -237,14 +266,12 @@ checkTopLevel tbl ms top ptop = case ptop of
   P.Definition x ma t u -> U.do
     debug ["\nTOP DEF ANNOT", showSpan (ST.byteString tbl) x]
     let cxt = empty tbl ms top
-    a <- checkAnnot cxt ma
-    let ~va = E.eval ms ENil a
-    debug ["\nTOP DEF CHECK", showSpan (ST.byteString tbl) x]
-    t <- check cxt t va
-    let ~vt = E.eval ms ENil t
-    ST.insert x (ST.Top (topLen top) a va t vt) tbl
-    top <- topDefine x a t top
-    checkTopLevel tbl ms top u
+    checkWithAnnot cxt ma t \ ~t ~a ~va -> U.do
+      debug ["\nTOP DEF CHECK", showSpan (ST.byteString tbl) x]
+      let ~vt = E.eval ms ENil t
+      ST.insert x (ST.Top (topLen top) a va t vt) tbl
+      top <- topDefine x a t top
+      checkTopLevel tbl ms top u
 
 checkProg :: B.ByteString -> P.TopLevel -> IO (MetaCxt, TopLevel)
 checkProg src ptop = do

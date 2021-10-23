@@ -19,6 +19,11 @@ flag dump
   manual: True
   default: False
 
+flag llvm
+  description: use llvm for codegen
+  manual: True
+  default: False
+
 library
   exposed-modules:
       Common
@@ -88,6 +93,8 @@ library
     , template-haskell
   if flag(dump)
     ghc-options: -ddump-simpl -ddump-stg -ddump-cmm -dsuppress-all -dno-suppress-type-signatures -ddump-to-file
+  if flag(llvm)
+    ghc-options: -fllvm
   default-language: Haskell2010
 
 executable smalltt
@@ -133,6 +140,8 @@ executable smalltt
     , smalltt
   if flag(dump)
     ghc-options: -ddump-simpl -ddump-stg -ddump-cmm -dsuppress-all -dno-suppress-type-signatures -ddump-to-file
+  if flag(llvm)
+    ghc-options: -fllvm
   default-language: Haskell2010
 
 executable smalltt-parseonly
@@ -178,4 +187,6 @@ executable smalltt-parseonly
     , smalltt
   if flag(dump)
     ghc-options: -ddump-simpl -ddump-stg -ddump-cmm -dsuppress-all -dno-suppress-type-signatures -ddump-to-file
+  if flag(llvm)
+    ghc-options: -fllvm
   default-language: Haskell2010

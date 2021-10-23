@@ -1,6 +1,6 @@
 {-# language UnboxedTuples #-}
 
-module Unification where
+module Unification (unify, solve) where
 
 import IO
 import GHC.Exts
@@ -77,7 +77,7 @@ invertSp ms gamma m sp = U.do
   U.pure (PRen m dom gamma ren)
 
 renameSp :: MetaCxt -> PartialRenaming -> Tm -> Spine -> U.IO Tm
-renameSp ms pren hd = \case
+renameSp ms pren ~hd = \case
   SId         -> U.pure hd
   SApp sp t i -> App U.<$> renameSp ms pren hd sp
                      U.<*> rename ms pren t
@@ -117,7 +117,7 @@ lams SId           acc = acc
 lams (SApp sp t i) acc = lams sp (Lam NX i acc)
 
 solve :: MetaCxt -> Lvl -> ConvState -> MetaVar -> Spine -> Val -> U.IO ()
-solve ms l cs x sp rhs = U.do
+solve ms l cs x ~sp ~rhs = U.do
   U.when (cs == CSFlex) $ throw $ UnifyEx CSFlexSolution
   pren <- invertSp ms l x sp
   rhs <- lams sp U.<$> rename ms pren rhs
