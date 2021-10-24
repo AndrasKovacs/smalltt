@@ -21,17 +21,44 @@ add : Nat → Nat → Nat
 mul : Nat → Nat → Nat
  = λ a b n s. a n (b n s)
 
-n2 : Nat = λ N s z. s (s z)
-n5 : Nat = λ N s z. s (s (s (s (s z))))
+Eq : {A} → A → A → U
+ = λ {A} x y. (P : A → U) → P x → P y
 
-n10   = add n5 n5
-n10b  = mul n5 n2
-n100  = mul n10 n10
-n100b = mul n10b n10b
-n1k   = mul n100 n10
-n1kb  = mul n100b n10b
-n10k  = mul n1k n10
-n10kb = mul n1kb n10b
+refl : {A}{x : A} → Eq x x
+ = λ P px. px
+
+Nat : U   = (N : U) → (N → N) → N → N
+n2  : Nat = λ N s z. s (s z)
+n5  : Nat = λ N s z. s (s (s (s (s z))))
+mul : Nat → Nat → Nat = λ a b N s z. a N (b N s) z
+suc : Nat → Nat = λ a N s z. s (a N s z)
+n10    = mul n2 n5
+n10b   = mul n5 n2
+n20    = mul n2 n10
+n20b   = mul n2 n10b
+n21    = suc n20
+n21b   = suc n20b
+n22    = suc n21
+n22b   = suc n21b
+n100   = mul n10   n10
+n100b  = mul n10b  n10b
+n10k   = mul n100  n100
+n10kb  = mul n100b n100b
+n100k  = mul n10k  n10
+n100kb = mul n10kb n10b
+n1M    = mul n10k  n100
+n1Mb   = mul n10kb n100b
+n5M    = mul n1M   n5
+n5Mb   = mul n1Mb  n5
+
+Eq : {A} → A → A → U
+ = λ {A} x y. (P : A → U) → P x → P y
+
+refl : {A x} → Eq {A} x x
+ = λ P px. px
+
+convtest : Eq {Nat} n5M n5Mb
+ = refl {Nat}{n5M}
 
 --------------------------------------------------------------------------------
 

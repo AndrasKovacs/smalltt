@@ -10,7 +10,7 @@ import FlatParse.Basic (packUTF8)
 -- import System.Environment
 -- import System.Exit
 import System.IO
--- import System.Mem
+import System.Mem
 
 import qualified SymTable as ST
 import Common
@@ -104,7 +104,7 @@ loop st = do
     ':':'r':_ ->
       whenLoaded \st -> load (path st) >>= \case
         Nothing -> loop (Just st)
-        Just st -> loop (Just st)
+        Just st -> performGC >> loop (Just st)
     ':':'t':' ':(dropSp -> rest) ->
       loadTopDef rest \st a t -> do
         putStrLn $ showTm0 st a

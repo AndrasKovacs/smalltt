@@ -99,28 +99,28 @@ library:
     - time
 
 executables:
-  smalltt-parseonly:
+  smalltt-2-parseonly:
     source-dirs:
       - parseonly
     main:
       Main.hs
     ghc-options:
       - -rtsopts
-      - -with-rtsopts=-A1G
+      - -threaded
     dependencies:
       - smalltt
     when:
     - condition: false
       other-modules: Paths_smalltt
 
-  smalltt:
+  smalltt-2:
     source-dirs:
       - smalltt
     main:
       Main.hs
     ghc-options:
       - -rtsopts
-      - -with-rtsopts=-A1G
+      - -threaded
     dependencies:
       - bytestring
       - dynamic-array
