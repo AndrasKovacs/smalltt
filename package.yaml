@@ -17,6 +17,10 @@ flags:
     description: use llvm for codegen
     default: false
     manual: true
+  debug:
+    description: turn on debug info printing
+    default: false
+    manual: true
 
 dependencies:
 - base >= 4.7 && < 5
@@ -78,6 +82,9 @@ when:
   - condition: flag(llvm)
     ghc-options:
       - -fllvm
+  - condition: flag(debug)
+    cpp-options:
+      - -DDEBUG
 
 library:
   source-dirs:
@@ -89,6 +96,7 @@ library:
     - flatparse
     - template-haskell
     - containers
+    - time
 
 executables:
   smalltt-parseonly:
@@ -114,6 +122,10 @@ executables:
       - -rtsopts
       - -with-rtsopts=-A1G
     dependencies:
+      - bytestring
+      - dynamic-array
+      - flatparse
+      - primdata
       - smalltt
     when:
     - condition: false

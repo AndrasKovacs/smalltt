@@ -12,32 +12,40 @@ module Common (
   , HasCallStack) where
 
 import Prelude hiding (Monad(..), Applicative(..), IO)
-import Data.Bits
-import FlatParse.Stateful (Span(..), Pos(..), Result(..), unsafeSlice, unpackUTF8)
-import GHC.Exts
-import GHC.Stack
-import Data.Flat
-import GHC.ForeignPtr
-import Data.List
+import qualified Prelude as P
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Internal as B
+
+import Data.Bits
+import Data.Flat
+import Data.List
+import Data.Time.Clock
+import FlatParse.Stateful (Span(..), Pos(..), Result(..), unsafeSlice, unpackUTF8)
+import GHC.Exts
+import GHC.ForeignPtr
+import GHC.Stack
+
 import qualified UIO as U
 import qualified UIO
 
 #include "deriveCanIO.h"
 
+-- debug printing, toggled by "debug" cabal flag
 --------------------------------------------------------------------------------
 
--- type Dbg = HasCallStack
+-- define DEBUG
 
--- debug :: [String] -> UIO.IO ()
--- debug strs = U.io $ putStrLn (intercalate " | " strs ++ " END")
+#ifdef DEBUG
+type Dbg = HasCallStack
 
--- debugging :: UIO.IO () -> UIO.IO ()
--- debugging act = act
--- {-# inline debugging #-}
+debug :: [String] -> UIO.IO ()
+debug strs = U.io $ putStrLn (intercalate " | " strs ++ " END")
 
+debugging :: UIO.IO () -> UIO.IO ()
+debugging act = act
+{-# inline debugging #-}
+#else
 type Dbg = () :: Constraint
 
 debug :: [String] -> UIO.IO ()
@@ -47,6 +55,7 @@ debug strs = U.pure ()
 debugging :: UIO.IO () -> UIO.IO ()
 debugging _ = U.pure ()
 {-# inline debugging #-}
+#endif
 
 --------------------------------------------------------------------------------
 
@@ -54,6 +63,7 @@ type Src = B.ByteString
 
 uf :: Dbg => a
 uf = undefined
+{-# noinline uf #-}
 
 infix 2 //
 (//) :: a -> b -> (a, b)
@@ -77,6 +87,10 @@ infixl 0 $$!
 ($$!) f x = f x
 {-# inline ($$!) #-}
 
+-- | Maximum number of allowed local binders.
+maxLocals :: Int
+maxLocals = 64; {-# inline maxLocals #-}
+
 -- Unboxed Maybe
 --------------------------------------------------------------------------------
 
@@ -87,6 +101,8 @@ pattern UJust :: a -> UMaybe a
 pattern UJust a <- UMaybe# (# a | #) where
   UJust !a = UMaybe# (# a | #)
 {-# complete UNothing, UJust #-}
+
+CAN_IO(UMaybe a, UMaybeRepRep, UMaybeRep a, UMaybe# x, CoeUMaybe)
 
 uMaybe :: b -> (a -> b) -> UMaybe a -> b
 uMaybe n j UNothing  = n
@@ -115,11 +131,9 @@ instance Show a => Show (UMaybe a) where
 type UMaybeRepRep = SumRep [ LiftedRep, TupleRep '[]]
 type UMaybeRep a  = (# a | (# #) #)
 
-CAN_IO(UMaybe a, UMaybeRepRep, UMaybeRep a, UMaybe# x, CoeUMaybe)
-
 --------------------------------------------------------------------------------
 
--- States for approximate scope/conversion checking
+-- | States for approximate scope/conversion checking.
 newtype ConvState = ConvState# Int deriving Eq via Int
 pattern CSRigid :: ConvState
 pattern CSRigid = ConvState# 0
@@ -133,6 +147,8 @@ instance Show ConvState where
   show CSRigid = "Rigid"
   show CSFlex  = "Flex"
   show CSFull  = "Full"
+
+--------------------------------------------------------------------------------
 
 newtype QuoteOption = QuoteOption# Int deriving Eq via Int
 pattern UnfoldAll :: QuoteOption
@@ -168,6 +184,10 @@ icit :: Icit -> a -> a -> a
 icit Impl x y = x
 icit Expl x y = y
 {-# inline icit #-}
+
+
+-- De Bruijn
+--------------------------------------------------------------------------------
 
 newtype Ix = Ix Int
   deriving (Eq, Ord, Show, Num, Enum, Bits) via Int
@@ -314,7 +334,43 @@ eqSpan# eob (Span (Pos (I# x)) (Pos (I# y))) (Span (Pos (I# x')) (Pos (I# y'))) 
     _  -> 0#
 {-# inline eqSpan# #-}
 
+eqSpans# :: Addr# -> Span -> Addr# -> Span -> Int#
+eqSpans# eob  (Span (Pos (I# x))  (Pos (I# y)))
+         eob' (Span (Pos (I# x')) (Pos (I# y'))) = let
+  len  = x -# y
+  len' = x' -# y'
+  in case len ==# len' of
+    1# -> let
+      go p p' l = case l of
+        0# -> 1#
+        _  -> case eqWord# (indexWord8OffAddr# p 0#) (indexWord8OffAddr# p' 0#) of
+          1# -> go (plusAddr# p 1#) (plusAddr# p' 1#) (l -# 1#)
+          _  -> 0#
+      in go (plusAddr# eob (negateInt# x))
+            (plusAddr# eob' (negateInt# x')) len
+    _  -> 0#
+
 eqSpan :: B.ByteString -> Span -> Span -> Bool
 eqSpan (B.BS (ForeignPtr base _) (I# len)) s s' =
   isTrue# (eqSpan# (plusAddr# base len) s s')
 {-# inline eqSpan #-}
+
+--------------------------------------------------------------------------------
+
+-- | Time an IO computation. Result is forced to whnf.
+timed :: P.IO a -> P.IO (a, NominalDiffTime)
+timed a = do
+  t1  <- getCurrentTime
+  res <- a
+  t2  <- getCurrentTime
+  P.pure (res, diffUTCTime t2 t1)
+{-# inline timed #-}
+
+-- | Time a lazy pure value. Result is forced to whnf.
+timedPure :: a -> P.IO (a, NominalDiffTime)
+timedPure ~a = do
+  t1  <- getCurrentTime
+  let res = a
+  t2  <- getCurrentTime
+  P.pure (res, diffUTCTime t2 t1)
+{-# noinline timedPure #-}

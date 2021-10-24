@@ -3,14 +3,14 @@ module Cxt.Types where
 
 import Common
 import CoreTypes
-import EnvMask (EnvMask(..))
+import LvlSet (LvlSet(..))
 import MetaCxt (MetaCxt)
 import SymTable (SymTable(..))
 
 data Cxt = Cxt {
     lvl     :: Lvl
   , env     :: Env
-  , mask    :: {-# unpack #-} EnvMask
+  , mask    :: LvlSet
   , tbl     :: SymTable
   , mcxt    :: MetaCxt
   , names   :: Names

@@ -5,13 +5,15 @@ import qualified Data.ByteString as B
 import GHC.Exts
 import IO
 
-import CoreTypes
-import Cxt.Types
-import Common
 import qualified Evaluation as E
 import qualified SymTable as ST
 import qualified Presyntax as P
 import qualified UIO as U
+import CoreTypes
+import Cxt.Types
+import Common
+
+--------------------------------------------------------------------------------
 
 eval :: Cxt -> Tm -> Val
 eval cxt t = E.eval (mcxt cxt) (env cxt) t
@@ -37,21 +39,13 @@ showValOpt :: Cxt -> Val -> QuoteOption -> String
 showValOpt cxt t opt = showTm cxt (quote cxt opt t)
 {-# inline showValOpt #-}
 
-forceFU :: Cxt -> Val -> Val
+forceFU :: Cxt -> Val -> U.IO Val
 forceFU cxt t = E.forceFU (mcxt cxt) t
 {-# inline forceFU #-}
 
-forceF :: Cxt -> Val -> Val
+forceF :: Cxt -> Val -> U.IO Val
 forceF cxt t = E.forceF (mcxt cxt) t
 {-# inline forceF #-}
-
-forceFUM :: Cxt -> Val -> U.IO Val
-forceFUM cxt t = E.forceFUM (mcxt cxt) t
-{-# inline forceFUM #-}
-
-forceFM :: Cxt -> Val -> U.IO Val
-forceFM cxt t = E.forceFM (mcxt cxt) t
-{-# inline forceFM #-}
 
 app :: Cxt -> Val -> Val -> Icit -> Val
 app cxt t u i = E.app (mcxt cxt) t u i

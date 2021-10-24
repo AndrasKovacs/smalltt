@@ -24,16 +24,13 @@ module CoreTypes (
 
 import qualified Data.ByteString as B
 import qualified Data.Array.LM   as ALM
-
 import GHC.Exts
 
-import qualified EnvMask as EM
 import qualified UIO
 import qualified UIO as U
-
+import qualified LvlSet as LS
 import Common
 import Data.Bits
-import EnvMask (EnvMask)
 
 #include "deriveCanIO.h"
 
@@ -79,7 +76,7 @@ data Tm
   | Let Span Tm Tm Tm
   | App Tm Tm Icit
   | Lam Name Icit Tm
-  | InsertedMeta MetaVar EnvMask
+  | InsertedMeta MetaVar LS.LvlSet
   | Meta MetaVar
   | Pi Name Icit Ty Ty
   | Irrelevant
@@ -88,6 +85,8 @@ data Tm
 
 CAN_IO(Tm, LiftedRep, Tm, x, CoeTm)
 
+
+-- Top-level entries
 --------------------------------------------------------------------------------
 
 data TopEntry = TopEntry {-# unpack #-} Span Tm Tm  -- name, type, definition
@@ -98,7 +97,8 @@ data TopLevel = TopLevel {topLen :: Lvl , topDefs :: ALM.Array TopEntry }
 
 CAN_IO2(TopLevel,
        TupleRep [IntRep COMMA UnliftedRep],
-       (# Int#, MutableArray# RealWorld TopEntry #), TopLevel (Lvl (I# x)) (ALM.Array y), CoeTopLevel)
+       (# Int#, MutableArray# RealWorld TopEntry #),
+       TopLevel (Lvl (I# x)) (ALM.Array y), CoeTopLevel)
 
 newTop :: Int -> U.IO TopLevel
 newTop l = U.do
@@ -151,8 +151,8 @@ instance Show UnfoldHead where
 
 -- | Data structure holding enough name information to pretty print things.
 --   This is a bit peculiar, because it is optimized for fast extension during
---   elab. The top env is stored at the end, and we can extend it with local
---   names with just single NCons.
+--   elaboration. The top env is stored at the end, and we can extend it with
+--   local names with just single NCons.
 data Names
   = NNil {-# unpack #-} TopLevel
   | NCons Names {-# unpack #-} Name
@@ -166,8 +166,6 @@ getTop :: Names -> TopLevel
 getTop (NNil top)   = top
 getTop (NCons ns _) = getTop ns
 
--- showTop :: Dbg => B.ByteString -> TopLevel -> Ix -> String
--- showTop src top x = showSpan src (topSpan x top)
 
 
 -- Pretty printing
@@ -225,15 +223,14 @@ prettyTm prec src ns t = go prec ns t where
   lamBind x Impl = bracket (x++)
   lamBind x Expl = (x++)
 
-  goMask :: Int -> Names -> MetaVar -> EM.EnvMask -> ShowS
+  goMask :: Int -> Names -> MetaVar -> LS.LvlSet -> ShowS
   goMask p ns m mask = fst (go ns) where
     go :: Names -> (ShowS, Lvl)
     go NNil{} =
       ((('?':) . (show m ++) ), 0)
     go (NCons ns (fresh ns -> (n, x))) = case go ns of
-      (s, l) -> EM.looked l mask
-        (s, l + 1)
-        (\_ -> ((par p appp $ s . (' ':) . (x++)), l + 1))
+      (s, l) | LS.member l mask -> ((par p appp $ s . (' ':) . (x++)), l + 1)
+             | otherwise        -> (s, l + 1)
 
   goTop :: Lvl -> ShowS
   goTop x =

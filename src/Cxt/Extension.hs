@@ -3,7 +3,7 @@
 module Cxt.Extension where
 
 import Cxt.Types
-import qualified EnvMask as EM
+import qualified LvlSet as LS
 import qualified SymTable as ST
 import qualified UIO as U
 
@@ -14,13 +14,13 @@ import SymTable (SymTable(..))
 import Exceptions
 
 empty :: SymTable -> MetaCxt -> TopLevel -> Cxt
-empty tbl ms top = Cxt 0 ENil EM.empty tbl ms (NNil top)
+empty tbl ms top = Cxt 0 ENil mempty tbl ms (NNil top)
 {-# inline empty #-}
 
 binding :: U.CanIO a => Cxt -> Bind -> Icit -> VTy -> (Cxt -> Val -> U.IO a) -> U.IO a
 binding (Cxt lvl env mask tbl mcxt ns) x i ~va k = let
   v     = VLocalVar lvl SId
-  mask' = EM.insert lvl i mask
+  mask' = LS.insert lvl mask
   env'  = EDef env v
   lvl'  = lvl + 1
   in case x of
@@ -48,5 +48,5 @@ defining (Cxt lvl env mask tbl mcxt ns) x ~va ~vt k = U.do
 inserting :: Cxt -> Name -> VTy -> (Cxt -> Val -> U.IO a) -> U.IO a
 inserting (Cxt lvl env mask tbl mcxt ns) x ~va k =
   let v = VLocalVar lvl SId
-  in k (Cxt (lvl + 1) (EDef env v) (EM.insert lvl Impl mask) tbl mcxt (NCons ns x)) v
+  in k (Cxt (lvl + 1) (EDef env v) (LS.insert lvl mask) tbl mcxt (NCons ns x)) v
 {-# inline inserting #-}

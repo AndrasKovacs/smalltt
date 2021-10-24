@@ -19,9 +19,6 @@ import Exceptions
 
 --------------------------------------------------------------------------------
 
-
--- TODO: organize modules somehow
-
 -- TODO: eta-short solution + long retry
 --       flex-flex
 --       meta freezing
@@ -62,7 +59,7 @@ invertSp ms gamma m sp = U.do
         SId         -> U.pure 0
         SApp sp t _ -> U.do
           dom <- go ms ren sp
-          forceFUM ms t U.>>= \case
+          forceFU ms t U.>>= \case
             VLocalVar x SId -> U.do
               y <- U.io $ AFM.read ren (coerce x)
               case y of
@@ -92,7 +89,7 @@ rename ms pren v = U.do
                            (appCl' ms t (VLocalVar (cod pren) SId))
       {-# inline goBind #-}
 
-  forceFUM ms v U.>>= \case
+  forceFU ms v U.>>= \case
 
     VFlex m' sp | occurs pren == m' -> throw $ UnifyEx Conversion -- occurs check
                 | otherwise         -> goSp (Meta m') sp
@@ -131,7 +128,7 @@ unifySp ms l cs sp sp' = case (sp, sp') of
   _                            -> throw $ UnifyEx Conversion
 
 unify :: MetaCxt -> Lvl -> ConvState -> Val -> Val -> U.IO ()
-unify ms l cs t t' = U.do
+unify ms l cs topt topt' = U.do
   let
     go = unify ms l cs
     {-# inline go #-}
@@ -152,12 +149,12 @@ unify ms l cs t t' = U.do
               | otherwise = err
     {-# inline goEq #-}
 
-    force t = case cs of CSFull -> forceFUM ms t
-                         _      -> forceFM  ms t
+    force t = case cs of CSFull -> forceFU ms t
+                         _      -> forceF  ms t
     {-# inline force #-}
 
-  t  <- force t
-  t' <- force t'
+  t  <- force topt
+  t' <- force topt'
 
   case (t, t') of
 

@@ -1,13 +1,20 @@
+{-# language UnboxedTuples #-}
 
 module MetaCxt where
 
+import qualified Data.Array.Dynamic.L as ADL
+
+import qualified UIO as U
+import qualified UIO
 import Common
 import CoreTypes
-import qualified Data.Array.Dynamic.L as ADL
-import qualified UIO as U
+
+#include "deriveCanIO.h"
 
 data MetaEntry = MEUnsolved | MESolved ~Val
 type MetaCxt = ADL.Array MetaEntry
+
+CAN_IO(MetaEntry, LiftedRep, MetaEntry, x, CoeMetaEntry)
 
 new :: IO MetaCxt
 new = ADL.empty

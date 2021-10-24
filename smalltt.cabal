@@ -14,6 +14,11 @@ copyright:      2021 András Kovács
 license:        MIT
 build-type:     Simple
 
+flag debug
+  description: turn on debug info printing
+  manual: True
+  default: False
+
 flag dump
   description: dump core, stg and cmm to files
   manual: True
@@ -32,7 +37,6 @@ library
       Cxt.Extension
       Cxt.Types
       Elaboration
-      EnvMask
       Evaluation
       Exceptions
       InCxt
@@ -91,10 +95,13 @@ library
     , flatparse
     , primdata
     , template-haskell
+    , time
   if flag(dump)
     ghc-options: -ddump-simpl -ddump-stg -ddump-cmm -dsuppress-all -dno-suppress-type-signatures -ddump-to-file
   if flag(llvm)
     ghc-options: -fllvm
+  if flag(debug)
+    cpp-options: -DDEBUG
   default-language: Haskell2010
 
 executable smalltt
@@ -137,11 +144,17 @@ executable smalltt
   ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=20 -O2 -rtsopts -with-rtsopts=-A1G
   build-depends:
       base >=4.7 && <5
+    , bytestring
+    , dynamic-array
+    , flatparse
+    , primdata
     , smalltt
   if flag(dump)
     ghc-options: -ddump-simpl -ddump-stg -ddump-cmm -dsuppress-all -dno-suppress-type-signatures -ddump-to-file
   if flag(llvm)
     ghc-options: -fllvm
+  if flag(debug)
+    cpp-options: -DDEBUG
   default-language: Haskell2010
 
 executable smalltt-parseonly
@@ -189,4 +202,6 @@ executable smalltt-parseonly
     ghc-options: -ddump-simpl -ddump-stg -ddump-cmm -dsuppress-all -dno-suppress-type-signatures -ddump-to-file
   if flag(llvm)
     ghc-options: -fllvm
+  if flag(debug)
+    cpp-options: -DDEBUG
   default-language: Haskell2010

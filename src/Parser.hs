@@ -1,6 +1,6 @@
 {-# language UnboxedTuples, UnboxedSums, OverloadedStrings #-}
 
-module Parser (src, parse, parseString, parseFile) where
+module Parser (parse, parseString, parseFile) where
 
 import FlatParse.Stateful hiding (Parser, runParser, string, cut)
 import qualified Data.ByteString as B

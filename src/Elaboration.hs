@@ -3,11 +3,17 @@
 
 module Elaboration (checkProg) where
 
-import GHC.Exts
-import System.Exit
-
 import qualified Data.ByteString as B
+import GHC.Exts
 
+import qualified LvlSet as LS
+import qualified Evaluation as E
+import qualified MetaCxt as MC
+import qualified Presyntax as P
+import qualified SymTable as ST
+import qualified UIO
+import qualified UIO as U
+import qualified Unification as Unif
 import Common
 import CoreTypes
 import Cxt
@@ -16,48 +22,10 @@ import InCxt
 import MetaCxt (MetaCxt)
 import SymTable (SymTable)
 
-import qualified EnvMask as EM
-import qualified Evaluation as E
-import qualified MetaCxt as MC
-import qualified Presyntax as P
-import qualified SymTable as ST
-import qualified UIO
-import qualified UIO as U
-import qualified Unification as Unif
-
 #include "deriveCanIO.h"
 
---------------------------------------------------------------------------------
-
--- TODO:
--- Optimize fresh meta value creation
 
 --------------------------------------------------------------------------------
-
-type Infer = (Tm, VTy)
-CAN_IO2((Tm, Val), TupleRep [LiftedRep COMMA LiftedRep], (# Tm, Val #), (x, y), CoeTmVal)
-
--- | Create fresh meta both as a term and a value.
-freshMeta :: Cxt -> U.IO (Tm, Val)
-freshMeta cxt = U.do
-
-  let goSp x l mask acc
-        | x == l    = acc
-        | otherwise = let acc' = EM.looked x mask acc (SApp acc (VLocalVar x SId))
-                      in goSp (x + 1) l mask acc'
-
-  mvar <- MC.fresh (mcxt cxt)
-  let mt = InsertedMeta (coerce mvar) (mask cxt)
-  let mv = VFlex (coerce mvar) (goSp 0 (lvl cxt) (mask cxt) SId)
-  U.pure (mt, mv)
-{-# inline freshMeta #-}
-
--- | Create fresh meta as a term, under an extra binder.
-freshMetaUnder :: Cxt -> Icit -> U.IO Tm
-freshMetaUnder cxt i = U.do
-  mvar <- MC.fresh (mcxt cxt)
-  U.pure (InsertedMeta (coerce mvar) (EM.insert (lvl cxt) i (mask cxt)))
-{-# inline freshMetaUnder #-}
 
 unify :: Cxt -> P.Tm -> Val -> Val -> U.IO ()
 unify cxt t l r = U.do
@@ -74,8 +42,38 @@ solve cxt pt cs x sp rhs = U.do
     _         -> impossible
 {-# inline solve #-}
 
+-- Fresh metas and meta insertions
+--------------------------------------------------------------------------------
+
+type Infer = (Tm, VTy)
+CAN_IO2((Tm, Val), TupleRep [LiftedRep COMMA LiftedRep], (# Tm, Val #), (x, y), CoeTmVal)
+
+-- | Create fresh meta both as a term and a value.
+freshMeta :: Cxt -> U.IO (Tm, Val)
+freshMeta cxt = U.do
+
+  let goSp x l mask acc
+        | x == l    = acc
+        | otherwise =
+          let acc' | LS.member x mask = SApp acc (VLocalVar x SId) Expl
+                   | otherwise        = acc
+          in goSp (x + 1) l mask acc'
+
+  mvar <- MC.fresh (mcxt cxt)
+  let mt = InsertedMeta (coerce mvar) (mask cxt)
+  let mv = VFlex (coerce mvar) (goSp 0 (lvl cxt) (mask cxt) SId)
+  U.pure (mt, mv)
+{-# inline freshMeta #-}
+
+-- | Create fresh meta as a term, under an extra binder.
+freshMetaUnder :: Cxt -> Icit -> U.IO Tm
+freshMetaUnder cxt i = U.do
+  mvar <- MC.fresh (mcxt cxt)
+  U.pure (InsertedMeta (coerce mvar) (LS.insert (lvl cxt) (mask cxt)))
+{-# inline freshMetaUnder #-}
+
 goInsert' :: Cxt -> Infer -> U.IO Infer
-goInsert' cxt (t, va) = forceFUM cxt va U.>>= \case
+goInsert' cxt (t, va) = forceFU cxt va U.>>= \case
   VPi x Impl a b -> U.do
     (m, mv) <- freshMeta cxt
     goInsert' cxt (App t m Impl // appCl cxt b mv)
@@ -98,7 +96,7 @@ insertApps cxt act = act U.>>= \case
 --   a particular binder name.
 insertAppUntilName :: P.Tm -> Cxt -> Span -> U.IO Infer -> U.IO Infer
 insertAppUntilName topT cxt name act = go cxt U.=<< act where
-  go cxt (t, va) = forceFUM cxt va U.>>= \case
+  go cxt (t, va) = forceFU cxt va U.>>= \case
     va@(VPi x Impl a b) -> U.do
       if eqName cxt x (NSpan name) then
         U.pure (t, va)
@@ -109,6 +107,7 @@ insertAppUntilName topT cxt name act = go cxt U.=<< act where
       throw $ NoNamedArgument topT name
 {-# inline insertAppUntilName #-}
 
+-- Elaboration
 --------------------------------------------------------------------------------
 
 infer :: Cxt -> P.Tm -> U.IO Infer
@@ -156,7 +155,7 @@ infer cxt topT = U.do
           pure Expl t tty)
       \i t tty ->
 
-      U.bind2 (\pure -> forceFUM cxt tty U.>>= \case
+      U.bind2 (\pure -> forceFU cxt tty U.>>= \case
         VPi x i' a b | i == i'   -> pure a b
                      | otherwise -> undefined
         tty -> U.do
@@ -218,7 +217,7 @@ checkWithAnnot cxt ma t k = case ma of
 checkType :: Cxt -> P.Tm -> U.IO Tm
 checkType cxt pt = U.do
   (t, tty) <- infer cxt pt
-  forceFUM cxt tty U.>>= \case
+  forceFU cxt tty U.>>= \case
     VU         -> U.pure t
     VFlex x sp -> t U.<$ solve cxt pt CSRigid x sp VU
     a          -> throw $ UnifyError cxt pt a VU
@@ -227,7 +226,7 @@ check :: Cxt -> P.Tm -> VTy -> U.IO Tm
 check cxt topT a = U.do
   debug ["check", showPTm cxt topT, showVal cxt a]
 
-  a <- forceFUM cxt a
+  a <- forceFU cxt a
   case (topT, a) of
     (P.Lam _ x inf ma t, VPi x' i a b)
       | (case inf of P.NoName i' -> i == i'
@@ -264,21 +263,20 @@ checkTopLevel tbl ms top ptop = case ptop of
   P.Nil ->
     U.pure top
   P.Definition x ma t u -> U.do
-    debug ["\nTOP DEF ANNOT", showSpan (ST.byteString tbl) x]
+
+    debug ["\nTOP DEF", showSpan (ST.byteString tbl) x]
     let cxt = empty tbl ms top
     checkWithAnnot cxt ma t \ ~t ~a ~va -> U.do
-      debug ["\nTOP DEF CHECK", showSpan (ST.byteString tbl) x]
+
       let ~vt = E.eval ms ENil t
       ST.insert x (ST.Top (topLen top) a va t vt) tbl
       top <- topDefine x a t top
       checkTopLevel tbl ms top u
 
-checkProg :: B.ByteString -> P.TopLevel -> IO (MetaCxt, TopLevel)
+checkProg :: B.ByteString -> P.TopLevel -> IO (Either Exception (SymTable, TopLevel, MetaCxt))
 checkProg src ptop = do
-  tbl <- U.toIO $ ST.new src
-  ms  <- MC.new
-  top <- U.toIO $ newTop (P.topLen ptop)
-  top <- U.toIO $ checkTopLevel tbl ms top ptop `catch` \e -> U.do
-     U.io $ putStrLn (showException src e)
-     U.io exitSuccess
-  pure (ms, top)
+  tbl  <- U.toIO $ ST.new src
+  top  <- U.toIO $ newTop (P.topLen ptop)
+  ms   <- MC.new
+  etop <- U.toIO $ try (checkTopLevel tbl ms top ptop)
+  pure $! ((\top -> (tbl, top, ms)) <$> etop)

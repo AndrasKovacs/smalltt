@@ -6,19 +6,19 @@ An alternative IO implementation, working around GHC's inability to unbox throug
 
 module UIO where
 
-import Prelude hiding (
-  Functor(..), (<$>), (<$), Applicative(..), (<*), (*>), Monad(..), IO)
-
-import FlatParse.Stateful (Pos(..), Span(..))
-import GHC.Exts
-import qualified "primdata" IO as StdIO
-
+import qualified "primdata" IO   as StdIO
 import qualified Data.Ref.UUU    as RUUU
 import qualified Data.Ref.FFF    as RFFF
 import qualified Data.Ref.L      as RL
 import qualified Data.Array.LM   as ALM
 import qualified Data.Array.FM   as AFM
 import qualified Data.Array.UM   as AUM
+
+import Prelude hiding (
+  Functor(..), (<$>), (<$), Applicative(..), (<*), (*>), Monad(..), IO)
+
+import FlatParse.Stateful (Pos(..), Span(..))
+import GHC.Exts
 
 #include "deriveCanIO.h"
 
@@ -30,7 +30,8 @@ type family RepRep a = (res :: RuntimeRep)
 type family Rep a    = (res :: TYPE (RepRep a))
 
 class CanIO a where
-  bind  :: forall r (b :: TYPE r). (RW -> (# RW, Rep a #)) -> (a -> RW -> (# RW, b #)) -> RW -> (# RW, b #)
+  bind  :: forall r (b :: TYPE r). (RW -> (# RW, Rep a #))
+        -> (a -> RW -> (# RW, b #)) -> RW -> (# RW, b #)
   pure# :: a -> RW -> (# RW, Rep a #)
 
 newtype IO a = IO {unIO :: RW -> (# RW, Rep a #)}
@@ -130,13 +131,15 @@ CAN_IO(ALM.Array a, UnliftedRep, MutableArray# RealWorld a, ALM.Array x, CoeALM)
 CAN_IO(AFM.Array a, UnliftedRep, MutableByteArray# RealWorld, AFM.Array x, CoeAFM)
 CAN_IO(Ptr a, AddrRep, Addr#, Ptr x, CoePtr)
 CAN_IO([a], LiftedRep, [a], x, CoeList)
+CAN_IO(Either a b, LiftedRep, Either a b, x, CoeEither)
 CAN_IO2(Span, TupleRep [IntRep COMMA IntRep], (# Int#, Int# #), Span (Pos (I# x)) (Pos (I# y)), CoeSpan)
 
 type instance RepRep () = TupleRep '[]
 type instance Rep ()    = (# #)
 
 instance CanIO () where
-  bind  :: forall r (b :: TYPE r). (RW -> (# RW, (# #) #)) -> (() -> RW -> (# RW, b #)) -> RW -> (# RW, b #)
+  bind  :: forall r (b :: TYPE r). (RW -> (# RW, (# #) #))
+           -> (() -> RW -> (# RW, b #)) -> RW -> (# RW, b #)
   bind f g s = case f s of (# s, _ #) -> g () s
 
   pure# :: () -> RW -> (# RW, (# #) #)

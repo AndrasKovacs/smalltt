@@ -3,8 +3,8 @@ id : {A} → A → A
  = λ x. x
 
 idTest : {A} → A → A
- = id id id id id id id id id id id id id id id id id id id id
-   id id id id id id id id id id id id id id id id id id id id
+  = id id id id id id id id id id id id id id id id id id id id
+    id id id id id id id id id id id id id id id id id id id id
 
 Nat : U
  = (n : U) → (n → n) → n → n
@@ -14,6 +14,26 @@ zero : Nat
 
 suc : Nat → Nat
  = λ a n s z. s (a n s z)
+
+add : Nat → Nat → Nat
+ = λ a b n s z. a n s (b n s z)
+
+mul : Nat → Nat → Nat
+ = λ a b n s. a n (b n s)
+
+n2 : Nat = λ N s z. s (s z)
+n5 : Nat = λ N s z. s (s (s (s (s z))))
+
+n10   = add n5 n5
+n10b  = mul n5 n2
+n100  = mul n10 n10
+n100b = mul n10b n10b
+n1k   = mul n100 n10
+n1kb  = mul n100b n10b
+n10k  = mul n1k n10
+n10kb = mul n1kb n10b
+
+--------------------------------------------------------------------------------
 
 Vec : U → Nat → U
  = λ a n. (V : Nat → U) → V zero → ({n} → a → V n → V (suc n)) → V n

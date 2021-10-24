@@ -16,6 +16,7 @@ module SymTable (
     SymTable(..)
   , new
   , SymTable.lookup
+  , lookupByteString
   , deleteWithHash
   , insertWithHash
   , updateWithHash
@@ -24,37 +25,39 @@ module SymTable (
   , size
   , eob
   , hash
+  , hashByteString
   , byteString
   , spanToString
   , spanToByteString
   , assocs
   , buckets
+  , Entry(..)
   -- , test
-  , Entry(..)) where
+  ) where
 
-import qualified FlatParse.Basic as FP
-import qualified Data.Ref.UUU    as RUUU
-import qualified Data.Ref.FFF    as RFFF
-import qualified Data.Ref.L      as RL
-import qualified Data.Array.LM   as ALM
-import qualified Data.Array.LI   as ALI
-import qualified Data.Array.UM   as AUM
-
-import qualified Data.ByteString as B
+import qualified Data.Array.LI            as ALI
+import qualified Data.Array.LM            as ALM
+import qualified Data.Array.UM            as AUM
+import qualified Data.ByteString          as B
 import qualified Data.ByteString.Internal as B
-import qualified Data.ByteString.Unsafe as B
+import qualified Data.ByteString.Unsafe   as B
+import qualified Data.Ref.FFF             as RFFF
+import qualified Data.Ref.L               as RL
+import qualified Data.Ref.UUU             as RUUU
+import qualified FlatParse.Basic          as FP
 
 import Data.Bits
+import Data.Word
 import GHC.Exts
 import GHC.ForeignPtr
-import Data.Word
-
-import IO
-import Common
-import CoreTypes
 
 import qualified UIO
 import qualified UIO as U
+
+import Common
+import CoreTypes
+import IO
+
 
 #include "deriveCanIO.h"
 
@@ -70,8 +73,8 @@ data Entry
   | Local Lvl ~VTy           -- level, type val
 
 instance Show Entry where
-  show (Local x _)     = "Loc " ++ show x
-  show (Top x _ _ _ _) = "Top " ++ show x
+  showsPrec d (Local x _)     = showParen (d > 10) (("Loc " ++ show x)++)
+  showsPrec d (Top x _ _ _ _) = showParen (d > 10) (("Top " ++ show x)++)
 
 -- Span hashing
 --------------------------------------------------------------------------------
@@ -135,6 +138,22 @@ hash (SymTable tbl) k = U.do
   U.pure (hash# src k)
 {-# inline hash #-}
 
+hashByteString :: B.ByteString -> U.IO Hash
+hashByteString str = U.io $ B.unsafeUseAsCString str \(Ptr addr) -> do
+  let !(I# l) = B.length str
+  pure $! hash# (plusAddr# addr l) (Span (Pos (I# l)) (Pos 0))
+
+
+  -- let !(I# l) = B.length str
+  --     eob = plusAddr# addr l
+  -- pure $ hash# eob s
+
+
+-- runIO $ B.unsafeUseAsCString str \(Ptr addr) -> do
+--   let !(I# l) = B.length str
+--       eob = plusAddr# addr l
+--   pure $ isTrue# (eqSpan# eob s s')
+
 
 -- Buckets
 --------------------------------------------------------------------------------
@@ -165,6 +184,13 @@ lookupBucket src k = \case
   Cons h' k' v' b
     | 1# <- eqSpan# src k k' -> (# v' | #)
     | otherwise              -> lookupBucket src k b
+
+lookupBSBucket :: Addr# -> Addr# -> Span -> Bucket -> (# Entry | (# #) #)
+lookupBSBucket src' src k = \case
+  Empty -> (# | (# #) #)
+  Cons h' k' v' b
+    | 1# <- eqSpans# src k src' k' -> (# v' | #)
+    | otherwise                    -> lookupBSBucket src src' k b
 
 writeBucketAtIx :: Int -> Hash -> Span -> Entry -> Bucket -> Bucket
 writeBucketAtIx i h k v e = case (,) $$! i $$! e of
@@ -211,10 +237,10 @@ eob (SymTable tbl) = do
 
 new'# :: Int -> Ptr Word8 -> Int -> ForeignPtrContents -> U.IO SymTable
 new'# slots eob len fpc = U.do
-  ref        <- U.io $ RFFF.new 0 eob len
-  fpcr       <- U.io $ RL.new fpc
-  buckets    <- U.io $ ALM.new slots Empty
-  table      <- U.io $ RUUU.new ref buckets fpcr
+  ref     <- U.io $ RFFF.new 0 eob len
+  fpcr    <- U.io $ RL.new fpc
+  buckets <- U.io $ ALM.new slots Empty
+  table   <- U.io $ RUUU.new ref buckets fpcr
   U.pure $ SymTable table
 
 new# :: Ptr Word8 -> Int -> ForeignPtrContents -> U.IO SymTable
@@ -224,6 +250,20 @@ new# = new'# initSlots
 new :: B.ByteString -> U.IO SymTable
 new (B.BS (ForeignPtr base ftc) (I# len)) =
   new# (Ptr (plusAddr# base len)) (I# len) ftc
+
+lookupByteString :: B.ByteString -> SymTable -> IO (UMaybe Entry)
+lookupByteString k (SymTable tbl) = B.unsafeUseAsCString k \(Ptr base) -> do
+  let !(I# len) = B.length k
+  buckets  <- RUUU.readSnd tbl
+  h        <- U.toIO $ hashByteString k
+  Ptr src  <- RFFF.readSnd =<< RUUU.readFst tbl
+  let bucketsSize = ALM.size buckets
+      shift       = 64 - ctzInt bucketsSize
+      ix          = hashToInt (unsafeShiftR h shift)
+  b <- ALM.read buckets ix
+  let end  = plusAddr# base len
+  let span = Span (Pos (I# len)) (Pos 0)
+  pure (UMaybe# (lookupBSBucket src end span b))
 
 lookup :: Span -> SymTable -> U.IO (UMaybe Entry)
 lookup k (SymTable tbl) = U.do
@@ -332,7 +372,6 @@ spanToString tbl s = FP.unpackUTF8 (spanToByteString tbl s)
 -- testing
 --------------------------------------------------------------------------------
 
-
 assocs :: SymTable -> IO [(String, Entry)]
 assocs stbl@(SymTable tbl) = do
   buckets <- ALM.unsafeFreeze =<< RUUU.readSnd tbl
@@ -362,7 +401,7 @@ testEqSpan str s s' = runIO $ B.unsafeUseAsCString str \(Ptr addr) -> do
   pure $ isTrue# (eqSpan# eob s s')
 
 -- test = do
---   tbl <- U.toIO $ new ""
+--   tbl <- U.toIO $ new "foobar"
 --   U.toIO $ insert (Span (Pos 4) (Pos 2)) (Local 10 VU) tbl
 --   U.toIO $ insert (Span (Pos 2) (Pos 0)) (Local 20 VU) tbl
 --   mapM_ print =<< buckets tbl

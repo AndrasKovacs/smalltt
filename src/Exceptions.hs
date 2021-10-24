@@ -2,20 +2,19 @@
 
 module Exceptions where
 
-import GHC.Exts
-import Text.Printf
 import qualified Control.Exception as E
 import qualified Data.ByteString as B
 import qualified FlatParse.Basic as FP
+import GHC.Exts
+import Text.Printf
 
+import qualified Presyntax as P
+import qualified UIO as U
 import Common
 import CoreTypes
 import Cxt.Types
 import IO
 import InCxt
-
-import qualified Presyntax as P
-import qualified UIO as U
 
 --------------------------------------------------------------------------------
 
@@ -55,6 +54,10 @@ throw e = U.IO \s -> case raiseIO# (Exception# e) s of (# s, a #) -> U.pure# @a 
 standardize :: IO a -> IO a
 standardize ma = catchIO ma (\e -> uf)
 {-# inline standardize #-}
+
+try :: forall a. U.CanIO a => U.IO a -> U.IO (Either Exception a)
+try act = (Right U.<$> act) `catch` \e -> U.pure (Left e)
+{-# inline try #-}
 
 --------------------------------------------------------------------------------
 

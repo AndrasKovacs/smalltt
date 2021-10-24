@@ -4,15 +4,15 @@ module Lexer where
 
 import FlatParse.Stateful hiding (Parser, runParser, string, char, cut, err)
 
-import qualified FlatParse.Stateful as FP
 import qualified Data.ByteString as B
-import Language.Haskell.TH
-import Common
-
 import qualified Data.Set as S
+import qualified FlatParse.Stateful as FP
 import Data.Char
 import Data.String
 import GHC.Exts
+import Language.Haskell.TH
+
+import Common
 
 --------------------------------------------------------------------------------
 
