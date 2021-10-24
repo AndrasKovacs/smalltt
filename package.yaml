@@ -74,6 +74,7 @@ library:
     - -Wno-unused-matches
     - -Wno-partial-type-signatures
     - -O2
+    - -fllvm
     # - -ddump-simpl -dsuppress-all -dno-suppress-type-signatures
 
 executables:
@@ -82,6 +83,8 @@ executables:
     ghc-options:
     - -rtsopts
     - -O2
+    - -fllvm
+    - -threaded
     # - -ddump-simpl -dsuppress-all -dno-suppress-type-signatures
     dependencies:
     - smalltt
