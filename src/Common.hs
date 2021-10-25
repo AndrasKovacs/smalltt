@@ -57,6 +57,9 @@ debugging _ = U.pure ()
 {-# inline debugging #-}
 #endif
 
+debug' :: [String] -> UIO.IO ()
+debug' strs = U.io $ putStrLn (intercalate " | " strs ++ " END")
+
 --------------------------------------------------------------------------------
 
 type Src = B.ByteString
@@ -243,7 +246,6 @@ showName src = \case
   NEmpty  -> "_"
   NX      -> "x"
   NSpan s -> showSpan src s
-
 
 
 -- Binders

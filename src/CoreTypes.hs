@@ -262,7 +262,7 @@ prettyTm prec src ns t = go prec ns t where
 
     Let (freshS ns -> (n, x)) a t u ->
       par p letp $ ("let "++) . (x++) . (" : "++) . go letp ns a
-      . ("\n  = "++) . go letp ns t . (";\n\n"++) . go letp (NCons ns n) u
+      . (" = "++) . go letp ns t . ("; "++) . go letp (NCons ns n) u
 
     Meta m              -> ('?':).(show m ++)
     InsertedMeta m mask -> goMask p ns m mask

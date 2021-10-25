@@ -19,11 +19,11 @@ import Exceptions
 
 --------------------------------------------------------------------------------
 
--- TODO: eta-short solution + long retry
---       flex-flex
---       meta freezing
+-- TODO: meta freezing
 --       glued renaming
 --       occurs caching
+--
+--       nicer eta-short solutions, write specialized eta-expansion branch
 
 --------------------------------------------------------------------------------
 
@@ -113,9 +113,15 @@ lams :: Spine -> Tm -> Tm
 lams SId           acc = acc
 lams (SApp sp t i) acc = lams sp (Lam NX i acc)
 
+guardNotFlex :: ConvState -> U.IO ()
+guardNotFlex = \case
+  CSFlex -> throw $ UnifyEx CSFlexSolution
+  _      -> U.pure ()
+{-# inline guardNotFlex #-}
+
 solve :: MetaCxt -> Lvl -> ConvState -> MetaVar -> Spine -> Val -> U.IO ()
 solve ms l cs x ~sp ~rhs = U.do
-  U.when (cs == CSFlex) $ throw $ UnifyEx CSFlexSolution
+  debug ["attempt solve", show (VFlex x sp), show rhs, show cs]
   pren <- invertSp ms l x sp
   rhs <- lams sp U.<$> rename ms pren rhs
   debug ["solve", show x, show pren, show rhs]
@@ -127,47 +133,41 @@ unifySp ms l cs sp sp' = case (sp, sp') of
   (SApp sp t _, SApp sp' t' _) -> unifySp ms l cs sp sp' U.>> unify ms l cs t t'
   _                            -> throw $ UnifyEx Conversion
 
+flexFlex :: MetaCxt -> Lvl -> ConvState -> MetaVar -> Spine -> MetaVar -> Spine -> U.IO ()
+flexFlex ms l cs x sp x' sp' = _
+
 unify :: MetaCxt -> Lvl -> ConvState -> Val -> Val -> U.IO ()
-unify ms l cs topt topt' = U.do
-  let
-    go = unify ms l cs
-    {-# inline go #-}
+unify ms l cs topt topt' = let
+  go = unify ms l cs
+  {-# inline go #-}
 
-    goBind t t' =
-      let v = VLocalVar l SId
-      in  unify ms (l + 1) cs (appCl ms t v) (appCl ms t' v)
-    {-# inline goBind #-}
+  goBind t t' =
+    let v = VLocalVar l SId
+    in  unify ms (l + 1) cs (appCl ms t v) (appCl ms t' v)
+  {-# inline goBind #-}
 
-    goSp = unifySp ms l cs
-    {-# inline goSp #-}
+  goSp = unifySp ms l cs
+  {-# inline goSp #-}
 
-    err = throw $ UnifyEx Conversion
-    {-# inline err #-}
+  err = throw $ UnifyEx Conversion
+  {-# inline err #-}
 
-    goEq :: forall a. Eq a => a -> a -> U.IO ()
-    goEq x x' | x == x'   = U.pure()
-              | otherwise = err
-    {-# inline goEq #-}
+  goEq :: forall a. Eq a => a -> a -> U.IO ()
+  goEq x x' | x == x'   = U.pure()
+            | otherwise = err
+  {-# inline goEq #-}
 
-    force t = case cs of CSFull -> forceFU ms t
-                         _      -> forceF  ms t
-    {-# inline force #-}
+  force t = case cs of CSFull -> forceFU ms t
+                       _      -> forceF  ms t
+  {-# inline force #-}
 
-  t  <- force topt
-  t' <- force topt'
-
-  case (t, t') of
-
-    (VIrrelevant, _) -> U.pure ()
-    (_, VIrrelevant) -> U.pure ()
-
-    -- TODO: eta-short meta solutions here!
+  -- eta-long solutions
+  long t t' = case (t, t') of
 
     -- unfoldings
     (VUnfold h sp t, VUnfold h' sp' t') -> case cs of
       CSRigid -> (goEq h h' U.>> unifySp ms l CSFlex sp sp')
-                 `catch` \case UnifyEx{} -> unify ms l CSFull t t'
-                               e         -> throw e
+                 `catch` \_ -> unify ms l CSFull t t'
       CSFlex  -> err
       _       -> impossible
     (VUnfold h sp t, t') -> case cs of
@@ -192,9 +192,34 @@ unify ms l cs topt topt' = U.do
       let v = VLocalVar l SId in unify ms (l + 1) cs (appCl' ms t v) (app ms t' v i)
 
     -- flex
-    (VFlex x sp, VFlex x' sp') | x == x' -> goSp sp sp'
-    (VFlex x sp, t')  -> U.do
-       solve ms l cs x sp t'
-    (t, VFlex x' sp') -> solve ms l cs x' sp' t
+    (VFlex x sp, VFlex x' sp') | x == x'   -> goSp sp sp'
+                               | otherwise -> flexFlex ms l cs x sp x' sp'
+    (VFlex x sp, t')  -> guardNotFlex cs U.>> solve ms l cs x sp t'
+    (t, VFlex x' sp') -> guardNotFlex cs U.>> solve ms l cs x' sp' t
 
     _ -> err
+
+  in U.do
+    t  <- force topt
+    t' <- force topt'
+    case (t, t') of
+      (VIrrelevant, _          ) -> U.pure ()
+      (_          , VIrrelevant) -> U.pure ()
+
+      (VFlex x sp, VFlex x' sp')
+        | x == x'   -> goSp sp sp'
+        | otherwise -> flexFlex ms l cs x sp x' sp'
+
+      (t@(VFlex x sp), t') -> U.do
+        guardNotFlex cs
+        solve ms l cs x  sp  t' `catch` \e -> U.do
+         -- debug' ["LONG RETRY", show t, show t', show cs, show e]
+         long t t'
+
+      (t, t'@(VFlex x' sp')) -> U.do
+        guardNotFlex cs
+        solve ms l cs x' sp' t `catch` \e -> U.do
+          -- debug' ["LONG RETRY", show t, show t', show cs, show e]
+          long t t'
+
+      (t, t') -> long t t'

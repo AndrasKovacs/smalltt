@@ -56,7 +56,6 @@ n10Mb  = mul n5Mb n2
 -- convtest : Eq {Nat} n10M n10Mb
 --  = refl {Nat}{n10M}
 
-{-
 --------------------------------------------------------------------------------
 
 Vec : U → Nat → U
@@ -171,4 +170,3 @@ test : Tm nil (fun (fun ι ι) (fun ι ι))
   = lam (lam (app (var (vs vz)) (app (var (vs vz))
              (app (var (vs vz)) (app (var (vs vz))
 	     (app (var (vs vz)) (app (var (vs vz)) (var vz))))))))
--}

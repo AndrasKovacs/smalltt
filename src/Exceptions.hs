@@ -21,6 +21,7 @@ import InCxt
 data UnifyEx
   = Conversion
   | CSFlexSolution
+  deriving Show
 
 data Exception
   = UnifyError Cxt P.Tm Val Val    -- checking, lhs, rhs
@@ -30,6 +31,7 @@ data Exception
   | NotInScope {-# unpack #-} Span                -- offending name
   | Undefined
   | InferNamedLam
+  deriving Show
 
 --------------------------------------------------------------------------------
 

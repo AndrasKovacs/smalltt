@@ -372,20 +372,20 @@ spanToString tbl s = FP.unpackUTF8 (spanToByteString tbl s)
 -- testing
 --------------------------------------------------------------------------------
 
-assocs :: SymTable -> IO [(Hash, String, Entry)]
+assocs :: SymTable -> IO [(String, Entry)]
 assocs stbl@(SymTable tbl) = do
   buckets <- ALM.unsafeFreeze =<< RUUU.readSnd tbl
   pure $ ALI.foldl'
     (\acc b -> foldlBucket
-      (\acc h k v -> (h, spanToString stbl k, v):acc) acc b)
+      (\acc h k v -> (spanToString stbl k, v):acc) acc b)
       [] buckets
 
-buckets :: SymTable -> IO [[(Hash, String, Entry)]]
+buckets :: SymTable -> IO [[(String, Entry)]]
 buckets stbl@(SymTable tbl) = do
   buckets <- ALM.unsafeFreeze =<< RUUU.readSnd tbl
   pure $ ALI.foldl'
     (\acc b -> foldlBucket
-        (\acc h k v -> (h, spanToString stbl k, v):acc) [] b : acc)
+        (\acc h k v -> (spanToString stbl k, v):acc) [] b : acc)
         [] buckets
 
 testHash :: B.ByteString -> Span -> Hash

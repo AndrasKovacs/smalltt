@@ -15,3 +15,6 @@ data Cxt = Cxt {
   , mcxt    :: MetaCxt
   , names   :: Names
   }
+
+instance Show Cxt where
+  show _ = "<cxt>"
