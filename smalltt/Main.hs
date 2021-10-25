@@ -10,7 +10,7 @@ import FlatParse.Basic (packUTF8)
 -- import System.Environment
 -- import System.Exit
 import System.IO
-import System.Mem
+-- import System.Mem
 
 import qualified SymTable as ST
 import Common
@@ -24,6 +24,16 @@ import MetaCxt
 import Evaluation
 
 --------------------------------------------------------------------------------
+-- TODO:
+--   BUG: test.stt : n10 top name not found
+--   main : add more cmd options, :bro, top-level name elabs, unfold opts
+--   investigate main memory usage + gc
+--   meta freezing
+--   occurs caching: only cache current occurs meta
+--   known call optimization
+--   hpalloc reductions through shared vars, renamings & other data
+
+--------------------------------------------------------------------------------
 
 main :: IO ()
 main = standardize do
@@ -33,11 +43,11 @@ main = standardize do
   loop Nothing
 
 data State = State {
-    path :: FilePath
-  , src  :: B.ByteString
-  , tbl  :: SymTable
-  , top  :: TopLevel
-  , mcxt :: MetaCxt}
+    path   :: FilePath
+  , src    :: B.ByteString
+  , tbl    :: SymTable
+  , top    :: TopLevel
+  , mcxt   :: MetaCxt }
 
 load :: FilePath -> IO (Maybe State)
 load path = do
@@ -77,7 +87,7 @@ loop st = do
   let loadTopDef str act = whenLoaded \st -> do
         let x = packUTF8 str
         ST.lookupByteString x (tbl st) >>= \case
-          UJust (ST.Top _ a va t vt) -> do
+          UJust (ST.Top _ a va fva t vt) -> do
             act st a t
           _ -> do
             putStrLn "no such top-level name"
@@ -104,7 +114,7 @@ loop st = do
     ':':'r':_ ->
       whenLoaded \st -> load (path st) >>= \case
         Nothing -> loop (Just st)
-        Just st -> performGC >> loop (Just st)
+        Just st -> loop (Just st)
     ':':'t':' ':(dropSp -> rest) ->
       loadTopDef rest \st a t -> do
         putStrLn $ showTm0 st a

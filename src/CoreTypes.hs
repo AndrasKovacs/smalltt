@@ -210,9 +210,11 @@ prettyTm prec src ns t = go prec ns t where
   freshS ns x = fresh ns (NSpan x)
 
   local :: Names -> Ix -> String
-  local (NCons ns n) 0 = snd (fresh ns n)
-  local (NCons ns n) x = local ns (x - 1)
-  local _            _ = impossible
+  local ns topIx = go ns topIx where
+    go (NCons ns n) 0 = case n of NEmpty -> '@':show topIx
+                                  n      -> snd (fresh ns n)
+    go (NCons ns n) x = go ns (x - 1)
+    go _            _ = impossible
 
   bracket :: ShowS -> ShowS
   bracket ss = ('{':).ss.('}':)

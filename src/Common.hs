@@ -88,7 +88,7 @@ infixl 0 $$!
 {-# inline ($$!) #-}
 
 -- | Maximum number of allowed local binders.
-maxLocals :: Int
+maxLocals :: Lvl
 maxLocals = 64; {-# inline maxLocals #-}
 
 -- Unboxed Maybe

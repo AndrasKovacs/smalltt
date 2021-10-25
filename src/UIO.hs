@@ -114,6 +114,11 @@ bind3 :: (CanIO a, CanIO b, CanIO c) => ((a -> b -> c -> IO d) -> IO d) -> (a ->
 bind3 f g = IO \s -> let cont = oneShot g in unIO (f cont) s
 {-# inline bind3 #-}
 
+bind4 :: (CanIO a, CanIO b, CanIO c, CanIO d)
+     => ((a -> b -> c -> d -> IO e) -> IO e) -> (a -> b -> c -> d -> IO e) -> IO e
+bind4 f g = IO \s -> let cont = oneShot g in unIO (f cont) s
+{-# inline bind4 #-}
+
 when :: Bool -> IO () -> IO ()
 when True act = act
 when False _  = pure ()

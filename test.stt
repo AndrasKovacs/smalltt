@@ -27,11 +27,8 @@ Eq : {A} → A → A → U
 refl : {A}{x : A} → Eq x x
  = λ P px. px
 
-Nat : U   = (N : U) → (N → N) → N → N
 n2  : Nat = λ N s z. s (s z)
 n5  : Nat = λ N s z. s (s (s (s (s z))))
-mul : Nat → Nat → Nat = λ a b N s z. a N (b N s) z
-suc : Nat → Nat = λ a N s z. s (a N s z)
 n10    = mul n2 n5
 n10b   = mul n5 n2
 n20    = mul n2 n10
@@ -50,16 +47,16 @@ n1M    = mul n10k  n100
 n1Mb   = mul n10kb n100b
 n5M    = mul n1M   n5
 n5Mb   = mul n1Mb  n5
+n10M   = mul n5M n2
+n10Mb  = mul n5Mb n2
 
-Eq : {A} → A → A → U
- = λ {A} x y. (P : A → U) → P x → P y
+-- convtest : Eq {Nat} n5M n5Mb
+--  = refl {Nat}{n5M}
 
-refl : {A x} → Eq {A} x x
- = λ P px. px
+-- convtest : Eq {Nat} n10M n10Mb
+--  = refl {Nat}{n10M}
 
-convtest : Eq {Nat} n5M n5Mb
- = refl {Nat}{n5M}
-
+{-
 --------------------------------------------------------------------------------
 
 Vec : U → Nat → U
@@ -174,3 +171,4 @@ test : Tm nil (fun (fun ι ι) (fun ι ι))
   = lam (lam (app (var (vs vz)) (app (var (vs vz))
              (app (var (vs vz)) (app (var (vs vz))
 	     (app (var (vs vz)) (app (var (vs vz)) (var vz))))))))
+-}

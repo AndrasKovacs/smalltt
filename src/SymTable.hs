@@ -69,12 +69,12 @@ import IO
 --------------------------------------------------------------------------------
 
 data Entry
-  = Top Lvl Ty ~VTy Tm ~Val  -- level, type, type val, def, def val
-  | Local Lvl ~VTy           -- level, type val
+  = Top Lvl Ty ~VTy ~VTy Tm ~Val  -- level, type, type val, forced type val, def, def val
+  | Local Lvl ~VTy ~VTy           -- level, type val, forced type val
 
 instance Show Entry where
-  showsPrec d (Local x _)     = showParen (d > 10) (("Loc " ++ show x)++)
-  showsPrec d (Top x _ _ _ _) = showParen (d > 10) (("Top " ++ show x)++)
+  showsPrec d (Local x _ _)     = showParen (d > 10) (("Loc " ++ show x)++)
+  showsPrec d (Top x _ _ _ _ _) = showParen (d > 10) (("Top " ++ show x)++)
 
 -- Span hashing
 --------------------------------------------------------------------------------
@@ -190,7 +190,7 @@ lookupBSBucket src' src k = \case
   Empty -> (# | (# #) #)
   Cons h' k' v' b
     | 1# <- eqSpans# src k src' k' -> (# v' | #)
-    | otherwise                    -> lookupBSBucket src src' k b
+    | otherwise                    -> lookupBSBucket src' src k b
 
 writeBucketAtIx :: Int -> Hash -> Span -> Entry -> Bucket -> Bucket
 writeBucketAtIx i h k v e = case (,) $$! i $$! e of
@@ -372,12 +372,12 @@ spanToString tbl s = FP.unpackUTF8 (spanToByteString tbl s)
 -- testing
 --------------------------------------------------------------------------------
 
-assocs :: SymTable -> IO [(String, Entry)]
+assocs :: SymTable -> IO [(Hash, String, Entry)]
 assocs stbl@(SymTable tbl) = do
   buckets <- ALM.unsafeFreeze =<< RUUU.readSnd tbl
   pure $ ALI.foldl'
     (\acc b -> foldlBucket
-      (\acc _ k v -> (spanToString stbl k, v):acc) acc b)
+      (\acc h k v -> (h, spanToString stbl k, v):acc) acc b)
       [] buckets
 
 buckets :: SymTable -> IO [[(Hash, String, Entry)]]
