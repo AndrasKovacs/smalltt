@@ -105,6 +105,8 @@ pattern UJust a <- UMaybe# (# a | #) where
   UJust !a = UMaybe# (# a | #)
 {-# complete UNothing, UJust #-}
 
+type UMaybeRepRep = SumRep [ LiftedRep, TupleRep '[]]
+type UMaybeRep a  = (# a | (# #) #)
 CAN_IO(UMaybe a, UMaybeRepRep, UMaybeRep a, UMaybe# x, CoeUMaybe)
 
 uMaybe :: b -> (a -> b) -> UMaybe a -> b
@@ -131,8 +133,20 @@ boxUMaybe = uMaybe Nothing Just
 instance Show a => Show (UMaybe a) where
   showsPrec n = showsPrec n . boxUMaybe
 
-type UMaybeRepRep = SumRep [ LiftedRep, TupleRep '[]]
-type UMaybeRep a  = (# a | (# #) #)
+-- Unboxed Either
+--------------------------------------------------------------------------------
+
+data UEither a b = UEither# (# a | b #)
+pattern ULeft :: a -> UEither a b
+pattern ULeft a <- UEither# (# a | #) where
+  ULeft !a = UEither# (# a | #)
+
+pattern URight :: b -> UEither a b
+pattern URight b <- UEither# (# | b #) where
+  URight !b= UEither# (# | b #)
+{-# complete ULeft, URight #-}
+
+CAN_IO(UEither a b, SumRep [LiftedRep COMMA LiftedRep], (# a | b #), UEither# x, CoeUEither)
 
 --------------------------------------------------------------------------------
 

@@ -1,7 +1,7 @@
 {-# language UnboxedTuples, UnboxedSums #-}
 
 module Evaluation (
-  app, inlApp, appSp, appMask, eval,
+  app, inlApp, appSp, appMask, eval, forceCS,
   forceF, forceFU, appCl, appCl', quote, quote0, eval0, nf0) where
 
 import qualified Data.Array.Dynamic.L as ADL
@@ -140,6 +140,12 @@ forceFUFlex ms x sp =
     MEUnsolved -> U.pure (VFlex x sp)
     MESolved v -> forceFU' ms $! appSp ms v sp
 {-# noinline forceFUFlex #-}
+
+forceCS :: MetaCxt -> ConvState -> Val -> U.IO Val
+forceCS ms cs v = case cs of
+  CSFull -> forceFU ms v
+  _      -> forceF  ms v
+{-# inline forceCS #-}
 
 --------------------------------------------------------------------------------
 

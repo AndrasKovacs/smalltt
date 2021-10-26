@@ -37,7 +37,7 @@ unify cxt t l r fl fr = U.do
 
 solve :: Cxt -> P.Tm -> ConvState -> MetaVar -> Spine -> Val -> U.IO ()
 solve cxt pt cs x sp rhs = U.do
-  Unif.solve (mcxt cxt) (lvl cxt) cs x sp rhs `catch` \case
+  Unif.solve (mcxt cxt) (lvl cxt) x sp rhs `catch` \case
     UnifyEx _ -> throw $ UnifyError cxt pt (VFlex x sp) rhs
     _         -> impossible
 {-# inline solve #-}
