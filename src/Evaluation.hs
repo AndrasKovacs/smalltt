@@ -4,13 +4,11 @@ module Evaluation (
   app, inlApp, appSp, appMask, eval, forceCS,
   forceF, forceFU, appCl, appCl', quote, quote0, eval0, nf0) where
 
-import qualified Data.Array.Dynamic.L as ADL
-
-import qualified UIO as U
 import qualified LvlSet as LS
+import qualified MetaCxt as MC
+import qualified UIO as U
 import Common
 import CoreTypes
-import IO
 import MetaCxt
 
 --------------------------------------------------------------------------------
@@ -25,10 +23,10 @@ localVar (EDef e _) x = localVar e (x - 1)
 localVar _          _ = impossible
 
 meta :: MetaCxt -> MetaVar -> Val
-meta ms x = runIO do
-  ADL.unsafeRead ms (coerce x) >>= \case
-    MEUnsolved   -> pure (VFlex x SId)
-    MESolved _ v -> pure (VUnfold (UHSolved x) SId v)
+meta ms x = U.run U.do
+  MC.read ms x U.>>= \case
+    MEUnsolved     -> U.pure (VFlex x SId)
+    MESolved _ _ v -> U.pure (VUnfold (UHSolved x) SId v)
 {-# inline meta #-}
 
 appCl' :: MetaCxt -> Closure -> Val -> Val
@@ -84,10 +82,10 @@ maskEnv e mask = (case go e mask of SpineLvl sp _ -> sp) where
                   | otherwise        -> SpineLvl sp (l + 1)
 
 insertedMeta :: MetaCxt -> Env -> MetaVar -> LS.LvlSet -> Val
-insertedMeta ms ~e x mask = runIO do
-  ADL.unsafeRead ms (coerce x) >>= \case
-    MEUnsolved   -> pure $! VFlex x (maskEnv e mask)
-    MESolved _ v -> let sp = maskEnv e mask in pure $! VUnfold (UHSolved x) sp (appSp ms v sp)
+insertedMeta ms ~e x mask = U.run do
+  MC.read ms x U.>>= \case
+    MEUnsolved     -> U.pure (VFlex x (maskEnv e mask))
+    MESolved _ _ v -> let sp = maskEnv e mask in U.pure (VUnfold (UHSolved x) sp (appSp ms v sp))
 {-# inline insertedMeta #-}
 
 eval' :: MetaCxt -> Env -> Tm -> Val
@@ -110,17 +108,16 @@ eval ms e t = eval' ms e t
 -- | Force metas only.
 forceF :: MetaCxt -> Val -> U.IO Val
 forceF ms = \case
-  VFlex x sp -> forceFFlex ms x sp
-  t          -> U.pure t
+  t@(VFlex x sp) -> forceFFlex ms t x sp
+  t              -> U.pure t
 {-# inline forceF #-}
 
-forceFFlex :: MetaCxt -> MetaVar -> Spine -> U.IO Val
-forceFFlex ms x sp =
-  U.io (ADL.read ms (coerce x)) U.>>= \case
-    MEUnsolved   -> U.pure (VFlex x sp)
-    MESolved _ v -> case appSp ms v sp of
-      VFlex x sp -> forceFFlex ms x sp
-      v          -> U.pure v
+forceFFlex :: MetaCxt -> Val -> MetaVar -> Spine -> U.IO Val
+forceFFlex ms t x sp =
+  MC.read ms x U.>>= \case
+    MEUnsolved     -> U.pure t
+    MESolved _ _ v -> U.pure (VUnfold (UHSolved x) sp (appSp ms v sp))
+{-# noinline forceFFlex #-}
 
 -- | Force both metas and top unfoldings.
 forceFU :: MetaCxt -> Val -> U.IO Val
@@ -138,9 +135,9 @@ forceFU' ms = \case
 
 forceFUFlex :: MetaCxt -> MetaVar -> Spine -> U.IO Val
 forceFUFlex ms x sp =
-  U.io (ADL.read ms (coerce x)) U.>>= \case
-    MEUnsolved   -> U.pure (VFlex x sp)
-    MESolved _ v -> forceFU' ms $! appSp ms v sp
+  MC.read ms x U.>>= \case
+    MEUnsolved     -> U.pure (VFlex x sp)
+    MESolved _ _ v -> forceFU' ms $! appSp ms v sp
 {-# noinline forceFUFlex #-}
 
 forceCS :: MetaCxt -> ConvState -> Val -> U.IO Val

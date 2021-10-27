@@ -16,7 +16,7 @@ import CoreTypes
 
 #include "deriveCanIO.h"
 
-data MetaEntry = MEUnsolved | MESolved (RF.Ref Lvl) ~Val
+data MetaEntry = MEUnsolved | MESolved (RF.Ref MetaVar) Tm ~Val
 type MetaCxt = ADL.Array MetaEntry
 
 CAN_IO(MetaEntry, LiftedRep, MetaEntry, x, CoeMetaEntry)
@@ -39,11 +39,15 @@ fresh ms = U.do
   U.pure x
 {-# inlinable fresh #-}
 
-solve :: MetaCxt -> MetaVar -> Val -> U.IO ()
-solve ms x ~v = U.io $ do
-  ADL.read ms (coerce x) >>= \case
-    MESolved _ _ -> impossible
-    _            -> do
+read :: MetaCxt -> MetaVar -> U.IO MetaEntry
+read ms x = U.io $ ADL.unsafeRead ms (coerce x)
+{-# inline read #-}
+
+solve :: MetaCxt -> MetaVar -> Tm -> Val -> U.IO ()
+solve ms x t ~v = U.io $ do
+  U.toIO (MetaCxt.read ms x) >>= \case
+    MESolved _ _ _ -> impossible
+    _              -> do
       ref <- RF.new (-1)
-      ADL.write ms (coerce x) (MESolved ref v)
+      ADL.write ms (coerce x) (MESolved ref t v)
 {-# inline solve #-}

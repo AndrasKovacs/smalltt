@@ -209,7 +209,9 @@ int8ToLvl (I8# x) = Lvl (I# x)
 CAN_IO(Lvl, IntRep, Int#, Lvl (I# x), CoeLvl)
 
 newtype MetaVar = MkMetaVar Int
-  deriving (Eq, Ord, Show, Num) via Int
+  deriving (Eq, Ord, Show, Num, Flat) via Int
+
+CAN_IO(MetaVar, IntRep, Int#, MkMetaVar (I# x), CoeMetaVar)
 
 lvlToIx :: Lvl -> Lvl -> Ix
 lvlToIx (Lvl envl) (Lvl l) = Ix (envl - l - 1)

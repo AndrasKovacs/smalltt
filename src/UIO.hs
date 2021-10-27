@@ -151,16 +151,3 @@ instance CanIO () where
   pure# ~_ s = (# s, (# #) #)
   {-# inline bind #-}
   {-# inline pure# #-}
-
--- type instance RepRep Int8 = Int8Rep
--- type instance Rep    Int8 = Int8#
-
--- instance CanIO Int8 where
---   bind  :: forall r (b :: TYPE r). (RW -> (# RW, (# #) #))
---            -> (() -> RW -> (# RW, b #)) -> RW -> (# RW, b #)
---   bind f g s = case f s of (# s, _ #) -> g () s
-
---   pure# :: () -> RW -> (# RW, (# #) #)
---   pure# ~_ s = (# s, (# #) #)
---   {-# inline bind #-}
---   {-# inline pure# #-}

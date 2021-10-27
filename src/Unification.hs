@@ -1,10 +1,12 @@
 {-# language UnboxedTuples #-}
+{-# options_ghc -Wno-orphans #-}
 
 module Unification (unify, solve) where
 
 import IO
 import GHC.Exts
 import qualified Data.Array.FM as AFM
+import qualified Data.Ref.F as RF
 
 import Common
 import CoreTypes
@@ -22,7 +24,7 @@ import Exceptions
 -- TODO: meta freezing
 --       glued renaming
 --       occurs caching
-
+--       organize args in records
 
 
 --------------------------------------------------------------------------------
@@ -51,7 +53,10 @@ import Exceptions
     - unfold active solved:
       - occurs check meta, rename flex sp, propagate illegal
 
-- scopecheck
+- scopecheck: fully forces everything
+
+
+  ALT:
   - takes partial renaming as arg
   - states: Rigid, Flex, Full
 
@@ -68,14 +73,81 @@ import Exceptions
 -}
 
 
+--------------------------------------------------------------------------------
+
+occurs' :: MetaCxt -> MetaVar -> MetaVar -> U.IO ()
+occurs' ms occ x = U.do
+  MC.read ms x U.>>= \case
+    MC.MEUnsolved ->
+      U.when (occ == x) (throw $ UnifyEx Conversion)
+    MC.MESolved cache t _ -> U.do
+      cached <- U.io $ RF.read cache
+      U.when (cached /= occ) U.do
+        occurs ms occ t
+        U.io $ RF.write cache occ
+
+occurs :: MetaCxt -> MetaVar -> Tm -> U.IO ()
+occurs ms occ = \case
+  LocalVar x          -> U.pure ()
+  TopVar x v          -> U.pure ()
+  Let x a t u         -> occurs ms occ a U.>> occurs ms occ t U.>> occurs ms occ u
+  App t u i           -> occurs ms occ t U.>> occurs ms occ u
+  Lam x i t           -> occurs ms occ t
+  InsertedMeta x mask -> occurs' ms occ x
+  Meta x              -> occurs' ms occ x
+  Pi x i a b          -> occurs ms occ a U.>> occurs ms occ b
+  Irrelevant          -> U.pure ()
+  U                   -> U.pure ()
+
+newtype UBool = UBool# Int deriving Eq via Int
+pattern UTrue, UFalse :: UBool
+pattern UTrue = UBool# 0
+pattern UFalse = UBool# 1
+{-# complete UTrue, UFalse #-}
+
+CAN_IO2((Tm,UBool), LiftedRep, IntRep, Tm, Int#, (x, UBool# (I# y)), CoeTmUBool)
+
+type RenState  = UBool
+pattern RRigid, RFlex :: UBool
+pattern RRigid = UTrue
+pattern RFlex  = UFalse
+
+renameSp' :: MetaCxt -> PartialRenaming -> RenState -> Tm -> Spine -> U.IO (Tm, UBool)
+renameSp' = uf
+
+rename' :: MetaCxt -> PartialRenaming -> RenState -> Val -> U.IO (Tm, UBool)
+rename' ms pren rs = \case
+
+  VLocalVar x sp
+    | x < coerce (AFM.size (ren pren)) -> U.do
+      y <- U.io $ AFM.read (ren pren) (coerce x)
+      case y of
+        (-1) -> case rs of
+          RRigid -> throw $ UnifyEx Conversion
+          _      -> U.pure (Irrelevant, UFalse)
+        y -> renameSp' ms pren rs (LocalVar (lvlToIx (dom pren) y)) sp
+    | otherwise ->
+      renameSp' ms pren rs
+        (LocalVar (lvlToIx (dom pren) (x - (cod pren - dom pren)))) sp
+
+  VFlex x sp
+    | occ pren == x -> throw $ UnifyEx Conversion
+    | otherwise -> uf
+
+
+
+
+-- rename :: MetaCxt -> PartialRenaming -> Val -> U.IO Tm
+-- rename = uf
+
 
 --------------------------------------------------------------------------------
 
 data PartialRenaming = PRen {
-    occurs :: MetaVar
-  , dom    :: Lvl
-  , cod    :: Lvl
-  , ren    :: AFM.Array Lvl
+    occ :: MetaVar
+  , dom :: Lvl
+  , cod :: Lvl
+  , ren :: AFM.Array Lvl
   }
 
 instance Show PartialRenaming where
@@ -135,8 +207,8 @@ rename ms pren v = U.do
 
   forceFU ms v U.>>= \case
 
-    VFlex m' sp | occurs pren == m' -> throw $ UnifyEx Conversion -- occurs check
-                | otherwise         -> goSp (Meta m') sp
+    VFlex m' sp | occ pren == m' -> throw $ UnifyEx Conversion -- occurs check
+                | otherwise      -> goSp (Meta m') sp
 
     VLocalVar x sp -> U.do
       if x < coerce (AFM.size (ren pren)) then U.do
@@ -169,7 +241,7 @@ solve ms l x ~sp ~rhs = U.do
   pren <- invertSp ms l x sp
   rhs <- lams sp U.<$> rename ms pren rhs
   debug ["solve", show x, show pren, show rhs]
-  MC.solve ms x (eval ms ENil rhs)
+  MC.solve ms x rhs (eval ms ENil rhs)
 
 flexFlex :: MetaCxt -> Lvl -> MetaVar -> Spine -> MetaVar -> Spine -> U.IO ()
 flexFlex ms l x ~sp x' ~sp' =
