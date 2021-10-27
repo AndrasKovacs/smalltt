@@ -30,7 +30,7 @@ import SymTable (SymTable)
 unify :: Cxt -> P.Tm -> Val -> Val -> Val -> Val -> U.IO ()
 unify cxt t l r fl fr = U.do
   debug ["unify", showVal cxt l, showVal cxt r]
-  Unif.unify (mcxt cxt) (lvl cxt) CSRigid fl fr `catch` \case
+  Unif.unify (mcxt cxt) (lvl cxt) (frozen cxt) CSRigid fl fr `catch` \case
     UnifyEx _ -> throw $ UnifyError cxt t l r
     _         -> impossible
 {-# inline unify #-}
@@ -48,10 +48,8 @@ solve cxt pt cs x sp rhs = U.do
 -- | Term, unforced type, forced type.
 data Infer = Infer Tm VTy VTy
 
-CAN_IO3(Infer, TupleRep [LiftedRep COMMA LiftedRep COMMA LiftedRep],
-        (# Tm, Val, Val #), Infer x y z, CoeInfer)
-
-CAN_IO2((Tm, Val), TupleRep [LiftedRep COMMA LiftedRep], (# Tm, Val #), (x, y), CoeTmVal)
+CAN_IO3(Infer, LiftedRep, LiftedRep, LiftedRep, Tm, Val, Val, Infer x y z, CoeInfer)
+CAN_IO2((Tm, Val), LiftedRep, LiftedRep, Tm, Val, (x, y), CoeTmVal)
 
 -- | Create fresh meta both as a term and a value.
 freshMeta :: Cxt -> U.IO (Tm, Val)
@@ -281,7 +279,8 @@ checkTopLevel tbl ms top ptop = case ptop of
   P.Definition x ma t u -> U.do
 
     debug ["\nTOP DEF", showSpan (ST.byteString tbl) x]
-    let cxt = empty tbl ms top
+    frozen <- MC.size ms
+    let cxt = empty tbl ms top frozen
     checkWithAnnot cxt ma t \ ~t ~a ~va ~fva -> U.do
 
       let ~vt = E.eval ms ENil t
@@ -293,6 +292,6 @@ checkProg :: B.ByteString -> P.TopLevel -> IO (Either Exception (SymTable, TopLe
 checkProg src ptop = do
   tbl  <- U.toIO $ ST.new src
   top  <- U.toIO $ newTop (P.topLen ptop)
-  ms   <- MC.new
+  ms   <- U.toIO $ MC.new
   etop <- U.toIO $ try (checkTopLevel tbl ms top ptop)
   pure $! ((\top -> (tbl, top, ms)) <$> etop)

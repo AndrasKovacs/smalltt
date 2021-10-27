@@ -13,7 +13,7 @@ extra-deps:
 - git: https://github.com/AndrasKovacs/flatparse.git
   commit: 8b532613e72911644f8ffe9afd05b1ac17f74cea
 - git: https://github.com/AndrasKovacs/dynamic-array.git
-  commit: b5b0e9e4c737c7b72cc8d31232bc3d1fc36be0ad
+  commit: c6eb41ea663c7a97c479e5536a8ef39ec848bcfa
 - git: https://github.com/AndrasKovacs/primdata.git
   commit: 44cac2350fb24dd57bdfa8cbee46b45c9332e50c
 - bytestring-0.11.1.0

@@ -47,7 +47,7 @@ data Closure
   = Closure Env Tm
   deriving Show
 
-CAN_IO2(Closure, TupleRep [ LiftedRep COMMA LiftedRep ], (# Env, Tm #), Closure x y, CoeClosure)
+CAN_IO2(Closure, LiftedRep, LiftedRep, Env, Tm, Closure x y, CoeClosure)
 
 data Env
   = ENil
@@ -95,9 +95,7 @@ data TopEntry = TopEntry {-# unpack #-} Span Tm Tm  -- name, type, definition
 --   which is defined, the rest is un-initialized.
 data TopLevel = TopLevel {topLen :: Lvl , topDefs :: ALM.Array TopEntry }
 
-CAN_IO2(TopLevel,
-       TupleRep [IntRep COMMA UnliftedRep],
-       (# Int#, MutableArray# RealWorld TopEntry #),
+CAN_IO2(TopLevel, IntRep, UnliftedRep, Int#, MutableArray# RealWorld TopEntry,
        TopLevel (Lvl (I# x)) (ALM.Array y), CoeTopLevel)
 
 newTop :: Int -> U.IO TopLevel

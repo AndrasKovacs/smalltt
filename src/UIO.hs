@@ -137,7 +137,7 @@ CAN_IO(AFM.Array a, UnliftedRep, MutableByteArray# RealWorld, AFM.Array x, CoeAF
 CAN_IO(Ptr a, AddrRep, Addr#, Ptr x, CoePtr)
 CAN_IO([a], LiftedRep, [a], x, CoeList)
 CAN_IO(Either a b, LiftedRep, Either a b, x, CoeEither)
-CAN_IO2(Span, TupleRep [IntRep COMMA IntRep], (# Int#, Int# #), Span (Pos (I# x)) (Pos (I# y)), CoeSpan)
+CAN_IO2(Span, IntRep, IntRep, Int#, Int#, Span (Pos (I# x)) (Pos (I# y)), CoeSpan)
 
 type instance RepRep () = TupleRep '[]
 type instance Rep ()    = (# #)
@@ -151,3 +151,16 @@ instance CanIO () where
   pure# ~_ s = (# s, (# #) #)
   {-# inline bind #-}
   {-# inline pure# #-}
+
+-- type instance RepRep Int8 = Int8Rep
+-- type instance Rep    Int8 = Int8#
+
+-- instance CanIO Int8 where
+--   bind  :: forall r (b :: TYPE r). (RW -> (# RW, (# #) #))
+--            -> (() -> RW -> (# RW, b #)) -> RW -> (# RW, b #)
+--   bind f g s = case f s of (# s, _ #) -> g () s
+
+--   pure# :: () -> RW -> (# RW, (# #) #)
+--   pure# ~_ s = (# s, (# #) #)
+--   {-# inline bind #-}
+--   {-# inline pure# #-}

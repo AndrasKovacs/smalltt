@@ -99,7 +99,7 @@ loop st = do
         ADL.forIx (mcxt st) \i e -> case e of
           MEUnsolved ->
             putStrLn $ '?':show i ++ " unsolved"
-          MESolved v ->
+          MESolved _ v ->
             putStrLn $ '?':show i ++ " = " ++ showTm0 st (quote0 (mcxt st) UnfoldNone v)
         ALM.for (topDefs (top st)) \(TopEntry x a t) -> do
           putStrLn ""

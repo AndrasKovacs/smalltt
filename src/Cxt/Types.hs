@@ -14,6 +14,7 @@ data Cxt = Cxt {
   , tbl     :: SymTable
   , mcxt    :: MetaCxt
   , names   :: Names
+  , frozen  :: Lvl
   }
 
 instance Show Cxt where

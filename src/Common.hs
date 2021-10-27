@@ -25,6 +25,7 @@ import FlatParse.Stateful (Span(..), Pos(..), Result(..), unsafeSlice, unpackUTF
 import GHC.Exts
 import GHC.ForeignPtr
 import GHC.Stack
+import GHC.Int
 
 import qualified UIO as U
 import qualified UIO
@@ -133,21 +134,6 @@ boxUMaybe = uMaybe Nothing Just
 instance Show a => Show (UMaybe a) where
   showsPrec n = showsPrec n . boxUMaybe
 
--- Unboxed Either
---------------------------------------------------------------------------------
-
-data UEither a b = UEither# (# a | b #)
-pattern ULeft :: a -> UEither a b
-pattern ULeft a <- UEither# (# a | #) where
-  ULeft !a = UEither# (# a | #)
-
-pattern URight :: b -> UEither a b
-pattern URight b <- UEither# (# | b #) where
-  URight !b= UEither# (# | b #)
-{-# complete ULeft, URight #-}
-
-CAN_IO(UEither a b, SumRep [LiftedRep COMMA LiftedRep], (# a | b #), UEither# x, CoeUEither)
-
 --------------------------------------------------------------------------------
 
 -- | States for approximate scope/conversion checking.
@@ -206,11 +192,19 @@ icit Expl x y = y
 -- De Bruijn
 --------------------------------------------------------------------------------
 
-newtype Ix = Ix Int
+newtype Ix = Ix {unIx :: Int}
   deriving (Eq, Ord, Show, Num, Enum, Bits) via Int
 
-newtype Lvl = Lvl Int
+newtype Lvl = Lvl {unLvl :: Int}
   deriving (Eq, Ord, Show, Num, Enum, Bits, Flat) via Int
+
+lvlToInt8 :: Lvl -> Int8
+lvlToInt8 (Lvl (I# x)) = I8# x
+{-# inline lvlToInt8 #-}
+
+int8ToLvl :: Int8 -> Lvl
+int8ToLvl (I8# x) = Lvl (I# x)
+{-# inline int8ToLvl #-}
 
 CAN_IO(Lvl, IntRep, Int#, Lvl (I# x), CoeLvl)
 

@@ -50,123 +50,123 @@ n5Mb   = mul n1Mb  n5
 n10M   = mul n5M n2
 n10Mb  = mul n5Mb n2
 
-convtest : Eq {Nat} n5M n5Mb
- = refl {Nat}{n5M}
+-- convtest : Eq {Nat} n5M n5Mb
+--  = refl {Nat}{n5M}
 
 -- convtest : Eq {Nat} n10M n10Mb
 --  = refl {Nat}{n10M}
 
--- --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
--- Vec : U → Nat → U
---  = λ a n. (V : Nat → U) → V zero → ({n} → a → V n → V (suc n)) → V n
+Vec : U → Nat → U
+ = λ a n. (V : Nat → U) → V zero → ({n} → a → V n → V (suc n)) → V n
 
--- vnil : {a} → Vec a zero
---  = λ V n c. n
+vnil : {a} → Vec a zero
+ = λ V n c. n
 
--- vcons : {a n} → a → Vec a n → Vec a (suc n)
---  = λ a as V n c. c a (as V n c)
+vcons : {a n} → a → Vec a n → Vec a (suc n)
+ = λ a as V n c. c a (as V n c)
 
--- vec1 = (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero
---        (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero
---        (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero
---        (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero
---        (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero
---        (vcons zero (vcons zero vnil))))))))))))))))))))))))))))))))
+vec1 = (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero
+       (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero
+       (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero
+       (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero
+       (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero (vcons zero
+       (vcons zero (vcons zero vnil))))))))))))))))))))))))))))))))
 
--- Pair : U → U → U
---  = λ A B. (Pair : U)(pair : A → B → Pair) → Pair
+Pair : U → U → U
+ = λ A B. (Pair : U)(pair : A → B → Pair) → Pair
 
--- pair : {A B} → A → B → Pair A B
---  = λ a b Pair pair. pair a b
+pair : {A B} → A → B → Pair A B
+ = λ a b Pair pair. pair a b
 
--- proj1 : {A B} → Pair A B → A
---  = λ p. p _ (λ x y. x)
+proj1 : {A B} → Pair A B → A
+ = λ p. p _ (λ x y. x)
 
--- proj2 : {A B} → Pair A B → B
---  = λ p. p _ (λ x y. y)
+proj2 : {A B} → Pair A B → B
+ = λ p. p _ (λ x y. y)
 
--- Top : U
---  = (Top : U)(tt : Top) → Top
+Top : U
+ = (Top : U)(tt : Top) → Top
 
--- tt : Top
---  = λ Top tt. tt
+tt : Top
+ = λ Top tt. tt
 
--- Bot : U
---  = (Bot : U) → Bot
+Bot : U
+ = (Bot : U) → Bot
 
--- Ty : U
---  = (Ty  : U)
---    (ι   : Ty)
---    (fun : Ty → Ty → Ty)
---  → Ty
+Ty : U
+ = (Ty  : U)
+   (ι   : Ty)
+   (fun : Ty → Ty → Ty)
+ → Ty
 
--- ι : Ty
---  = λ _ ι _. ι
+ι : Ty
+ = λ _ ι _. ι
 
--- fun : Ty → Ty → Ty
---  = λ A B Ty ι fun. fun (A Ty ι fun) (B Ty ι fun)
+fun : Ty → Ty → Ty
+ = λ A B Ty ι fun. fun (A Ty ι fun) (B Ty ι fun)
 
--- Con : U
---  = (Con : U)
---    (nil  : Con)
---    (cons : Con → Ty → Con)
---  → Con
+Con : U
+ = (Con : U)
+   (nil  : Con)
+   (cons : Con → Ty → Con)
+ → Con
 
--- nil : Con
---  = λ Con nil cons. nil
+nil : Con
+ = λ Con nil cons. nil
 
--- cons : Con → Ty → Con
---  = λ Γ A Con nil cons. cons (Γ Con nil cons) A
+cons : Con → Ty → Con
+ = λ Γ A Con nil cons. cons (Γ Con nil cons) A
 
--- Var : Con → Ty → U
---  = λ Γ A.
---    (Var : Con → Ty → U)
---    (vz  : {Γ A} → Var (cons Γ A) A)
---    (vs  : {Γ B A} → Var Γ A → Var (cons Γ B) A)
---  → Var Γ A
+Var : Con → Ty → U
+ = λ Γ A.
+   (Var : Con → Ty → U)
+   (vz  : {Γ A} → Var (cons Γ A) A)
+   (vs  : {Γ B A} → Var Γ A → Var (cons Γ B) A)
+ → Var Γ A
 
--- vz : {Γ A} → Var (cons Γ A) A
---  = λ Var vz vs. vz
+vz : {Γ A} → Var (cons Γ A) A
+ = λ Var vz vs. vz
 
--- vs : {Γ B A} → Var Γ A → Var (cons Γ B) A
---  = λ x Var vz vs. vs (x Var vz vs)
+vs : {Γ B A} → Var Γ A → Var (cons Γ B) A
+ = λ x Var vz vs. vs (x Var vz vs)
 
--- Tm : Con → Ty → U
---  = λ Γ A.
---    (Tm  : Con → Ty → U)
---    (var : {Γ A} → Var Γ A → Tm Γ A)
---    (lam : {Γ A B} → Tm (cons Γ A) B → Tm Γ (fun A B))
---    (app : {Γ A B} → Tm Γ (fun A B) → Tm Γ A → Tm Γ B)
---  → Tm Γ A
+Tm : Con → Ty → U
+ = λ Γ A.
+   (Tm  : Con → Ty → U)
+   (var : {Γ A} → Var Γ A → Tm Γ A)
+   (lam : {Γ A B} → Tm (cons Γ A) B → Tm Γ (fun A B))
+   (app : {Γ A B} → Tm Γ (fun A B) → Tm Γ A → Tm Γ B)
+ → Tm Γ A
 
--- var : {Γ A} → Var Γ A → Tm Γ A
---  = λ x Tm var lam app. var x
+var : {Γ A} → Var Γ A → Tm Γ A
+ = λ x Tm var lam app. var x
 
--- lam : {Γ A B} → Tm (cons Γ A) B → Tm Γ (fun A B)
---  = λ t Tm var lam app. lam (t Tm var lam app)
+lam : {Γ A B} → Tm (cons Γ A) B → Tm Γ (fun A B)
+ = λ t Tm var lam app. lam (t Tm var lam app)
 
--- app : {Γ A B} → Tm Γ (fun A B) → Tm Γ A → Tm Γ B
---  = λ t u Tm var lam app. app (t Tm var lam app) (u Tm var lam app)
+app : {Γ A B} → Tm Γ (fun A B) → Tm Γ A → Tm Γ B
+ = λ t u Tm var lam app. app (t Tm var lam app) (u Tm var lam app)
 
--- EvalTy : Ty → U
---  = λ A. A _ Bot (λ A B. A → B)
+EvalTy : Ty → U
+ = λ A. A _ Bot (λ A B. A → B)
 
--- EvalCon : Con → U
---  = λ Γ. Γ _ Top (λ Δ A. Pair Δ (EvalTy A))
+EvalCon : Con → U
+ = λ Γ. Γ _ Top (λ Δ A. Pair Δ (EvalTy A))
 
--- EvalVar : {Γ A} → Var Γ A → EvalCon Γ → EvalTy A
---  = λ x. x (λ Γ A. EvalCon Γ → EvalTy A)
---           (λ env. proj2 env)
--- 	  (λ rec env. rec (proj1 env))
+EvalVar : {Γ A} → Var Γ A → EvalCon Γ → EvalTy A
+ = λ x. x (λ Γ A. EvalCon Γ → EvalTy A)
+          (λ env. proj2 env)
+	  (λ rec env. rec (proj1 env))
 
--- EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
---  = λ t. t _
---           EvalVar
--- 	  (λ t env α. t (pair env α))
--- 	  (λ t u env. t env (u env))
+EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
+ = λ t. t _
+          EvalVar
+	  (λ t env α. t (pair env α))
+	  (λ t u env. t env (u env))
 
--- test : Tm nil (fun (fun ι ι) (fun ι ι))
---   = lam (lam (app (var (vs vz)) (app (var (vs vz))
---              (app (var (vs vz)) (app (var (vs vz))
--- 	     (app (var (vs vz)) (app (var (vs vz)) (var vz))))))))
+test : Tm nil (fun (fun ι ι) (fun ι ι))
+  = lam (lam (app (var (vs vz)) (app (var (vs vz))
+             (app (var (vs vz)) (app (var (vs vz))
+	     (app (var (vs vz)) (app (var (vs vz)) (var vz))))))))
