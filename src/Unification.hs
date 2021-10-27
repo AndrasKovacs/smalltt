@@ -23,6 +23,52 @@ import Exceptions
 --       glued renaming
 --       occurs caching
 
+
+
+--------------------------------------------------------------------------------
+
+{-
+- Occurs check:
+  - approximate, only visits active solved metas
+  - we cache the last occurs check result
+
+- renaming:
+  - returns an extra flag for whether renaming result is legal, or it's possibly illegal
+  - 2 states, flex + rigid
+  - doesn't force scrutinee
+
+  - rigid:
+    - illegal head: error
+    - unfold frozen solved or let definition:
+      - rename flex sp, if illegal scopecheck rigid whole unfold
+    - unfold active solved:
+      - occurs check meta, rename flex sp, if illegal rigid scopecheck whole unfold
+
+  - flex
+    - illegal head: return Irrelevant
+    - unfold frozen solved or let definition:
+      - rename flex sp, propagate illegal
+    - unfold active solved:
+      - occurs check meta, rename flex sp, propagate illegal
+
+- scopecheck
+  - takes partial renaming as arg
+  - states: Rigid, Flex, Full
+
+  - Rigid:
+    - doesn't force scrutinee
+    - illegal head: error
+    - defs: scopecheck flex spine, if fails retry full
+    - active solved: scopecheck flex spine + occurs check, if fails retry full
+
+  - Flex, same as rigid, doesn't retry
+
+  - Full: fully forces scrutinee, works in the evident way
+
+-}
+
+
+
 --------------------------------------------------------------------------------
 
 data PartialRenaming = PRen {
