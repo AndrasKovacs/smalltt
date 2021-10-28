@@ -1,5 +1,4 @@
 {-# language UnboxedTuples, UnboxedSums #-}
-{-# options_ghc -Wno-unused-imports #-}
 
 module Common (
     module Common
@@ -9,6 +8,8 @@ module Common (
   , coerce
   , TYPE
   , RuntimeRep(..)
+  , unpackUTF8
+  , packUTF8
   , HasCallStack) where
 
 import Prelude hiding (Monad(..), Applicative(..), IO)
@@ -21,7 +22,7 @@ import Data.Bits
 import Data.Flat
 import Data.List
 import Data.Time.Clock
-import FlatParse.Stateful (Span(..), Pos(..), Result(..), unsafeSlice, unpackUTF8)
+import FlatParse.Stateful (Span(..), Pos(..), Result(..), unsafeSlice, unpackUTF8, packUTF8)
 import GHC.Exts
 import GHC.ForeignPtr
 import GHC.Stack
@@ -322,7 +323,9 @@ indexPartialWord'# = go 0## 0# where
 
 eqSpanGo :: Addr# -> Addr# -> Int# -> Int#
 eqSpanGo p p' len = case len <# 8# of
-  1# -> eqWord# (indexPartialWord# len p) (indexPartialWord# len p')
+  1# -> case len of
+    0# -> 1#
+    _  -> eqWord# (indexPartialWord# len p) (indexPartialWord# len p')
   _  -> case eqWord# (indexWordOffAddr# p 0#) (indexWordOffAddr# p' 0#) of
     1# -> eqSpanGo (plusAddr# p 8#) (plusAddr# p' 8#) (len -# 8#)
     _  -> 0#
@@ -338,6 +341,7 @@ eqSpanGo' p p' len = case len <# 8# of
     1# -> eqSpanGo' (plusAddr# p 8#) (plusAddr# p' 8#) (len -# 8#)
     _  -> 0#
 
+-- | Compare spans with the same base address.
 eqSpan# :: Addr# -> Span -> Span -> Int#
 eqSpan# _   s s' | s == s' = 1#
 eqSpan# eob (Span (Pos (I# x)) (Pos (I# y))) (Span (Pos (I# x')) (Pos (I# y'))) = let
@@ -353,8 +357,9 @@ eqSpan# eob (Span (Pos (I# x)) (Pos (I# y))) (Span (Pos (I# x')) (Pos (I# y'))) 
     _  -> 0#
 {-# inline eqSpan# #-}
 
-eqSpans# :: Addr# -> Span -> Addr# -> Span -> Int#
-eqSpans# eob  (Span (Pos (I# x))  (Pos (I# y)))
+-- | Compare spans with different base addresses.
+eqBasedSpan# :: Addr# -> Span -> Addr# -> Span -> Int#
+eqBasedSpan# eob  (Span (Pos (I# x))  (Pos (I# y)))
          eob' (Span (Pos (I# x')) (Pos (I# y'))) = let
   len  = x -# y
   len' = x' -# y'

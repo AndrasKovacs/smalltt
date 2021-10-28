@@ -122,17 +122,6 @@ infer cxt topT = U.do
   Infer t a <- case topT of
     P.Var px -> U.do
       ma <- ST.lookup px (tbl cxt)
-
-      debugging' U.do
-        ld  <- U.io $ ST.loadFactor (tbl cxt)
-        ld' <- U.io $ ST.loadFactor' (tbl cxt)
-        debug' ["LOAD FACTOR", show ld, show ld']
-
-      -- debugging' U.do
-      --   U.when (showSpan (src cxt) px == "EvalCon0") U.do
-      --     buckets <- U.io $ ST.buckets (tbl cxt)
-      --     U.io $ mapM_ print buckets
-
       case ma of
         UNothing             -> throw $ NotInScope px
         UJust (ST.Local x a) -> U.do
@@ -146,9 +135,9 @@ infer cxt topT = U.do
 
         UJust (ST.Top x _ a _ vt) -> U.do
 
-          -- debugging U.do
-          --   foo <- U.io $ ST.assocs (tbl cxt)
-          --   debug ["top var", show foo, showSpan (src cxt) px, show x]
+          debugging U.do
+            foo <- U.io $ ST.assocs (tbl cxt)
+            debug ["top var", show foo, showSpan (src cxt) px, show x]
 
           U.pure (Infer (TopVar x vt) a)
 

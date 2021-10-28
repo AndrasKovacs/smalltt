@@ -2,7 +2,6 @@
 module Test where
 
 import qualified Data.ByteString as B
-import FlatParse.Stateful (packUTF8)
 import System.Exit
 
 import qualified Data.Array.Dynamic.L as ADL
@@ -232,3 +231,9 @@ testsrc n = let x = show n in
   "             (app"++x++" (var"++x++" (vs"++x++" vz"++x++")) (app"++x++" (var"++x++" (vs"++x++" vz"++x++")) (var"++x++" vz"++x++"))))))))"
 
   ]
+
+manysrc :: Int -> String
+manysrc n = unlines [testsrc x | x <- [0..n]]
+
+srctofile :: Int -> IO ()
+srctofile n = writeFile "test3.stt" $ manysrc n

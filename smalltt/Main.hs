@@ -6,7 +6,6 @@ import qualified Data.Array.Dynamic.L as ADL
 import qualified Data.Array.LM as ALM
 import qualified Data.ByteString as B
 import qualified Control.Exception as Ex
-import FlatParse.Basic (packUTF8)
 -- import System.Environment
 -- import System.Exit
 import System.IO
@@ -73,6 +72,7 @@ load path = do
                 pure Nothing
               (Right (tbl, top, ms), time) -> do
                 putStrLn ("elaborated in " ++ show time)
+                putStrLn ("loaded " ++ show (topLen top) ++ " definitions")
                 pure (Just (State path src tbl top ms))
   putStrLn ("total load time: " ++ show time)
   pure res

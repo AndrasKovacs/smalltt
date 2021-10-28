@@ -34,7 +34,7 @@ module SymTable (
   , Entry(..)
   , loadFactor
   , loadFactor'
-  -- , test
+  , test
   ) where
 
 import qualified Data.Array.LI            as ALI
@@ -180,8 +180,8 @@ lookupBSBucket :: Addr# -> Addr# -> Span -> Bucket -> (# Entry | (# #) #)
 lookupBSBucket src' src k = \case
   Empty -> (# | (# #) #)
   Cons h' k' v' b
-    | 1# <- eqSpans# src k src' k' -> (# v' | #)
-    | otherwise                    -> lookupBSBucket src' src k b
+    | 1# <- eqBasedSpan# src k src' k' -> (# v' | #)
+    | otherwise                        -> lookupBSBucket src' src k b
 
 writeBucketAtIx :: Int -> Hash -> Span -> Entry -> Bucket -> Bucket
 writeBucketAtIx i h k v e = case (,) $$! i $$! e of
@@ -386,12 +386,12 @@ assocs stbl@(SymTable tbl) = do
       (\acc h k v -> (spanToString stbl k, v):acc) acc b)
       [] buckets
 
-buckets :: SymTable -> IO [[(String, Entry)]]
+buckets :: SymTable -> IO [[(Hash, String, Entry)]]
 buckets stbl@(SymTable tbl) = do
   buckets <- ALM.unsafeFreeze =<< RUUU.readSnd tbl
   pure $ ALI.foldl'
     (\acc b -> foldlBucket
-        (\acc h k v -> (spanToString stbl k, v):acc) [] b : acc)
+        (\acc h k v -> (h, spanToString stbl k, v):acc) [] b : acc)
         [] buckets
 
 testHash :: B.ByteString -> Span -> Hash
@@ -406,8 +406,12 @@ testEqSpan str s s' = runIO $ B.unsafeUseAsCString str \(Ptr addr) -> do
       eob = plusAddr# addr l
   pure $ isTrue# (eqSpan# eob s s')
 
--- test = do
---   tbl <- U.toIO $ new "foobar"
---   U.toIO $ insert (Span (Pos 4) (Pos 2)) (Local 10 VU) tbl
---   U.toIO $ insert (Span (Pos 2) (Pos 0)) (Local 20 VU) tbl
---   mapM_ print =<< buckets tbl
+test = do
+  tbl <- U.toIO $ new "EvalCon0EvalCon0        "
+  U.toIO $ insert (Span (Pos 24) (Pos 16)) (Local 10 (gjoin VU)) tbl
+  U.toIO $ insert (Span (Pos 16) (Pos 8)) (Local 10 (gjoin VU)) tbl
+  -- U.toIO $ insert (Span (Pos 8) (Pos 0)) (Local 10 (gjoin VU)) tbl
+  -- lk <- U.toIO $ SymTable.lookup (Span (Pos 16) (Pos 8)) tbl
+  -- print lk
+
+  mapM_ print =<< buckets tbl
