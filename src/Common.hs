@@ -35,7 +35,7 @@ import qualified UIO
 -- debug printing, toggled by "debug" cabal flag
 --------------------------------------------------------------------------------
 
-#define DEBUG
+-- define DEBUG
 
 #ifdef DEBUG
 type Dbg = HasCallStack
@@ -60,6 +60,10 @@ debugging _ = U.pure ()
 
 debug' :: [String] -> UIO.IO ()
 debug' strs = U.io $ putStrLn (intercalate " | " strs ++ " END")
+
+debugging' :: UIO.IO () -> UIO.IO ()
+debugging' act = act
+{-# inline debugging' #-}
 
 --------------------------------------------------------------------------------
 

@@ -129,6 +129,7 @@ when False _  = pure ()
 --------------------------------------------------------------------------------
 
 CAN_IO(Int, IntRep, Int#, I# x, CoeInt)
+CAN_IO(Double, DoubleRep, Double#, D# x, CoeDouble)
 CAN_IO(RUUU.Ref a b c, UnliftedRep, MutableArrayArray# RealWorld, RUUU.Ref (AUM.Array x), CoeRUU)
 CAN_IO(RFFF.Ref a b c, UnliftedRep, MutableByteArray# RealWorld, RFFF.Ref x, CoeRFF)
 CAN_IO(RL.Ref a, UnliftedRep, MutVar# RealWorld a, RL.Ref x, CoeRL)

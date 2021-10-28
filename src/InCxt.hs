@@ -55,6 +55,10 @@ appCl :: Cxt -> Closure -> Val -> Val
 appCl cxt t u = E.appCl (mcxt cxt) t u
 {-# inline appCl #-}
 
+appCl' :: Cxt -> Closure -> Val -> Val
+appCl' cxt t u = E.appCl' (mcxt cxt) t u
+{-# inline appCl' #-}
+
 showPTm :: Cxt -> P.Tm -> String
 showPTm cxt t = showSpan (src cxt) (P.span t)
 {-# inline showPTm #-}

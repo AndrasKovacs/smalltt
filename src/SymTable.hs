@@ -32,6 +32,8 @@ module SymTable (
   , assocs
   , buckets
   , Entry(..)
+  , loadFactor
+  , loadFactor'
   -- , test
   ) where
 
@@ -69,12 +71,12 @@ import IO
 --------------------------------------------------------------------------------
 
 data Entry
-  = Top Lvl Ty ~VTy ~VTy Tm ~Val  -- level, type, type val, forced type val, def, def val
-  | Local Lvl ~VTy ~VTy           -- level, type val, forced type val
+  = Top Lvl Ty {-# unpack #-} GTy Tm ~Val  -- level, type, type val, forced type val, def, def val
+  | Local Lvl {-# unpack #-} GTy           -- level, type val, forced type val
 
 instance Show Entry where
-  showsPrec d (Local x _ _)     = showParen (d > 10) (("Loc " ++ show x)++)
-  showsPrec d (Top x _ _ _ _ _) = showParen (d > 10) (("Top " ++ show x)++)
+  showsPrec d (Local x _)     = showParen (d > 10) (("Loc " ++ show x)++)
+  showsPrec d (Top x _ _ _ _) = showParen (d > 10) (("Top " ++ show x)++)
 
 -- Span hashing
 --------------------------------------------------------------------------------
@@ -142,17 +144,6 @@ hashByteString :: B.ByteString -> U.IO Hash
 hashByteString str = U.io $ B.unsafeUseAsCString str \(Ptr addr) -> do
   let !(I# l) = B.length str
   pure $! hash# (plusAddr# addr l) (Span (Pos (I# l)) (Pos 0))
-
-
-  -- let !(I# l) = B.length str
-  --     eob = plusAddr# addr l
-  -- pure $ hash# eob s
-
-
--- runIO $ B.unsafeUseAsCString str \(Ptr addr) -> do
---   let !(I# l) = B.length str
---       eob = plusAddr# addr l
---   pure $ isTrue# (eqSpan# eob s s')
 
 
 -- Buckets
@@ -302,7 +293,7 @@ deleteWithHash k h (SymTable tbl) = U.do
       ix          = hashToInt (unsafeShiftR h shift)
   b <- U.io $ ALM.read buckets ix
   let !(# !b', old #) = deleteFromBucket src k b
-  let size' = I# size + tag (UMaybe# old) - 1
+  let size' = I# size - (2 - tag (UMaybe# old))
   U.io $ ALM.write buckets ix b'
   U.io $ RFFF.writeFst ref size'
   let downsize = unsafeShiftR bucketsSize 3
@@ -371,6 +362,21 @@ spanToString tbl s = FP.unpackUTF8 (spanToByteString tbl s)
 
 -- testing
 --------------------------------------------------------------------------------
+
+loadFactor :: SymTable -> IO Double
+loadFactor (SymTable tbl) = do
+  ref      <- RUUU.readFst tbl
+  size     <- RFFF.readFst ref
+  buckets  <- RUUU.readSnd tbl
+  let bucketsSize = ALM.size buckets
+  pure (fromIntegral size / fromIntegral bucketsSize)
+
+loadFactor' :: SymTable -> IO Double
+loadFactor' tbl = do
+  bs <- buckets tbl
+  let blen = length bs
+  let size = length $ concat bs
+  pure (fromIntegral size / fromIntegral blen)
 
 assocs :: SymTable -> IO [(String, Entry)]
 assocs stbl@(SymTable tbl) = do

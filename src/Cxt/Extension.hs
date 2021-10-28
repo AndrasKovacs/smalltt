@@ -17,8 +17,8 @@ empty :: SymTable -> MetaCxt -> TopLevel -> MetaVar -> Cxt
 empty tbl ms top frozen = Cxt 0 ENil mempty tbl ms (NNil top) frozen
 {-# inline empty #-}
 
-binding :: U.CanIO a => Cxt -> Bind -> Icit -> VTy -> VTy -> (Cxt -> Val -> U.IO a) -> U.IO a
-binding (Cxt lvl env mask tbl mcxt ns frz) x i ~va ~fva k = let
+binding :: U.CanIO a => Cxt -> Bind -> Icit -> GTy -> (Cxt -> Val -> U.IO a) -> U.IO a
+binding (Cxt lvl env mask tbl mcxt ns frz) x i a k = let
   v     = VLocalVar lvl SId
   mask' = LS.insert lvl mask
   env'  = EDef env v
@@ -29,17 +29,17 @@ binding (Cxt lvl env mask tbl mcxt ns frz) x i ~va ~fva k = let
     BSpan x -> U.do
       U.when (lvl >= 64) $ throw TooManyLocals
       h   <- ST.hash tbl x
-      old <- ST.insertWithHash x h (ST.Local lvl va fva) tbl
+      old <- ST.insertWithHash x h (ST.Local lvl a) tbl
       res <- k (Cxt lvl' env' mask' tbl mcxt (NCons ns (NSpan x)) frz) v
       ST.updateWithHash x h old tbl
       U.pure res
 {-# inline binding #-}
 
-defining :: U.CanIO a => Cxt -> Span -> VTy -> VTy -> Val -> (Cxt -> U.IO a) -> U.IO a
-defining (Cxt lvl env mask tbl mcxt ns frz) x ~va ~fva ~vt k = U.do
+defining :: U.CanIO a => Cxt -> Span -> GTy -> Val -> (Cxt -> U.IO a) -> U.IO a
+defining (Cxt lvl env mask tbl mcxt ns frz) x a ~vt k = U.do
   U.when (lvl >= maxLocals) $ throw $ TooManyLocals
   h   <- ST.hash tbl x
-  old <- ST.insertWithHash x h (ST.Local lvl va fva) tbl
+  old <- ST.insertWithHash x h (ST.Local lvl a) tbl
   res <- k (Cxt (lvl + 1) (EDef env vt) mask tbl mcxt (NCons ns (NSpan x)) frz)
   ST.updateWithHash x h old tbl
   U.pure res

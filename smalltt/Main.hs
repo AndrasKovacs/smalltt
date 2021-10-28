@@ -87,7 +87,7 @@ loop st = do
   let loadTopDef str act = whenLoaded \st -> do
         let x = packUTF8 str
         ST.lookupByteString x (tbl st) >>= \case
-          UJust (ST.Top _ a va fva t vt) -> do
+          UJust (ST.Top _ a _ t vt) -> do
             act st a t
           _ -> do
             putStrLn "no such top-level name"

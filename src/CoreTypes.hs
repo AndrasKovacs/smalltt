@@ -17,6 +17,9 @@ module CoreTypes (
   , UnfoldHead
   , pattern UHTopVar
   , pattern UHSolved
+  , G(..)
+  , GTy
+  , gjoin
   , eqUH
   , Names(..)
   , showTm0
@@ -86,6 +89,14 @@ data Tm
 
 CAN_IO(Tm, LiftedRep, Tm, x, CoeTm)
 
+data G   = G {g1, g2 :: ~Val}
+type GTy = G
+
+gjoin :: Val -> G
+gjoin ~v = G v v
+{-# inline gjoin #-}
+
+CAN_IO2(G, LiftedRep, LiftedRep, Val, Val, G x y, CoeG)
 
 -- Top-level entries
 --------------------------------------------------------------------------------
