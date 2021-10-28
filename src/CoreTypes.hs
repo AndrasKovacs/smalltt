@@ -17,6 +17,7 @@ module CoreTypes (
   , UnfoldHead
   , pattern UHTopVar
   , pattern UHSolved
+  , eqUH
   , Names(..)
   , showTm0
   , prettyTm
@@ -121,9 +122,9 @@ topSpan x (TopLevel _ defs) = U.io do
 -- data UnfoldHead = UHTopVar Lvl ~Val | UHSolved MetaVar
 data UnfoldHead = UnfoldHead# Int ~Val
 
-instance Eq UnfoldHead where
-  UnfoldHead# x _ == UnfoldHead# x' _ = x == x'
-  {-# inline (==) #-}
+eqUH :: UnfoldHead -> UnfoldHead -> Bool
+eqUH (UnfoldHead# x _) (UnfoldHead# x' _) = x == x'
+{-# inline eqUH #-}
 
 unpackUH# :: UnfoldHead -> (# (# Lvl, Val #) | MetaVar #)
 unpackUH# (UnfoldHead# x v) = case x .&. 1 of
@@ -227,7 +228,7 @@ prettyTm prec src ns t = go prec ns t where
   goMask p ns m mask = fst (go ns) where
     go :: Names -> (ShowS, Lvl)
     go NNil{} =
-      ((('?':) . (show m ++) ), 0)
+      ((show m++), 0)
     go (NCons ns (fresh ns -> (n, x))) = case go ns of
       (s, l) | LS.member l mask -> ((par p appp $ s . (' ':) . (x++)), l + 1)
              | otherwise        -> (s, l + 1)
@@ -262,7 +263,7 @@ prettyTm prec src ns t = go prec ns t where
       par p letp $ ("let "++) . (x++) . (" : "++) . go letp ns a
       . (" = "++) . go letp ns t . ("; "++) . go letp (NCons ns n) u
 
-    Meta m              -> ('?':).(show m ++)
+    Meta m              -> (show m ++)
     InsertedMeta m mask -> goMask p ns m mask
     TopVar x _          -> goTop x
     Irrelevant          -> ("Irrelevant"++)

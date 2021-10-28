@@ -35,7 +35,7 @@ import qualified UIO
 -- debug printing, toggled by "debug" cabal flag
 --------------------------------------------------------------------------------
 
--- define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 type Dbg = HasCallStack
@@ -209,12 +209,15 @@ int8ToLvl (I8# x) = Lvl (I# x)
 CAN_IO(Lvl, IntRep, Int#, Lvl (I# x), CoeLvl)
 
 newtype MetaVar = MkMetaVar Int
-  deriving (Eq, Ord, Show, Num, Flat) via Int
+  deriving (Eq, Ord, Num, Flat) via Int
+
+instance Show MetaVar where
+  show (MkMetaVar x) = '?':show x
 
 CAN_IO(MetaVar, IntRep, Int#, MkMetaVar (I# x), CoeMetaVar)
 
 lvlToIx :: Lvl -> Lvl -> Ix
-lvlToIx (Lvl envl) (Lvl l) = Ix (envl - l - 1)
+lvlToIx (Lvl envl) (Lvl x) = Ix (envl - x - 1)
 {-# inline lvlToIx #-}
 
 

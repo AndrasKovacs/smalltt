@@ -13,7 +13,7 @@ import MetaCxt (MetaCxt)
 import SymTable (SymTable(..))
 import Exceptions
 
-empty :: SymTable -> MetaCxt -> TopLevel -> Lvl -> Cxt
+empty :: SymTable -> MetaCxt -> TopLevel -> MetaVar -> Cxt
 empty tbl ms top frozen = Cxt 0 ENil mempty tbl ms (NNil top) frozen
 {-# inline empty #-}
 

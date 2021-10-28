@@ -29,16 +29,16 @@ import SymTable (SymTable)
 
 unify :: Cxt -> P.Tm -> Val -> Val -> Val -> Val -> U.IO ()
 unify cxt t l r fl fr = U.do
-  debug ["unify", showVal cxt l, showVal cxt r]
+  debug ["unify", showValOpt cxt l UnfoldNone, showValOpt cxt r UnfoldNone]
   Unif.unify (mcxt cxt) (lvl cxt) (frozen cxt) CSRigid fl fr `catch` \case
-    UnifyEx _ -> throw $ UnifyError cxt t l r
+    UnifyEx e -> throw $ UnifyError cxt t l r e
     _         -> impossible
 {-# inline unify #-}
 
 solve :: Cxt -> P.Tm -> ConvState -> MetaVar -> Spine -> Val -> U.IO ()
 solve cxt pt cs x sp rhs = U.do
-  Unif.solve (mcxt cxt) (lvl cxt) x sp rhs `catch` \case
-    UnifyEx _ -> throw $ UnifyError cxt pt (VFlex x sp) rhs
+  Unif.solve (mcxt cxt) (lvl cxt) (frozen cxt) x sp rhs `catch` \case
+    UnifyEx e -> throw $ UnifyError cxt pt (VFlex x sp) rhs e
     _         -> impossible
 {-# inline solve #-}
 
@@ -205,7 +205,7 @@ infer cxt topT = U.do
       (t, _ ) <- freshMeta cxt
       U.pure (Infer t va va)
 
-  debug ["inferred", showTm cxt t, showVal cxt a]
+  debug ["inferred", showTm cxt t, showValOpt cxt a UnfoldNone, showValOpt cxt fa UnfoldNone]
   U.pure (Infer t a fa)
 
 -- | Choose between checking and inferring depending on an optional type annotation.
@@ -225,16 +225,12 @@ checkWithAnnot cxt ma t k = case ma of
 
 -- | Check that a preterm is a type.
 checkType :: Cxt -> P.Tm -> U.IO Tm
-checkType cxt pt = U.do
-  Infer t tty ftty <- infer cxt pt
-  forceFU cxt ftty U.>>= \case
-    VU         -> U.pure t
-    VFlex x sp -> t U.<$ solve cxt pt CSRigid x sp VU
-    ftty       -> throw $ UnifyError cxt pt tty VU
+checkType cxt pt = check cxt pt VU
+{-# inline checkType #-}
 
 check :: Cxt -> P.Tm -> VTy -> U.IO Tm
 check cxt topT topA = U.do
-  debug ["check", showPTm cxt topT, showVal cxt topA]
+  debug ["check", showPTm cxt topT, showValOpt cxt topA UnfoldNone]
 
   a <- forceFU cxt topA
   case (topT, a) of
@@ -280,7 +276,7 @@ checkTopLevel tbl ms top ptop = case ptop of
 
     debug ["\nTOP DEF", showSpan (ST.byteString tbl) x]
     frozen <- MC.size ms
-    let cxt = empty tbl ms top frozen
+    let cxt = empty tbl ms top (coerce frozen)
     checkWithAnnot cxt ma t \ ~t ~a ~va ~fva -> U.do
 
       let ~vt = E.eval ms ENil t

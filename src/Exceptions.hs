@@ -21,10 +21,11 @@ import InCxt
 data UnifyEx
   = Conversion
   | CSFlexSolution
+  | FrozenSolution MetaVar
   deriving Show
 
 data Exception
-  = UnifyError Cxt P.Tm Val Val    -- checking, lhs, rhs
+  = UnifyError Cxt P.Tm Val Val UnifyEx           -- checking, lhs, rhs
   | TooManyLocals
   | UnifyEx UnifyEx
   | NoNamedArgument P.Tm {-# unpack #-} Span      -- checking, name
@@ -79,7 +80,12 @@ render src (Span pos _) msg = let
 
 showException :: B.ByteString -> Exception -> String
 showException src = \case
-  UnifyError cxt t l r -> render src (P.span t) $
+  UnifyError cxt t l r (FrozenSolution x) -> render src (P.span t) $
+    printf ("Can't solve frozen metavariable %s when trying to " ++
+            "unify\n\n  %s\n\nwith\n\n  %s\n")
+      (show x)
+      (showValOpt cxt l UnfoldFlex) (showValOpt cxt r UnfoldFlex)
+  UnifyError cxt t l r _ -> render src (P.span t) $
     printf "Can't unify\n\n  %s\n\nwith\n\n  %s\n"
       (showValOpt cxt l UnfoldFlex) (showValOpt cxt r UnfoldFlex)
   TooManyLocals ->
