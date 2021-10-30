@@ -24,13 +24,13 @@ import Evaluation
 
 --------------------------------------------------------------------------------
 -- TODO:
---   BUG: test.stt : n10 top name not found
 --   main : add more cmd options, :bro, top-level name elabs, unfold opts
---   investigate main memory usage + gc
---   meta freezing
---   occurs caching: only cache current occurs meta
---   known call optimization
---   hpalloc reductions through shared vars, renamings & other data
+--   - known call optimization, solved meta eval optimization
+--   - hpalloc reductions through shared vars, renamings & other data
+--   - try putting terms in a compact region
+--   - organize args in records (UnifyCxt, EvalCxt, SolveCxt etc)
+--       overload fields with microlens
+--   - add parametrized flex unfolding depth, in unification and scopechecking
 
 --------------------------------------------------------------------------------
 

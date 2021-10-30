@@ -1,4 +1,7 @@
 
+-- U : U + Pi + top-level def + local let
+-- Agda-féle implicit argument, pattern unification (basic)
+
 id : {A} → A → A
  = λ x. x
 
@@ -50,8 +53,8 @@ n5Mb   = mul n1Mb  five
 n10M   = mul n5M two
 n10Mb  = mul n5Mb two
 
-convtest : Eq (add n5M _) (add n5Mb _)
- = refl
+-- convtest : Eq n5M n5Mb
+--  = refl
 
 -- convtest : Eq (add n10M meta) (add n10Mb meta)
 --  = refl
@@ -166,7 +169,10 @@ EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
           (λ t env α. t (pair env α))
           (λ t u env. t env (u env))
 
+--      Tm [] ((ι ⇒ ι) ⇒ (ι ⇒ ι))
 test : Tm nil (fun (fun ι ι) (fun ι ι))
   = lam (lam (app (var (vs vz)) (app (var (vs vz))
              (app (var (vs vz)) (app (var (vs vz))
              (app (var (vs vz)) (app (var (vs vz)) (var vz))))))))
+
+-- trade-off : minimalizált output vs. hatékony kiértékelés

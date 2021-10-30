@@ -22,16 +22,6 @@ import Exceptions
 
 --------------------------------------------------------------------------------
 
--- TODO: meta freezing
---       glued renaming
---       occurs caching
---       organize args in records
-
--- store frozenness to MetaCxt?
-
-
---------------------------------------------------------------------------------
-
 {-
 - Occurs check:
   - approximate, only visits active solved metas
