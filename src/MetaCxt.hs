@@ -3,16 +3,18 @@
 module MetaCxt where
 
 import qualified Data.Array.Dynamic.L as ADL
+import qualified Data.Ref.F           as RF
 import qualified Data.Array.UM        as AUM
 import qualified Data.Ref.UU          as RUU
-import qualified Data.Ref.F           as RF
 
 import GHC.Exts
 
-import qualified UIO as U
 import qualified UIO
+import qualified UIO as U
 import Common
 import CoreTypes
+
+--------------------------------------------------------------------------------
 
 #include "deriveCanIO.h"
 
@@ -27,10 +29,6 @@ CAN_IO(MetaCxt, UnliftedRep, MutableArrayArray# RealWorld,
 size :: MetaCxt -> U.IO Lvl
 size ms = coerce U.<$> U.io (ADL.size ms)
 {-# inline size #-}
-
-new :: U.IO MetaCxt
-new = U.io (ADL.empty)
-{-# inline new #-}
 
 fresh :: MetaCxt -> U.IO Int
 fresh ms = U.do

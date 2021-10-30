@@ -1,26 +1,25 @@
 {-# language UnboxedTuples #-}
 {-# options_ghc -Wno-orphans #-}
 
-module Elaboration (checkProg) where
+module Elaboration (elab) where
 
 import qualified Data.ByteString as B
 import GHC.Exts
 
 import qualified LvlSet as LS
-import qualified Evaluation as E
 import qualified MetaCxt as MC
 import qualified Presyntax as P
 import qualified SymTable as ST
+import qualified TopCxt as Top
 import qualified UIO
 import qualified UIO as U
 import qualified Unification as Unif
+
 import Common
 import CoreTypes
 import Cxt
 import Exceptions
 import InCxt
-import MetaCxt (MetaCxt)
-import SymTable (SymTable)
 
 #include "deriveCanIO.h"
 
@@ -30,14 +29,14 @@ import SymTable (SymTable)
 unify :: Cxt -> P.Tm -> G -> G -> U.IO ()
 unify cxt t l r = U.do
   debug ["unify", showValOpt cxt (g1 l) UnfoldNone, showValOpt cxt (g1 r) UnfoldNone]
-  Unif.unify (mcxt cxt) (lvl cxt) (frozen cxt) CSRigid l r `catch` \case
+  Unif.unify (evalCxt cxt) (lvl cxt) (frozen cxt) CSRigid l r `catch` \case
     UnifyEx e -> throw $ UnifyError cxt t (g1 l) (g1 r) e
     _         -> impossible
 {-# inline unify #-}
 
 solve :: Cxt -> P.Tm -> ConvState -> MetaVar -> Spine -> Val -> U.IO ()
 solve cxt pt cs x sp rhs = U.do
-  Unif.solve (mcxt cxt) (lvl cxt) (frozen cxt) x sp rhs `catch` \case
+  Unif.solve (evalCxt cxt) (lvl cxt) (frozen cxt) x sp rhs `catch` \case
     UnifyEx e -> throw $ UnifyError cxt pt (VFlex x sp) rhs e
     _         -> impossible
 {-# inline solve #-}
@@ -133,13 +132,13 @@ infer cxt topT = U.do
 
           U.pure (Infer (LocalVar (lvlToIx (lvl cxt) x)) a)
 
-        UJust (ST.Top x _ a _ vt) -> U.do
+        UJust (ST.Top x _ a _) -> U.do
 
           debugging U.do
             foo <- U.io $ ST.assocs (tbl cxt)
             debug ["top var", show foo, showSpan (src cxt) px, show x]
 
-          U.pure (Infer (TopVar x vt) a)
+          U.pure (Infer (TopVar x) a)
 
     P.Let _ x ma t u ->
       checkWithAnnot cxt ma t \ ~t ~a va -> U.do
@@ -268,26 +267,29 @@ check cxt topT (G topA ftopA) = U.do
       unify cxt topT inferred (G topA ftopA)
       U.pure t
 
-checkTopLevel :: SymTable -> MetaCxt -> TopLevel -> P.TopLevel -> U.IO TopLevel
-checkTopLevel tbl ms top ptop = case ptop of
+--------------------------------------------------------------------------------
+
+elabTopLevel :: Top.Cxt -> P.TopLevel -> U.IO Top.Cxt
+elabTopLevel topCxt = \case
   P.Nil ->
-    U.pure top
+    U.pure topCxt
   P.Definition x ma t u -> U.do
+    cxt <- empty topCxt
+    U.bind3 (\pure -> case ma of
+      UNothing -> U.do
+        Infer t va <- insertApps cxt $ infer cxt t
+        let a = quote cxt UnfoldNone (g1 va)
+        pure t a va
+      UJust a -> U.do
+        a <- checkType cxt a
+        let va = gjoin $! eval cxt a
+        t <- check cxt t va
+        pure t a va)
+      \ ~t ~a va -> U.do
+        topCxt <- Top.define x a va t topCxt
+        elabTopLevel topCxt u
 
-    debug ["\nTOP DEF", showSpan (ST.byteString tbl) x]
-    frozen <- MC.size ms
-    let cxt = empty tbl ms top (coerce frozen)
-    checkWithAnnot cxt ma t \ ~t ~a va -> U.do
-
-      let ~vt = E.eval ms ENil t
-      ST.insert x (ST.Top (topLen top) a va t vt) tbl
-      top <- topDefine x a t top
-      checkTopLevel tbl ms top u
-
-checkProg :: B.ByteString -> P.TopLevel -> IO (Either Exception (SymTable, TopLevel, MetaCxt))
-checkProg src ptop = do
-  tbl  <- U.toIO $ ST.new src
-  top  <- U.toIO $ newTop (P.topLen ptop)
-  ms   <- U.toIO $ MC.new
-  etop <- U.toIO $ try (checkTopLevel tbl ms top ptop)
-  pure $! ((\top -> (tbl, top, ms)) <$> etop)
+elab :: B.ByteString -> P.TopLevel -> IO (Either Exception Top.Cxt)
+elab src top = U.toIO U.do
+  topCxt <- Top.new src (P.topLen top)
+  try (elabTopLevel topCxt top)

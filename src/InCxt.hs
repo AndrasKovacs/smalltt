@@ -15,12 +15,15 @@ import Common
 
 --------------------------------------------------------------------------------
 
+evalCxt :: Cxt -> E.Cxt
+evalCxt cxt = E.Cxt (mcxt cxt) (Cxt.Types.topVals cxt)
+
 eval :: Cxt -> Tm -> Val
-eval cxt t = E.eval (mcxt cxt) (env cxt) t
+eval cxt = E.eval (evalCxt cxt) (env cxt)
 {-# inline eval #-}
 
 quote :: Cxt -> QuoteOption -> Val -> Tm
-quote cxt opt t = E.quote (mcxt cxt) (lvl cxt) opt t
+quote cxt opt t = E.quote (evalCxt cxt) (lvl cxt) opt t
 {-# inline quote #-}
 
 src :: Cxt -> B.ByteString
@@ -40,23 +43,23 @@ showValOpt cxt t opt = showTm cxt (quote cxt opt t)
 {-# inline showValOpt #-}
 
 forceFU :: Cxt -> Val -> U.IO Val
-forceFU cxt t = E.forceFU (mcxt cxt) t
+forceFU cxt t = E.forceFU (evalCxt cxt) t
 {-# inline forceFU #-}
 
 forceF :: Cxt -> Val -> U.IO Val
-forceF cxt t = E.forceF (mcxt cxt) t
+forceF cxt t = E.forceF (evalCxt cxt) t
 {-# inline forceF #-}
 
 app :: Cxt -> Val -> Val -> Icit -> Val
-app cxt t u i = E.app (mcxt cxt) t u i
+app cxt t u i = E.app (evalCxt cxt) t u i
 {-# inline app #-}
 
 appCl :: Cxt -> Closure -> Val -> Val
-appCl cxt t u = E.appCl (mcxt cxt) t u
+appCl cxt t u = E.appCl (evalCxt cxt) t u
 {-# inline appCl #-}
 
 appCl' :: Cxt -> Closure -> Val -> Val
-appCl' cxt t u = E.appCl' (mcxt cxt) t u
+appCl' cxt t u = E.appCl' (evalCxt cxt) t u
 {-# inline appCl' #-}
 
 showPTm :: Cxt -> P.Tm -> String
@@ -73,5 +76,5 @@ eqName _   _         _          = False
 
 valToClosure :: Cxt -> Val -> Closure
 valToClosure cxt t =
-  Closure (env cxt) (E.quote (mcxt cxt) (lvl cxt + 1) UnfoldNone t)
+  Closure (env cxt) (E.quote (evalCxt cxt) (lvl cxt + 1) UnfoldNone t)
 {-# inline valToClosure #-}

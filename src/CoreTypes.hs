@@ -9,11 +9,9 @@ module CoreTypes (
   , VTy
   , Val(..)
   , Tm(..)
-  , TopLevel(..)
+  , TopInfo
+  , TopVals
   , TopEntry(..)
-  , topSpan
-  , topDefine
-  , newTop
   , UnfoldHead
   , pattern UHTopVar
   , pattern UHSolved
@@ -22,16 +20,16 @@ module CoreTypes (
   , gjoin
   , eqUH
   , Names(..)
-  , showTm0
   , prettyTm
+  , showTm0
   ) where
 
 import qualified Data.ByteString as B
 import qualified Data.Array.LM   as ALM
+import IO (runIO)
 import GHC.Exts
 
 import qualified UIO
-import qualified UIO as U
 import qualified LvlSet as LS
 import Common
 import Data.Bits
@@ -76,7 +74,7 @@ type Ty = Tm
 
 data Tm
   = LocalVar Ix
-  | TopVar Lvl ~Val
+  | TopVar Lvl
   | Let Span Tm Tm Tm
   | App Tm Tm Icit
   | Lam Name Icit Tm
@@ -98,64 +96,43 @@ gjoin ~v = G v v
 
 CAN_IO2(G, LiftedRep, LiftedRep, Val, Val, G x y, CoeG)
 
--- Top-level entries
+------------------------------------------------------------
+
+-- data UnfoldHead = UHTopVar Lvl | UHSolved MetaVar
+data UnfoldHead = UnfoldHead# Int
+
+eqUH :: UnfoldHead -> UnfoldHead -> Bool
+eqUH (UnfoldHead# x) (UnfoldHead# x') = x == x'
+{-# inline eqUH #-}
+
+unpackUH# :: UnfoldHead -> (# Lvl | MetaVar #)
+unpackUH# (UnfoldHead# x) = case x .&. 1 of
+  0 -> (# Lvl (unsafeShiftR x 1) | #)
+  _ -> (# | MkMetaVar (unsafeShiftR x 1) #)
+{-# inline unpackUH# #-}
+
+pattern UHTopVar :: Lvl -> UnfoldHead
+pattern UHTopVar x <- (unpackUH# -> (# x | #)) where
+  UHTopVar (Lvl x) = UnfoldHead# (unsafeShiftL x 1)
+
+pattern UHSolved :: MetaVar -> UnfoldHead
+pattern UHSolved x <- (unpackUH# -> (# | x #)) where
+  UHSolved (MkMetaVar x) = UnfoldHead# (unsafeShiftL x 1 + 1)
+{-# complete UHTopVar, UHSolved #-}
+
+instance Show UnfoldHead where
+  show (UHTopVar x) = "(TopVar " ++ show x ++ ")"
+  show (UHSolved x) = "(Solved " ++ show x ++ ")"
+
+
 --------------------------------------------------------------------------------
 
 data TopEntry = TopEntry {-# unpack #-} Span Tm Tm  -- name, type, definition
 
--- | Stores top-level definitions. The stored length indicates the part of the array
---   which is defined, the rest is un-initialized.
-data TopLevel = TopLevel {topLen :: Lvl , topDefs :: ALM.Array TopEntry }
+CAN_IO(TopEntry, LiftedRep, TopEntry, x, CoeTopEntry)
 
-CAN_IO2(TopLevel, IntRep, UnliftedRep, Int#, MutableArray# RealWorld TopEntry,
-       TopLevel (Lvl (I# x)) (ALM.Array y), CoeTopLevel)
-
-newTop :: Int -> U.IO TopLevel
-newTop l = U.do
-  defs <- U.io $ ALM.new l (error "undefined top-level entry")
-  U.pure (TopLevel 0 defs)
-{-# inline newTop #-}
-
-topDefine :: Span -> Tm -> Ty -> TopLevel -> U.IO TopLevel
-topDefine x a t (TopLevel len defs) = U.do
-  U.io $ ALM.write defs (coerce len) (TopEntry x a t)
-  U.pure (TopLevel (len + 1) defs)
-{-# inline topDefine #-}
-
-topSpan :: Lvl -> TopLevel -> U.IO Span
-topSpan x (TopLevel _ defs) = U.io do
-  TopEntry x _ _  <- ALM.read defs (coerce x)
-  pure x
-{-# inline topSpan #-}
-
-------------------------------------------------------------
-
--- data UnfoldHead = UHTopVar Lvl ~Val | UHSolved MetaVar
-data UnfoldHead = UnfoldHead# Int ~Val
-
-eqUH :: UnfoldHead -> UnfoldHead -> Bool
-eqUH (UnfoldHead# x _) (UnfoldHead# x' _) = x == x'
-{-# inline eqUH #-}
-
-unpackUH# :: UnfoldHead -> (# (# Lvl, Val #) | MetaVar #)
-unpackUH# (UnfoldHead# x v) = case x .&. 1 of
-  0 -> (# (# Lvl (unsafeShiftR x 1), v #) | #)
-  _ -> (# | MkMetaVar (unsafeShiftR x 1) #)
-{-# inline unpackUH# #-}
-
-pattern UHTopVar :: Lvl -> Val -> UnfoldHead
-pattern UHTopVar x v <- (unpackUH# -> (# (# x, v #) | #)) where
-  UHTopVar (Lvl x) ~v = UnfoldHead# (unsafeShiftL x 1) v
-
-pattern UHSolved :: MetaVar -> UnfoldHead
-pattern UHSolved x <- (unpackUH# -> (# | x #)) where
-  UHSolved (MkMetaVar x) = UnfoldHead# (unsafeShiftL x 1 + 1) undefined
-{-# complete UHTopVar, UHSolved #-}
-
-instance Show UnfoldHead where
-  show (UHTopVar x _) = "(TopVar " ++ show x ++ ")"
-  show (UHSolved x  ) = "(Solved " ++ show x ++ ")"
-
+type TopInfo = ALM.Array TopEntry
+type TopVals = ALM.Array Val
 
 --------------------------------------------------------------------------------
 
@@ -164,19 +141,13 @@ instance Show UnfoldHead where
 --   elaboration. The top env is stored at the end, and we can extend it with
 --   local names with just single NCons.
 data Names
-  = NNil {-# unpack #-} TopLevel
+  = NNil TopInfo
   | NCons Names {-# unpack #-} Name
 
 showLocal :: B.ByteString -> Names -> Ix -> String
 showLocal src (NCons _ x)  0 = showName src x
 showLocal src (NCons ns _) l = showLocal src ns (l - 1)
 showLocal _   _            _ = impossible
-
-getTop :: Names -> TopLevel
-getTop (NNil top)   = top
-getTop (NCons ns _) = getTop ns
-
-
 
 -- Pretty printing
 --------------------------------------------------------------------------------
@@ -194,6 +165,11 @@ par p p' = showParen (p' < p)
 
 prettyTm :: Int -> B.ByteString -> Names -> Tm -> ShowS
 prettyTm prec src ns t = go prec ns t where
+
+  topInfo :: TopInfo
+  topInfo = go ns where
+    go (NNil inf) = inf
+    go (NCons ns _) = go ns
 
   eqName :: Name -> Name -> Bool
   eqName (NSpan x) (NSpan x') = eqSpan src x x'
@@ -245,8 +221,11 @@ prettyTm prec src ns t = go prec ns t where
              | otherwise        -> (s, l + 1)
 
   goTop :: Lvl -> ShowS
-  goTop x =
-    ((U.run (showSpan src U.<$> topSpan x (getTop ns)))++)
+  goTop x s = let
+    x' = runIO do
+      TopEntry x _ _ <- ALM.read topInfo (coerce x)
+      pure x
+    in showSpan src x' ++ s
 
   go :: Int -> Names -> Tm -> ShowS
   go p ns = \case
@@ -276,8 +255,8 @@ prettyTm prec src ns t = go prec ns t where
 
     Meta m              -> (show m ++)
     InsertedMeta m mask -> goMask p ns m mask
-    TopVar x _          -> goTop x
+    TopVar x            -> goTop x
     Irrelevant          -> ("Irrelevant"++)
 
-showTm0 :: B.ByteString -> TopLevel -> Tm -> String
-showTm0 src top t = prettyTm 0 src (NNil top) t []
+showTm0 :: B.ByteString -> TopInfo -> Tm -> String
+showTm0 src topinfo t = prettyTm 0 src (NNil topinfo) t []

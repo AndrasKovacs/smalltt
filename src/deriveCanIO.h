@@ -117,10 +117,28 @@ type family coe (x :: TYPE (TupleRep [rrep1 COMMA rrep2 COMMA rrep3 COMMA rrep4 
 instance UIO.CanIO (ty) where {\
   bind :: forall r (out :: TYPE r). (UIO.RW -> (# UIO.RW, (# rep1, rep2, rep3, rep4, rep5, rep6, rep7 #) #))\
        -> ((ty) -> UIO.RW -> (# UIO.RW, out #)) -> UIO.RW -> (# UIO.RW, out #);\
-  bind f g s = case f s of {(# s, (# a, b, c, d, e, f, g #) #) -> g (ctr) s};\
+  bind f fun s = case f s of {(# s, (# a, b, c, d, e, f, g #) #) -> fun (ctr) s};\
 \
   pure#  :: (ty) -> UIO.RW -> (# UIO.RW, (# rep1, rep2, rep3, rep4, rep5, rep6, rep7 #) #);\
   pure# (ctr) s = (# s, (# a, b, c, d, e, f, g #) #);\
+\
+  {-# inline bind #-};\
+  {-# inline pure# #-};\
+}
+
+#define CAN_IO8(ty, rrep1, rrep2, rrep3, rrep4, rrep5, rrep6, rrep7, rrep8, rep1, rep2, rep3, rep4, rep5, rep6, rep7, rep8, ctr, coe) \
+type instance UIO.RepRep (ty) = (TupleRep [rrep1 COMMA rrep2 COMMA rrep3 COMMA rrep4 COMMA rrep5 COMMA rrep6 COMMA rrep7 COMMA rrep8]);\
+type family coe (x :: TYPE (TupleRep [rrep1 COMMA rrep2 COMMA rrep3 COMMA rrep4 COMMA rrep5 COMMA rrep6 COMMA rrep7 COMMA rrep8])) :: TYPE (UIO.RepRep (ty)) where {\
+  coe x = x;};\
+ type instance UIO.Rep (ty) = coe (# rep1, rep2, rep3, rep4, rep5, rep6, rep7, rep8 #);\
+\
+instance UIO.CanIO (ty) where {\
+  bind :: forall r (out :: TYPE r). (UIO.RW -> (# UIO.RW, (# rep1, rep2, rep3, rep4, rep5, rep6, rep7, rep8 #) #))\
+       -> ((ty) -> UIO.RW -> (# UIO.RW, out #)) -> UIO.RW -> (# UIO.RW, out #);\
+  bind f fun s = case f s of {(# s, (# a, b, c, d, e, f, g, h #) #) -> fun (ctr) s};\
+\
+  pure#  :: (ty) -> UIO.RW -> (# UIO.RW, (# rep1, rep2, rep3, rep4, rep5, rep6, rep7, rep8 #) #);\
+  pure# (ctr) s = (# s, (# a, b, c, d, e, f, g, h #) #);\
 \
   {-# inline bind #-};\
   {-# inline pure# #-};\

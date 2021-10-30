@@ -6,21 +6,19 @@ import qualified Data.Array.Dynamic.L as ADL
 import qualified Data.Array.LM as ALM
 import qualified Data.ByteString as B
 import qualified Control.Exception as Ex
--- import System.Environment
--- import System.Exit
 import System.IO
--- import System.Mem
 
+import qualified MetaCxt as MC
 import qualified SymTable as ST
+import qualified UIO as U
+import qualified TopCxt as Top
 import Common
 import CoreTypes
 import Elaboration
-import Parser
-import Lexer
-import Exceptions
-import SymTable (SymTable)
-import MetaCxt
 import Evaluation
+import Exceptions
+import Lexer
+import Parser
 
 --------------------------------------------------------------------------------
 -- TODO:
@@ -44,9 +42,8 @@ main = standardize do
 data State = State {
     path   :: FilePath
   , src    :: B.ByteString
-  , tbl    :: SymTable
-  , top    :: TopLevel
-  , mcxt   :: MetaCxt }
+  , topCxt :: Top.Cxt
+  }
 
 load :: FilePath -> IO (Maybe State)
 load path = do
@@ -66,14 +63,16 @@ load path = do
             pure Nothing
           (OK top _ _, time) -> do
             putStrLn ("parsed in " ++ show time)
-            timed (checkProg src top) >>= \case
+            timed (elab src top) >>= \case
               (Left e, _) -> do
                 putStrLn (showException src e)
                 pure Nothing
-              (Right (tbl, top, ms), time) -> do
+              (Right topCxt, time) -> do
                 putStrLn ("elaborated in " ++ show time)
-                putStrLn ("loaded " ++ show (topLen top) ++ " definitions")
-                pure (Just (State path src tbl top ms))
+                metas <- U.toIO $ MC.size (Top.mcxt topCxt)
+                putStrLn ("created " ++ show metas ++ " metas")
+                putStrLn ("loaded " ++ show (Top.lvl topCxt) ++ " definitions")
+                pure (Just (State path src topCxt))
   putStrLn ("total load time: " ++ show time)
   pure res
 
@@ -81,27 +80,32 @@ loop :: Maybe State -> IO ()
 loop st = do
   let whenLoaded action =
         maybe (putStrLn "no file loaded" >> loop st) action st
+      {-# inline whenLoaded #-}
 
   let dropSp = dropWhile (==' ')
 
   let loadTopDef str act = whenLoaded \st -> do
         let x = packUTF8 str
-        ST.lookupByteString x (tbl st) >>= \case
-          UJust (ST.Top _ a _ t vt) -> do
+        ST.lookupByteString x (Top.tbl (topCxt st)) >>= \case
+          UJust (ST.Top _ a _ t) -> do
             act st a t
           _ -> do
             putStrLn "no such top-level name"
             loop (Just st)
+      {-# inline loadTopDef #-}
 
-  let showTm0 st = CoreTypes.showTm0 (src st) (top st)
+  let showTm0 st = CoreTypes.showTm0 (src st) (Top.info (topCxt st))
+
+  let nf0 (State _ _ cxt) = Evaluation.nf0 (Cxt (Top.mcxt cxt) (Top.vals cxt))
+      {-# inline nf0 #-}
 
   let renderElab st = do
-        ADL.forIx (mcxt st) \i e -> case e of
-          MEUnsolved ->
+        ADL.forIx (Top.mcxt (topCxt st)) \i e -> case e of
+          MC.MEUnsolved ->
             putStrLn $ '?':show i ++ " unsolved"
-          MESolved _ t _ ->
+          MC.MESolved _ t _ ->
             putStrLn $ '?':show i ++ " = " ++ showTm0 st t
-        ALM.for (topDefs (top st)) \(TopEntry x a t) -> do
+        ALM.for (Top.info (topCxt st)) \(TopEntry x a t) -> do
           putStrLn ""
           putStrLn $ showSpan (src st) x ++ " : " ++ showTm0 st a
           putStrLn $ "  = " ++ showTm0 st t
@@ -121,11 +125,11 @@ loop st = do
         loop (Just st)
     ':':'n':'t':' ':(dropSp -> rest) ->
       loadTopDef rest \st a t -> do
-        putStrLn $ showTm0 st (nf0 (mcxt st) UnfoldAll a)
+        putStrLn $ showTm0 st (nf0 st UnfoldAll a)
         loop (Just st)
     ':':'n':' ':(dropSp -> rest) ->
       loadTopDef rest \st a t -> do
-        putStrLn $ showTm0 st (nf0 (mcxt st) UnfoldAll t)
+        putStrLn $ showTm0 st (nf0 st UnfoldAll t)
         loop (Just st)
     ':':'e':_ ->
       whenLoaded \st -> do

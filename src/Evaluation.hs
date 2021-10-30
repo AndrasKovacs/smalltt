@@ -1,8 +1,11 @@
 {-# language UnboxedTuples, UnboxedSums #-}
 
 module Evaluation (
-  app, inlApp, appSp, appMask, eval, forceCS,
+  app, inlApp, appSp, appMask, eval, forceCS, Cxt(..),
   forceF, forceFU, appCl, appCl', quote, quote0, eval0, nf0) where
+
+import qualified Data.Array.LM as ALM
+import IO
 
 import qualified LvlSet as LS
 import qualified MetaCxt as MC
@@ -17,58 +20,60 @@ import MetaCxt
 
 --------------------------------------------------------------------------------
 
+data Cxt = Cxt {mcxt :: MetaCxt, top :: ALM.Array Val}
+
 localVar :: Env -> Ix -> Val
 localVar (EDef _ v) 0 = v
 localVar (EDef e _) x = localVar e (x - 1)
 localVar _          _ = impossible
 
-meta :: MetaCxt -> MetaVar -> Val
-meta ms x = U.run U.do
-  MC.read ms x U.>>= \case
+meta :: Cxt -> MetaVar -> Val
+meta cxt x = U.run U.do
+  MC.read (mcxt cxt) x U.>>= \case
     MEUnsolved     -> U.pure (VFlex x SId)
     MESolved _ _ v -> U.pure (VUnfold (UHSolved x) SId v)
 {-# inline meta #-}
 
-appCl' :: MetaCxt -> Closure -> Val -> Val
-appCl' ms (Closure e t) u = let e' = EDef e u in eval' ms e' t
+appCl' :: Cxt -> Closure -> Val -> Val
+appCl' cxt (Closure e t) u = let e' = EDef e u in eval' cxt e' t
 {-# inline appCl' #-}
 
-appCl :: MetaCxt -> Closure -> Val -> Val
-appCl ms (Closure e t) ~u = let e' = EDef e u in eval' ms e' t
+appCl :: Cxt -> Closure -> Val -> Val
+appCl cxt (Closure e t) ~u = let e' = EDef e u in eval' cxt e' t
 {-# inline appCl #-}
 
-app :: MetaCxt -> Val -> Val -> Icit -> Val
-app ms t u i = case t of
+app :: Cxt -> Val -> Val -> Icit -> Val
+app cxt t u i = case t of
   VLocalVar x sp   -> VLocalVar x (SApp sp u i)
-  VUnfold   h sp v -> VUnfold h (SApp sp u i) (app ms v u i)
+  VUnfold   h sp v -> VUnfold h (SApp sp u i) (app cxt v u i)
   VFlex     x sp   -> VFlex x (SApp sp u i)
-  VLam _ _ t       -> appCl' ms t u
+  VLam _ _ t       -> appCl' cxt t u
   VIrrelevant      -> VIrrelevant
   _                -> impossible
 
-inlApp :: MetaCxt -> Val -> Val -> Icit -> Val
-inlApp ms t u i = case t of
+inlApp :: Cxt -> Val -> Val -> Icit -> Val
+inlApp cxt t u i = case t of
   VLocalVar x sp   -> VLocalVar x (SApp sp u i)
-  VUnfold   h sp v -> VUnfold h (SApp sp u i) (app ms v u i)
+  VUnfold   h sp v -> VUnfold h (SApp sp u i) (app cxt v u i)
   VFlex     x sp   -> VFlex x (SApp sp u i)
-  VLam _ _ t       -> appCl' ms t u
+  VLam _ _ t       -> appCl' cxt t u
   VIrrelevant      -> VIrrelevant
   _                -> impossible
 {-# inline inlApp #-}
 
-appSp :: MetaCxt -> Val -> Spine -> Val
-appSp ms t = \case
+appSp :: Cxt -> Val -> Spine -> Val
+appSp cxt t = \case
   SId         -> t
-  SApp sp u i -> inlApp ms (appSp ms t sp) u i
+  SApp sp u i -> inlApp cxt (appSp cxt t sp) u i
 
 data ValLvl = ValLvl Val Lvl
 
-appMask :: MetaCxt -> Env -> Val -> LS.LvlSet -> Val
-appMask ms ~e v mask = (case go ms e v mask of ValLvl v _ -> v) where
-  go :: MetaCxt -> Env -> Val -> LS.LvlSet -> ValLvl
-  go ms ENil        v m = ValLvl v 0
-  go ms (EDef e v') v m = case go ms e v m of
-    ValLvl v i | LS.member i m -> ValLvl (inlApp ms v v' Expl) (i + 1)
+appMask :: Cxt -> Env -> Val -> LS.LvlSet -> Val
+appMask cxt ~e v mask = (case go cxt e v mask of ValLvl v _ -> v) where
+  go :: Cxt -> Env -> Val -> LS.LvlSet -> ValLvl
+  go cxt ENil        v m = ValLvl v 0
+  go cxt (EDef e v') v m = case go cxt e v m of
+    ValLvl v i | LS.member i m -> ValLvl (inlApp cxt v v' Expl) (i + 1)
                | otherwise     -> ValLvl v (i + 1)
 
 data SpineLvl = SpineLvl Spine Lvl
@@ -81,88 +86,92 @@ maskEnv e mask = (case go e mask of SpineLvl sp _ -> sp) where
     SpineLvl sp l | LS.member l mask -> SpineLvl (SApp sp v' Expl) (l + 1)
                   | otherwise        -> SpineLvl sp (l + 1)
 
-insertedMeta :: MetaCxt -> Env -> MetaVar -> LS.LvlSet -> Val
-insertedMeta ms ~e x mask = U.run do
-  MC.read ms x U.>>= \case
+insertedMeta :: Cxt -> Env -> MetaVar -> LS.LvlSet -> Val
+insertedMeta cxt ~e x mask = U.run do
+  MC.read (mcxt cxt) x U.>>= \case
     MEUnsolved     -> U.pure (VFlex x (maskEnv e mask))
-    MESolved _ _ v -> let sp = maskEnv e mask in U.pure (VUnfold (UHSolved x) sp (appSp ms v sp))
+    MESolved _ _ v -> let sp = maskEnv e mask in U.pure (VUnfold (UHSolved x) sp (appSp cxt v sp))
 {-# inline insertedMeta #-}
 
-eval' :: MetaCxt -> Env -> Tm -> Val
-eval' ms ~e = \case
+topVar :: Cxt -> Lvl -> Val
+topVar cxt x = runIO (ALM.read (top cxt) (coerce x))
+{-# inline topVar #-}
+
+eval' :: Cxt -> Env -> Tm -> Val
+eval' cxt ~e = \case
   LocalVar x          -> localVar e x
-  TopVar x v          -> VUnfold (UHTopVar x v) SId v
-  Meta x              -> meta ms x
-  App t u i           -> inlApp ms (eval' ms e t) (eval' ms e u) i
-  Let _ _ t u         -> let ~vt = eval' ms e t; e' = EDef e vt in eval' ms e' u
-  InsertedMeta x mask -> insertedMeta ms e x mask
+  TopVar x            -> let v = topVar cxt x in VUnfold (UHTopVar x) SId v
+  Meta x              -> meta cxt x
+  App t u i           -> inlApp cxt (eval' cxt e t) (eval' cxt e u) i
+  Let _ _ t u         -> let ~vt = eval' cxt e t; e' = EDef e vt in eval' cxt e' u
+  InsertedMeta x mask -> insertedMeta cxt e x mask
   Lam x i t           -> VLam x i (Closure e t)
-  Pi x i a b          -> VPi x i (eval' ms e a) (Closure e b)
+  Pi x i a b          -> VPi x i (eval' cxt e a) (Closure e b)
   Irrelevant          -> VIrrelevant
   U                   -> VU
 
-eval :: MetaCxt -> Env -> Tm -> Val
-eval ms e t = eval' ms e t
+eval :: Cxt -> Env -> Tm -> Val
+eval cxt e t = eval' cxt e t
 {-# inline eval #-}
 
 -- | Force metas only.
-forceF :: MetaCxt -> Val -> U.IO Val
-forceF ms = \case
-  t@(VFlex x sp) -> forceFFlex ms t x sp
+forceF :: Cxt -> Val -> U.IO Val
+forceF cxt = \case
+  t@(VFlex x sp) -> forceFFlex cxt t x sp
   t              -> U.pure t
 {-# inline forceF #-}
 
-forceFFlex :: MetaCxt -> Val -> MetaVar -> Spine -> U.IO Val
-forceFFlex ms t x sp =
-  MC.read ms x U.>>= \case
+forceFFlex :: Cxt -> Val -> MetaVar -> Spine -> U.IO Val
+forceFFlex cxt t x sp =
+  MC.read (mcxt cxt) x U.>>= \case
     MEUnsolved     -> U.pure t
-    MESolved _ _ v -> U.pure (VUnfold (UHSolved x) sp (appSp ms v sp))
+    MESolved _ _ v -> U.pure (VUnfold (UHSolved x) sp (appSp cxt v sp))
 {-# noinline forceFFlex #-}
 
 -- | Force both metas and top unfoldings.
-forceFU :: MetaCxt -> Val -> U.IO Val
-forceFU ms = \case
-  VFlex x sp     -> forceFUFlex ms x sp
-  VUnfold _ sp v -> forceFU' ms v
+forceFU :: Cxt -> Val -> U.IO Val
+forceFU cxt = \case
+  VFlex x sp     -> forceFUFlex cxt x sp
+  VUnfold _ sp v -> forceFU' cxt v
   t              -> U.pure t
 {-# inline forceFU #-}
 
-forceFU' :: MetaCxt -> Val -> U.IO Val
-forceFU' ms = \case
-  VFlex x sp     -> forceFUFlex ms x sp
-  VUnfold _ sp v -> forceFU' ms v
+forceFU' :: Cxt -> Val -> U.IO Val
+forceFU' cxt = \case
+  VFlex x sp     -> forceFUFlex cxt x sp
+  VUnfold _ sp v -> forceFU' cxt v
   t              -> U.pure t
 
-forceFUFlex :: MetaCxt -> MetaVar -> Spine -> U.IO Val
-forceFUFlex ms x sp =
-  MC.read ms x U.>>= \case
+forceFUFlex :: Cxt -> MetaVar -> Spine -> U.IO Val
+forceFUFlex cxt x sp =
+  MC.read (mcxt cxt) x U.>>= \case
     MEUnsolved     -> U.pure (VFlex x sp)
-    MESolved _ _ v -> forceFU' ms $! appSp ms v sp
+    MESolved _ _ v -> forceFU' cxt $! appSp cxt v sp
 {-# noinline forceFUFlex #-}
 
-forceCS :: MetaCxt -> ConvState -> Val -> U.IO Val
-forceCS ms cs v = case cs of
-  CSFull -> forceFU ms v
-  _      -> forceF  ms v
+forceCS :: Cxt -> ConvState -> Val -> U.IO Val
+forceCS cxt cs v = case cs of
+  CSFull -> forceFU cxt v
+  _      -> forceF  cxt v
 {-# inline forceCS #-}
 
 --------------------------------------------------------------------------------
 
-quoteSp :: MetaCxt -> Lvl -> QuoteOption -> Tm -> Spine -> Tm
-quoteSp ms l opt hd = \case
+quoteSp :: Cxt -> Lvl -> QuoteOption -> Tm -> Spine -> Tm
+quoteSp cxt l opt hd = \case
   SId         -> hd
-  SApp sp t i -> App (quoteSp ms l opt hd sp) (quote ms l opt t) i
+  SApp sp t i -> App (quoteSp cxt l opt hd sp) (quote cxt l opt t) i
 
-quote :: MetaCxt -> Lvl -> QuoteOption -> Val -> Tm
-quote ms l opt t = let
-  go       = quote ms l opt; {-# inline go #-}
-  goSp     = quoteSp ms l opt; {-# inline goSp #-}
-  goBind t = quote ms (l + 1) opt (appCl' ms t (VLocalVar l SId)); {-# inline goBind #-}
+quote :: Cxt -> Lvl -> QuoteOption -> Val -> Tm
+quote cxt l opt t = let
+  go       = quote cxt l opt; {-# inline go #-}
+  goSp     = quoteSp cxt l opt; {-# inline goSp #-}
+  goBind t = quote cxt (l + 1) opt (appCl' cxt t (VLocalVar l SId)); {-# inline goBind #-}
 
   cont = \case
     VFlex x sp                  -> goSp (Meta x) sp
-    VUnfold (UHSolved x)   sp _ -> goSp (Meta x) sp
-    VUnfold (UHTopVar x v) sp _ -> goSp (TopVar x v) sp
+    VUnfold (UHSolved x) sp _   -> goSp (Meta x) sp
+    VUnfold (UHTopVar x) sp _   -> goSp (TopVar x) sp
     VLocalVar x sp              -> goSp (LocalVar (lvlToIx l x)) sp
     VLam x i t                  -> Lam x i (goBind t)
     VPi x i a b                 -> Pi x i (go a) (goBind b)
@@ -170,20 +179,20 @@ quote ms l opt t = let
     VIrrelevant                 -> Irrelevant
 
   in case opt of
-    UnfoldAll  -> cont (U.run (forceFU ms t))
-    UnfoldFlex -> cont (U.run (forceF  ms t))
+    UnfoldAll  -> cont (U.run (forceFU cxt t))
+    UnfoldFlex -> cont (U.run (forceF  cxt t))
     _          -> cont t
 
 --------------------------------------------------------------------------------
 
-eval0 :: MetaCxt -> Tm -> Val
-eval0 ms = eval ms ENil
+eval0 :: Cxt -> Tm -> Val
+eval0 cxt = eval cxt ENil
 {-# inline eval0 #-}
 
-quote0 :: MetaCxt -> QuoteOption -> Val -> Tm
-quote0 ms = quote ms 0
+quote0 :: Cxt -> QuoteOption -> Val -> Tm
+quote0 cxt = quote cxt 0
 {-# inline quote0 #-}
 
-nf0 :: MetaCxt -> QuoteOption -> Tm -> Tm
-nf0 ms opt t = quote0 ms opt (eval0 ms t)
+nf0 :: Cxt -> QuoteOption -> Tm -> Tm
+nf0 cxt opt t = quote0 cxt opt (eval0 cxt t)
 {-# inline nf0 #-}

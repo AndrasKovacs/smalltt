@@ -71,12 +71,12 @@ import IO
 --------------------------------------------------------------------------------
 
 data Entry
-  = Top Lvl Ty {-# unpack #-} GTy Tm ~Val  -- level, type, type val, forced type val, def, def val
-  | Local Lvl {-# unpack #-} GTy           -- level, type val, forced type val
+  = Top Lvl Ty {-# unpack #-} GTy Tm  -- level, type, type val, forced type val, def
+  | Local Lvl {-# unpack #-} GTy      -- level, type val, forced type val
 
 instance Show Entry where
-  showsPrec d (Local x _)     = showParen (d > 10) (("Loc " ++ show x)++)
-  showsPrec d (Top x _ _ _ _) = showParen (d > 10) (("Top " ++ show x)++)
+  showsPrec d (Local x _)            = showParen (d > 10) (("Loc " ++ show x)++)
+  showsPrec d (SymTable.Top x _ _ _) = showParen (d > 10) (("Top " ++ show x)++)
 
 -- Span hashing
 --------------------------------------------------------------------------------

@@ -169,10 +169,7 @@ EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
           (λ t env α. t (pair env α))
           (λ t u env. t env (u env))
 
---      Tm [] ((ι ⇒ ι) ⇒ (ι ⇒ ι))
 test : Tm nil (fun (fun ι ι) (fun ι ι))
   = lam (lam (app (var (vs vz)) (app (var (vs vz))
              (app (var (vs vz)) (app (var (vs vz))
              (app (var (vs vz)) (app (var (vs vz)) (var vz))))))))
-
--- trade-off : minimalizált output vs. hatékony kiértékelés

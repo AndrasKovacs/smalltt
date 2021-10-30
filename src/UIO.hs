@@ -137,6 +137,7 @@ CAN_IO(ALM.Array a, UnliftedRep, MutableArray# RealWorld a, ALM.Array x, CoeALM)
 CAN_IO(AFM.Array a, UnliftedRep, MutableByteArray# RealWorld, AFM.Array x, CoeAFM)
 CAN_IO(Ptr a, AddrRep, Addr#, Ptr x, CoePtr)
 CAN_IO([a], LiftedRep, [a], x, CoeList)
+CAN_IO(Bool, LiftedRep, Bool, x, CoeBool)
 CAN_IO(Either a b, LiftedRep, Either a b, x, CoeEither)
 CAN_IO2(Span, IntRep, IntRep, Int#, Int#, Span (Pos (I# x)) (Pos (I# y)), CoeSpan)
 

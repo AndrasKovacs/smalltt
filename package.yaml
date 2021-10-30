@@ -97,6 +97,7 @@ library:
     - template-haskell
     - containers
     - time
+    - ghc-prim
 
 executables:
   smalltt-2-parseonly:
@@ -113,7 +114,7 @@ executables:
     - condition: false
       other-modules: Paths_smalltt
 
-  smalltt-2:
+  smalltt-2-compact:
     source-dirs:
       - smalltt
     main:
