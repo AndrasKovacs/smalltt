@@ -20,23 +20,23 @@ import CoreTypes
 import Cxt
 import Exceptions
 import InCxt
+import ElabState
 
 #include "deriveCanIO.h"
-
 
 --------------------------------------------------------------------------------
 
 unify :: Cxt -> P.Tm -> G -> G -> U.IO ()
 unify cxt t l r = U.do
   debug ["unify", showValOpt cxt (g1 l) UnfoldNone, showValOpt cxt (g1 r) UnfoldNone]
-  Unif.unify (evalCxt cxt) (lvl cxt) (frozen cxt) CSRigid l r `catch` \case
+  Unif.unify (evalCxt cxt) (lvl cxt) CSRigid l r `catch` \case
     UnifyEx e -> throw $ UnifyError cxt t (g1 l) (g1 r) e
     _         -> impossible
 {-# inline unify #-}
 
 solve :: Cxt -> P.Tm -> ConvState -> MetaVar -> Spine -> Val -> U.IO ()
 solve cxt pt cs x sp rhs = U.do
-  Unif.solve (evalCxt cxt) (lvl cxt) (frozen cxt) x sp rhs `catch` \case
+  Unif.solve (evalCxt cxt) (lvl cxt) x sp rhs `catch` \case
     UnifyEx e -> throw $ UnifyError cxt pt (VFlex x sp) rhs e
     _         -> impossible
 {-# inline solve #-}
@@ -274,7 +274,9 @@ elabTopLevel topCxt = \case
   P.Nil ->
     U.pure topCxt
   P.Definition x ma t u -> U.do
-    cxt <- empty topCxt
+    frz <- MC.size $ Top.mcxt topCxt
+    U.io $ setFrozen (coerce frz)
+    let cxt = empty topCxt
     U.bind3 (\pure -> case ma of
       UNothing -> U.do
         Infer t va <- insertApps cxt $ infer cxt t
@@ -288,8 +290,10 @@ elabTopLevel topCxt = \case
       \ ~t ~a va -> U.do
         topCxt <- Top.define x a va t topCxt
         elabTopLevel topCxt u
+{-# noinline elabTopLevel #-}
 
 elab :: B.ByteString -> P.TopLevel -> IO (Either Exception Top.Cxt)
 elab src top = U.toIO U.do
+  U.io ElabState.reset
   topCxt <- Top.new src (P.topLen top)
   try (elabTopLevel topCxt top)

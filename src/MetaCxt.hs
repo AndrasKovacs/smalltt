@@ -11,8 +11,11 @@ import GHC.Exts
 
 import qualified UIO
 import qualified UIO as U
+import Region
 import Common
 import CoreTypes
+import ElabState
+
 
 --------------------------------------------------------------------------------
 
@@ -43,9 +46,11 @@ read ms x = U.io $ ADL.unsafeRead ms (coerce x)
 
 solve :: MetaCxt -> MetaVar -> Tm -> Val -> U.IO ()
 solve ms x t ~v = U.io $ do
+  r <- getRegion
   U.toIO (MetaCxt.read ms x) >>= \case
     MESolved _ _ _ -> impossible
     _              -> do
       ref <- RF.new (-1)
+      t <- U.toIO $ Region.copyTo r t
       ADL.write ms (coerce x) (MESolved ref t v)
 {-# inline solve #-}

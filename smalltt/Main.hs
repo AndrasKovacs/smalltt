@@ -110,6 +110,10 @@ loop st = do
           putStrLn $ showSpan (src st) x ++ " : " ++ showTm0 st a
           putStrLn $ "  = " ++ showTm0 st t
 
+  let renderBro st = do
+        ALM.for (Top.info (topCxt st)) \(TopEntry x a t) ->
+          putStrLn $ showSpan (src st) x ++ " : " ++ showTm0 st a
+
   putStr (maybe "" path st ++ "> ")
   l <- getLine
   case l of
@@ -135,17 +139,19 @@ loop st = do
       whenLoaded \st -> do
         renderElab st
         loop (Just st)
+    ':':'b':'r':'o':_ ->
+      whenLoaded \st -> renderBro st >> loop (Just st)
+
     ':':'?':_ -> do
       putStrLn ":l <file>    load file"
       putStrLn ":r           reload file"
-      putStrLn ":t  <name>   show elaborated type of definition"
-      putStrLn ":nt <name>   show normal elaborated type of top definition"
-      putStrLn ":n  <name>   show normal form of top definition"
+      putStrLn ":t  <name>   show elaborated type of top-level definition"
+      putStrLn ":nt <name>   show normal elaborated type of top-level definition"
+      putStrLn ":n  <name>   show normal form of top-level definition"
       putStrLn ":e           show elaborated file"
-      putStrLn ":bro         show defined top names and types"
+      putStrLn ":bro         show defined top-level names and their types"
       putStrLn ":q           quit"
       putStrLn ":?           show this message"
-
       loop st
     ':':'q':_ -> do
       pure ()

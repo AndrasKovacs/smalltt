@@ -6,8 +6,10 @@ module Common (
   , Pos(..)
   , Result(..)
   , coerce
+  , Type
   , TYPE
   , RuntimeRep(..)
+  , Proxy(..)
   , unpackUTF8
   , packUTF8
   , HasCallStack) where
@@ -20,13 +22,14 @@ import qualified Data.ByteString.Internal as B
 
 import Data.Bits
 import Data.Flat
+import Data.Kind
 import Data.List
+import Data.Proxy
 import Data.Time.Clock
 import FlatParse.Stateful (Span(..), Pos(..), Result(..), unsafeSlice, unpackUTF8, packUTF8)
 import GHC.Exts
 import GHC.ForeignPtr
 import GHC.Stack
-import GHC.Int
 
 import qualified UIO as U
 import qualified UIO
@@ -203,14 +206,6 @@ newtype Ix = Ix {unIx :: Int}
 newtype Lvl = Lvl {unLvl :: Int}
   deriving (Eq, Ord, Show, Num, Enum, Bits, Flat) via Int
 
-lvlToInt8 :: Lvl -> Int8
-lvlToInt8 (Lvl (I# x)) = I8# x
-{-# inline lvlToInt8 #-}
-
-int8ToLvl :: Int8 -> Lvl
-int8ToLvl (I8# x) = Lvl (I# x)
-{-# inline int8ToLvl #-}
-
 CAN_IO(Lvl, IntRep, Int#, Lvl (I# x), CoeLvl)
 
 newtype MetaVar = MkMetaVar Int
@@ -302,6 +297,14 @@ showBind src (BSpan x) = showSpan src x
 -- Span equality
 --------------------------------------------------------------------------------
 
+#if MIN_VERSION_base(4,16,0)
+indexWord8OffAddr s x = word8ToWord# (indexWord8OffAddr# s x)
+#else
+indexWord8OffAddr  = indexWord8OffAddr#
+#endif
+{-# inline indexWord8OffAddr #-}
+
+
 -- | Read between 1 and 7 bytes from an address.
 indexPartialWord# :: Int# -> Addr# -> Word#
 indexPartialWord# len addr =
@@ -316,7 +319,7 @@ indexPartialWord'# :: Int# -> Addr# -> Word#
 indexPartialWord'# = go 0## 0# where
   go acc shift 0# _  = acc
   go acc shift l ptr =
-    go (or# acc (uncheckedShiftL# (indexWord8OffAddr# ptr 0#) shift))
+    go (or# acc (uncheckedShiftL# (indexWord8OffAddr ptr 0#) shift))
        (shift +# 8#)
        (l -# 1#)
        (plusAddr# ptr 1#)
@@ -334,7 +337,7 @@ eqSpanGo' :: Addr# -> Addr# -> Int# -> Int#
 eqSpanGo' p p' len = case len <# 8# of
   1# -> case len of
     0# -> 1#
-    _  -> case eqWord# (indexWord8OffAddr# p 0#) (indexWord8OffAddr# p' 0#) of
+    _  -> case eqWord# (indexWord8OffAddr p 0#) (indexWord8OffAddr p' 0#) of
       1# -> eqSpanGo' (plusAddr# p 1#) (plusAddr# p' 1#) (len -# 1#)
       _  -> 0#
   _  -> case eqWord# (indexWordOffAddr# p 0#) (indexWordOffAddr# p' 0#) of
@@ -367,7 +370,7 @@ eqBasedSpan# eob  (Span (Pos (I# x))  (Pos (I# y)))
     1# -> let
       go p p' l = case l of
         0# -> 1#
-        _  -> case eqWord# (indexWord8OffAddr# p 0#) (indexWord8OffAddr# p' 0#) of
+        _  -> case eqWord# (indexWord8OffAddr p 0#) (indexWord8OffAddr p' 0#) of
           1# -> go (plusAddr# p 1#) (plusAddr# p' 1#) (l -# 1#)
           _  -> 0#
       in go (plusAddr# eob (negateInt# x))

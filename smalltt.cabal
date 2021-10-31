@@ -37,8 +37,10 @@ library
       Cxt.Extension
       Cxt.Types
       Elaboration
+      ElabState
       Evaluation
       Exceptions
+      GenTestFiles
       InCxt
       Lexer
       LvlSet
@@ -47,7 +49,6 @@ library
       Presyntax
       Region
       SymTable
-      Test
       TopCxt
       UIO
       Unification
@@ -91,7 +92,7 @@ library
   ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=20 -O2
   build-depends:
       base >=4.7 && <5
-    , bytestring
+    , bytestring ==0.11.1.0
     , containers
     , dynamic-array
     , flatparse
@@ -107,7 +108,7 @@ library
     cpp-options: -DDEBUG
   default-language: Haskell2010
 
-executable smalltt-2-compact
+executable smalltt-2-compact-92
   main-is: Main.hs
   hs-source-dirs:
       smalltt

@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeOperators #-}
 {-# language UnboxedTuples #-}
 
 {-|
@@ -19,10 +20,14 @@ import Prelude hiding (
 
 import FlatParse.Stateful (Pos(..), Span(..))
 import GHC.Exts
+import Data.Proxy
 
 #include "deriveCanIO.h"
 
 --------------------------------------------------------------------------------
+
+-- data TypeEq :: Type -> Type -> Type where
+--   Refl :: TypeEq a a
 
 type RW = State# RealWorld
 

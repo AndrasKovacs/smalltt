@@ -28,25 +28,24 @@ data Cxt = Cxt {
   , mcxt    :: MetaCxt
   , topVals :: TopVals
   , names   :: Names
-  , frozen  :: MetaVar
   }
 
 instance Show Cxt where
   show _ = "<cxt>"
 
-CAN_IO8(
+CAN_IO7(
   Cxt,
 
   IntRep, LiftedRep, IntRep,
     UnliftedRep, UnliftedRep, UnliftedRep,
-      LiftedRep, IntRep,
+      LiftedRep,
 
   Int#, Env, Int#,
     MutableArrayArray# RealWorld, MutableArrayArray# RealWorld, MutableArray# RealWorld Val,
-      Names, Int#,
+      Names,
 
   Cxt (Lvl (I# a)) b (LvlSet (I# c))
     (ST.SymTable (RUUU.Ref (AUM.Array d))) (ADL.Array (RUU.Ref (AUM.Array e))) (ALM.Array f)
-      g (MkMetaVar (I# h)),
+      g,
 
   CoeCxt)

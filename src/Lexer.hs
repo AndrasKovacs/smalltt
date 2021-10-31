@@ -65,11 +65,11 @@ prettyError :: B.ByteString -> Error -> String
 prettyError _ DontUnboxError = impossible
 prettyError b (Error pos e)  =
 
-  let ls       = FP.lines b
-      [(l, c)] = posLineCols b [pos]
-      line     = if 0 <= l && l < length ls then ls !! l else ""
-      linum    = show l
-      lpad     = map (const ' ') linum
+  let ls     = FP.lines b
+      (l, c) = head $ posLineCols b [pos]
+      line   = if 0 <= l && l < length ls then ls !! l else ""
+      linum  = show l
+      lpad   = map (const ' ') linum
 
       expected (Lit s) = show s
       expected (Msg s) = s

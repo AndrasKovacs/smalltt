@@ -9,14 +9,16 @@ import IO
 import GHC.Exts
 import Data.Bits
 
+
+import qualified MetaCxt as MC
+import qualified UIO as U
+import qualified UIO
 import Common
 import CoreTypes
 import Evaluation
 import MetaCxt (MetaCxt)
-import qualified MetaCxt as MC
-import qualified UIO as U
-import qualified UIO
 import Exceptions
+import ElabState
 
 #include "deriveCanIO.h"
 
@@ -270,68 +272,69 @@ guardCS :: ConvState -> U.IO ()
 guardCS cs = U.when (cs == CSFlex) $ throw $ UnifyEx CSFlexSolution
 {-# inline guardCS #-}
 
-solve :: Cxt -> Lvl -> MetaVar -> MetaVar -> Spine -> Val -> U.IO ()
-solve cxt l frz x ~sp ~rhs = U.do
+solve :: Cxt -> Lvl -> MetaVar -> Spine -> Val -> U.IO ()
+solve cxt l x ~sp ~rhs = U.do
   debug ["attempt solve", show (VFlex x sp), show rhs]
+  frz <- U.io getFrozen
   U.when (x < frz) $ throw $ UnifyEx $ FrozenSolution x
   pren <- invertSp cxt l x sp
   rhs <- lams sp U.<$> rename cxt frz pren rhs
   debug ["solve", show x, show pren, show rhs]
   MC.solve (mcxt cxt) x rhs (eval cxt ENil rhs)
 
-solveLong :: Cxt -> Lvl -> MetaVar -> MetaVar -> Spine -> Val -> U.IO ()
-solveLong cxt l frz x sp rhs = forceFU cxt rhs U.>>= \case
+solveLong :: Cxt -> Lvl -> MetaVar -> Spine -> Val -> U.IO ()
+solveLong cxt l x sp rhs = forceFU cxt rhs U.>>= \case
   VLam _ i t ->
     let v = VLocalVar l SId
-    in solveLong cxt (l + 1) frz x (SApp sp v i) (appCl' cxt t v)
-  VFlex x' sp' | x == x'   -> unifySp cxt l frz CSFull sp sp'
-               | otherwise -> flexFlex cxt l frz (VFlex x sp) x sp rhs x' sp'
+    in solveLong cxt (l + 1) x (SApp sp v i) (appCl' cxt t v)
+  VFlex x' sp' | x == x'   -> unifySp cxt l CSFull sp sp'
+               | otherwise -> flexFlex cxt l (VFlex x sp) x sp rhs x' sp'
   _ ->
-    solve cxt l frz x sp rhs
+    solve cxt l x sp rhs
 
-flexFlex :: Cxt -> Lvl -> MetaVar -> Val -> MetaVar -> Spine -> Val -> MetaVar -> Spine -> U.IO ()
-flexFlex cxt l frz t x ~sp t' x' ~sp' =
-  solve cxt l frz x sp t' `catch` \_ ->
-  solve cxt l frz x' sp' t
+flexFlex :: Cxt -> Lvl -> Val -> MetaVar -> Spine -> Val -> MetaVar -> Spine -> U.IO ()
+flexFlex cxt l t x ~sp t' x' ~sp' =
+  solve cxt l x sp t' `catch` \_ ->
+  solve cxt l x' sp' t
 
-rigidEtaSp :: Cxt -> Lvl -> MetaVar -> ConvState -> Lvl -> Spine -> Val -> U.IO ()
-rigidEtaSp cxt l frz cs x sp v = forceCS cxt cs v U.>>= \case
+rigidEtaSp :: Cxt -> Lvl -> ConvState -> Lvl -> Spine -> Val -> U.IO ()
+rigidEtaSp cxt l cs x sp v = forceCS cxt cs v U.>>= \case
   VLam _ i t' ->
     let v = VLocalVar l SId
-    in rigidEtaSp cxt (l + 1) frz cs x (SApp sp v i) (appCl' cxt t' v)
+    in rigidEtaSp cxt (l + 1) cs x (SApp sp v i) (appCl' cxt t' v)
   VLocalVar x' sp' | x == x' ->
-    unifySp cxt l frz cs sp sp'
+    unifySp cxt l cs sp sp'
   _ ->
     throw (UnifyEx Conversion)
 
-rigidEta :: Cxt -> Lvl -> MetaVar -> ConvState -> Val -> Val -> U.IO ()
-rigidEta cxt l frz cs ~t ~t' = case (t, t') of
+rigidEta :: Cxt -> Lvl -> ConvState -> Val -> Val -> U.IO ()
+rigidEta cxt l cs ~t ~t' = case (t, t') of
   (VLocalVar x sp, VLam _ i t')  ->
     let v = VLocalVar l SId
-    in rigidEtaSp cxt (l + 1) frz cs x (SApp sp v i) (appCl' cxt t' v)
+    in rigidEtaSp cxt (l + 1) cs x (SApp sp v i) (appCl' cxt t' v)
   (VLam _ i t, VLocalVar x' sp') ->
     let v = VLocalVar l SId
-    in rigidEtaSp cxt (l + 1) frz cs x' (SApp sp' v i) (appCl' cxt t v)
+    in rigidEtaSp cxt (l + 1) cs x' (SApp sp' v i) (appCl' cxt t v)
   _ ->
     throw (UnifyEx Conversion)
 {-# noinline rigidEta #-}
 
-unifySp :: Cxt -> Lvl -> MetaVar -> ConvState -> Spine -> Spine -> U.IO ()
-unifySp cxt l frz cs sp sp' = case (sp, sp') of
+unifySp :: Cxt -> Lvl -> ConvState -> Spine -> Spine -> U.IO ()
+unifySp cxt l cs sp sp' = case (sp, sp') of
   (SId,         SId          ) -> U.pure ()
-  (SApp sp t _, SApp sp' t' _) -> unifySp cxt l frz cs sp sp' U.>>
-                                  unify cxt l frz cs (gjoin t) (gjoin t')
+  (SApp sp t _, SApp sp' t' _) -> unifySp cxt l cs sp sp' U.>>
+                                  unify cxt l cs (gjoin t) (gjoin t')
   _                            -> throw $ UnifyEx Conversion
 
-unify :: Cxt -> Lvl -> MetaVar -> ConvState -> G -> G -> U.IO ()
-unify cxt l frz cs (G topt ftopt) (G topt' ftopt') = let
-  go       = unify cxt l frz cs; {-# inline go #-}
+unify :: Cxt -> Lvl -> ConvState -> G -> G -> U.IO ()
+unify cxt l cs (G topt ftopt) (G topt' ftopt') = let
+  go       = unify cxt l cs; {-# inline go #-}
   go' t t' = go (gjoin t) (gjoin t'); {-# inline go' #-}
   err      = throw (UnifyEx Conversion); {-# inline err #-}
 
   goBind t t' =
     let v = VLocalVar l SId
-    in unify cxt (l + 1) frz cs (gjoin $! appCl' cxt t v)
+    in unify cxt (l + 1) cs (gjoin $! appCl' cxt t v)
                                (gjoin $! appCl' cxt t' v)
   {-# inline goBind #-}
 
@@ -341,20 +344,20 @@ unify cxt l frz cs (G topt ftopt) (G topt' ftopt') = let
     case (t, t') of
 
       -- rigid, canonical
-      (VLocalVar x sp, VLocalVar x' sp') | x == x' -> unifySp cxt l frz cs sp sp'
+      (VLocalVar x sp, VLocalVar x' sp') | x == x' -> unifySp cxt l cs sp sp'
       (VLam _ _ t    , VLam _ _ t'     )           -> goBind t t'
       (VPi _ i a b   , VPi _ i' a' b'  ) | i == i' -> go' a a' U.>> goBind b b'
       (VU            , VU              )           -> U.pure ()
 
       (VFlex x sp, VFlex x' sp')
-        | x == x'   -> unifySp cxt l frz cs sp sp'
-        | otherwise -> guardCS cs U.>> flexFlex cxt l frz topt x sp topt' x' sp'
+        | x == x'   -> unifySp cxt l cs sp sp'
+        | otherwise -> guardCS cs U.>> flexFlex cxt l topt x sp topt' x' sp'
 
       (VUnfold h sp t, VUnfold h' sp' t') -> case cs of
-        CSRigid | eqUH h h' -> unifySp cxt l frz CSFlex sp sp'
-                                 `catch` \_ -> unify cxt l frz CSFull (gjoin t) (gjoin t')
-                | otherwise -> unify cxt l frz CSFull (gjoin t) (gjoin t')
-        CSFlex  | eqUH h h' -> unifySp cxt l frz CSFlex sp sp'
+        CSRigid | eqUH h h' -> unifySp cxt l CSFlex sp sp'
+                                 `catch` \_ -> unify cxt l CSFull (gjoin t) (gjoin t')
+                | otherwise -> unify cxt l CSFull (gjoin t) (gjoin t')
+        CSFlex  | eqUH h h' -> unifySp cxt l CSFlex sp sp'
                 | otherwise -> err
         _       -> impossible
 
@@ -363,13 +366,13 @@ unify cxt l frz cs (G topt ftopt) (G topt' ftopt') = let
 
       (VFlex x sp, t') -> U.do
         guardCS cs
-        solve cxt l frz x sp topt' `catch` \_ ->
-          solveLong cxt l frz x sp t'
+        solve cxt l x sp topt' `catch` \_ ->
+          solveLong cxt l x sp t'
 
       (t, VFlex x' sp') -> U.do
         guardCS cs
-        solve cxt l frz x' sp' topt `catch` \_ ->
-          solveLong cxt l frz x' sp' t
+        solve cxt l x' sp' topt `catch` \_ ->
+          solveLong cxt l x' sp' t
 
       (VUnfold h sp t, t') -> case cs of
         CSRigid -> go (G topt t) (G topt' t')
@@ -380,4 +383,4 @@ unify cxt l frz cs (G topt ftopt) (G topt' ftopt') = let
         CSFlex  -> err
         _       -> impossible
 
-      (t, t') -> rigidEta cxt l frz cs t t'
+      (t, t') -> rigidEta cxt l cs t t'

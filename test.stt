@@ -1,7 +1,4 @@
 
--- U : U + Pi + top-level def + local let
--- Agda-féle implicit argument, pattern unification (basic)
-
 id : {A} → A → A
  = λ x. x
 

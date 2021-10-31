@@ -94,13 +94,15 @@ insertedMeta cxt ~e x mask = U.run do
 {-# inline insertedMeta #-}
 
 topVar :: Cxt -> Lvl -> Val
-topVar cxt x = runIO (ALM.read (top cxt) (coerce x))
+topVar cxt x = runIO do
+  ~v <- ALM.read (top cxt) (coerce x)
+  pure (VUnfold (UHTopVar x) SId v)
 {-# inline topVar #-}
 
 eval' :: Cxt -> Env -> Tm -> Val
 eval' cxt ~e = \case
   LocalVar x          -> localVar e x
-  TopVar x            -> let v = topVar cxt x in VUnfold (UHTopVar x) SId v
+  TopVar x            -> topVar cxt x
   Meta x              -> meta cxt x
   App t u i           -> inlApp cxt (eval' cxt e t) (eval' cxt e u) i
   Let _ _ t u         -> let ~vt = eval' cxt e t; e' = EDef e vt in eval' cxt e' u

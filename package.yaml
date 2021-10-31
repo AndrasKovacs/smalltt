@@ -90,7 +90,7 @@ library:
   source-dirs:
     - src
   dependencies:
-    - bytestring
+    - bytestring == 0.11.1.0
     - primdata
     - dynamic-array
     - flatparse

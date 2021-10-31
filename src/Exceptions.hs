@@ -66,11 +66,11 @@ try act = (Right U.<$> act) `catch` \e -> U.pure (Left e)
 
 render :: B.ByteString -> Span -> String -> String
 render src (Span pos _) msg = let
-  ls         = FP.lines src
-  [(l, c)]   = FP.posLineCols src [pos]
-  line       = if l < length ls then ls !! l else ""
-  linum      = show l
-  lpad       = map (const ' ') linum
+  ls     = FP.lines src
+  (l, c) = head $ FP.posLineCols src [pos]
+  line   = if l < length ls then ls !! l else ""
+  linum  = show l
+  lpad   = map (const ' ') linum
   in show l ++ ":" ++ show c ++ ":\n" ++
      lpad   ++ "|\n" ++
      linum  ++ "| " ++ line ++ "\n" ++

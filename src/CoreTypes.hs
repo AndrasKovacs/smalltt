@@ -1,4 +1,4 @@
-{-# language UnboxedTuples #-}
+{-# language UnboxedTuples  #-}
 {-# options_ghc -funbox-strict-fields #-}
 
 module CoreTypes (
@@ -43,7 +43,7 @@ data Spine
   | SApp Spine Val Icit
   deriving Show
 
-CAN_IO(Spine, LiftedRep, Spine, x, CoeSpine)
+CAN_IO(Spine, BoxedRep Lifted, Spine, x, CoeSpine)
 
 data Closure
   = Closure Env Tm
