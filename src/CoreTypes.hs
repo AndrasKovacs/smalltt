@@ -43,7 +43,7 @@ data Spine
   | SApp Spine Val Icit
   deriving Show
 
-CAN_IO(Spine, BoxedRep Lifted, Spine, x, CoeSpine)
+CAN_IO(Spine, LiftedRep, Spine, x, CoeSpine)
 
 data Closure
   = Closure Env Tm
@@ -74,7 +74,7 @@ type Ty = Tm
 
 data Tm
   = LocalVar Ix
-  | TopVar Lvl
+  | TopVar Lvl ~Val
   | Let Span Tm Tm Tm
   | App Tm Tm Icit
   | Lam Name Icit Tm
@@ -98,31 +98,31 @@ CAN_IO2(G, LiftedRep, LiftedRep, Val, Val, G x y, CoeG)
 
 ------------------------------------------------------------
 
--- data UnfoldHead = UHTopVar Lvl | UHSolved MetaVar
-data UnfoldHead = UnfoldHead# Int
+-- data UnfoldHead = UHTopVar Lvl ~Val | UHSolved MetaVar
+data UnfoldHead = UnfoldHead# Int ~Val
 
 eqUH :: UnfoldHead -> UnfoldHead -> Bool
-eqUH (UnfoldHead# x) (UnfoldHead# x') = x == x'
+eqUH (UnfoldHead# x _) (UnfoldHead# x' _) = x == x'
 {-# inline eqUH #-}
 
-unpackUH# :: UnfoldHead -> (# Lvl | MetaVar #)
-unpackUH# (UnfoldHead# x) = case x .&. 1 of
-  0 -> (# Lvl (unsafeShiftR x 1) | #)
+unpackUH# :: UnfoldHead -> (# (# Lvl, Val #) | MetaVar #)
+unpackUH# (UnfoldHead# x v) = case x .&. 1 of
+  0 -> (# (# Lvl (unsafeShiftR x 1), v #) | #)
   _ -> (# | MkMetaVar (unsafeShiftR x 1) #)
 {-# inline unpackUH# #-}
 
-pattern UHTopVar :: Lvl -> UnfoldHead
-pattern UHTopVar x <- (unpackUH# -> (# x | #)) where
-  UHTopVar (Lvl x) = UnfoldHead# (unsafeShiftL x 1)
+pattern UHTopVar :: Lvl -> Val -> UnfoldHead
+pattern UHTopVar x v <- (unpackUH# -> (# (# x, v #) | #)) where
+  UHTopVar (Lvl x) ~v = UnfoldHead# (unsafeShiftL x 1) v
 
 pattern UHSolved :: MetaVar -> UnfoldHead
 pattern UHSolved x <- (unpackUH# -> (# | x #)) where
-  UHSolved (MkMetaVar x) = UnfoldHead# (unsafeShiftL x 1 + 1)
+  UHSolved (MkMetaVar x) = UnfoldHead# (unsafeShiftL x 1 + 1) undefined
 {-# complete UHTopVar, UHSolved #-}
 
 instance Show UnfoldHead where
-  show (UHTopVar x) = "(TopVar " ++ show x ++ ")"
-  show (UHSolved x) = "(Solved " ++ show x ++ ")"
+  show (UHTopVar x _) = "(TopVar " ++ show x ++ ")"
+  show (UHSolved x)   = "(Solved " ++ show x ++ ")"
 
 
 --------------------------------------------------------------------------------
@@ -255,7 +255,7 @@ prettyTm prec src ns t = go prec ns t where
 
     Meta m              -> (show m ++)
     InsertedMeta m mask -> goMask p ns m mask
-    TopVar x            -> goTop x
+    TopVar x _          -> goTop x
     Irrelevant          -> ("Irrelevant"++)
 
 showTm0 :: B.ByteString -> TopInfo -> Tm -> String

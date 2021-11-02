@@ -50,10 +50,23 @@ n5Mb   = mul n1Mb  five
 n10M   = mul n5M two
 n10Mb  = mul n5Mb two
 
--- convtest : Eq n5M n5Mb
+Tree : U = (T : U) → (T → T → T) → T → T
+leaf : Tree = λ T n l. l
+node : Tree → Tree → Tree = λ t1 t2 T n l. n (t1 T n l) (t2 T n l)
+
+fullTree : Nat → Tree = λ n. n _ (λ t. node t t) leaf
+
+t2M  = fullTree n20
+t2Mb = fullTree n20b
+
+
+-- convtest1 : Eq n5M n5Mb
 --  = refl
 
--- convtest : Eq (add n10M meta) (add n10Mb meta)
+-- convtest2 : Eq (add n10M meta) (add n10Mb meta)
+--  = refl
+
+-- convt1M : Eq t2M t2Mb
 --  = refl
 
 --------------------------------------------------------------------------------

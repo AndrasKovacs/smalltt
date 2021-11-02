@@ -12,13 +12,11 @@ import GHC.Exts
 
 import qualified UIO
 import qualified UIO as U
-import qualified Region as R
 import qualified Evaluation as E
 import qualified SymTable as ST
 import Common
 import CoreTypes
 import MetaCxt
-import ElabState
 
 #include "deriveCanIO.h"
 
@@ -26,44 +24,37 @@ import ElabState
 data Cxt = Cxt {
   lvl    :: Lvl,         -- size of cxt
   info   :: TopInfo,     -- span, term, ty for each def
-  vals   :: TopVals,     -- lazy val for each def
   tbl    :: ST.SymTable, -- symtable
   mcxt   :: MetaCxt      -- metacontext
   }
 
-CAN_IO5(
+CAN_IO4(
   Cxt,
 
-  IntRep, UnliftedRep, UnliftedRep, UnliftedRep, UnliftedRep,
+  IntRep, UnliftedRep, UnliftedRep, UnliftedRep,
 
-  Int#, MutableArray# RealWorld TopEntry, MutableArray# RealWorld Val,
+  Int#, MutableArray# RealWorld TopEntry,
     MutableArrayArray# RealWorld, MutableArrayArray# RealWorld,
 
-  Cxt (Lvl (I# a)) (ALM.Array b) (ALM.Array c) (ST.SymTable (RUUU.Ref (AUM.Array d)))
-      (ADL.Array (RUU.Ref (AUM.Array e))),
+  Cxt (Lvl (I# a)) (ALM.Array b) (ST.SymTable (RUUU.Ref (AUM.Array c)))
+      (ADL.Array (RUU.Ref (AUM.Array d))),
 
   CoeTop)
 
 -- | New top context from a source file and the number of top defs.
 new :: B.ByteString -> Int -> U.IO Cxt
 new src len = U.do
-  info   <- U.io $ ALM.new len (error "undefined top-level entry")
-  vals   <- U.io $ ALM.new len (error "undefined top-level entry")
+  info   <- U.io $ ALM.new len (error "undefined top entry")
   tbl    <- ST.new src
   ms     <- U.io $ ADL.empty
-  U.pure (Cxt 0 info vals tbl ms)
+  U.pure (Cxt 0 info tbl ms)
 {-# inline new #-}
 
 -- | Extend cxt with a top-level definition. Updates destructively.
 define :: Span -> Ty -> GTy -> Tm -> Cxt -> U.IO Cxt
-define x a ga t (Cxt len info vals tbl ms) = U.do
-  r     <- U.io getRegion
-  a     <- R.copyTo r a
-  t     <- R.copyTo r t
-  entry <- R.copyTo r (TopEntry x a t)
-  let ~vt = E.eval (E.Cxt ms vals) ENil t
-  U.io $ ALM.write info (coerce len) entry
-  U.io $ ALM.write vals (coerce len) vt
-  ST.insert x (ST.Top len a ga t) tbl
-  U.pure (Cxt (len + 1) info vals tbl ms)
+define x a ga t (Cxt len info tbl ms) = U.do
+  let ~vt = E.eval ms ENil t
+  U.io $ ALM.write info (coerce len) (TopEntry x a t)
+  ST.insert x (ST.Top a ga t (TopVar len vt)) tbl
+  U.pure (Cxt (len + 1) info tbl ms)
 {-# inline define #-}

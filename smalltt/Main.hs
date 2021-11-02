@@ -87,7 +87,7 @@ loop st = do
   let loadTopDef str act = whenLoaded \st -> do
         let x = packUTF8 str
         ST.lookupByteString x (Top.tbl (topCxt st)) >>= \case
-          UJust (ST.Top _ a _ t) -> do
+          UJust (ST.Top a ga t _) -> do
             act st a t
           _ -> do
             putStrLn "no such top-level name"
@@ -96,7 +96,7 @@ loop st = do
 
   let showTm0 st = CoreTypes.showTm0 (src st) (Top.info (topCxt st))
 
-  let nf0 (State _ _ cxt) = Evaluation.nf0 (Cxt (Top.mcxt cxt) (Top.vals cxt))
+  let nf0 (State _ _ cxt) = Evaluation.nf0 (Top.mcxt cxt)
       {-# inline nf0 #-}
 
   let renderElab st = do
@@ -135,7 +135,11 @@ loop st = do
       loadTopDef rest \st a t -> do
         putStrLn $ showTm0 st (nf0 st UnfoldAll t)
         loop (Just st)
-    ':':'e':_ ->
+    ':':'e':' ':(dropSp -> rest) ->
+      loadTopDef rest \st a t -> do
+        putStrLn $ showTm0 st t
+        loop (Just st)
+    ':':'o':'u':'t':_ ->
       whenLoaded \st -> do
         renderElab st
         loop (Just st)
@@ -147,8 +151,9 @@ loop st = do
       putStrLn ":r           reload file"
       putStrLn ":t  <name>   show elaborated type of top-level definition"
       putStrLn ":nt <name>   show normal elaborated type of top-level definition"
+      putStrLn ":e  <name>   show elaborated version of top-level definition"
       putStrLn ":n  <name>   show normal form of top-level definition"
-      putStrLn ":e           show elaborated file"
+      putStrLn ":out         show whole elaboration output"
       putStrLn ":bro         show defined top-level names and their types"
       putStrLn ":q           quit"
       putStrLn ":?           show this message"

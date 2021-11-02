@@ -2,7 +2,6 @@
 
 module Cxt.Types where
 
-import qualified Data.Array.LM        as ALM
 import qualified Data.Array.Dynamic.L as ADL
 import qualified Data.Array.UM        as AUM
 import qualified Data.Ref.UU          as RUU
@@ -26,26 +25,23 @@ data Cxt = Cxt {
   , mask    :: LvlSet
   , tbl     :: SymTable
   , mcxt    :: MetaCxt
-  , topVals :: TopVals
   , names   :: Names
   }
 
 instance Show Cxt where
   show _ = "<cxt>"
 
-CAN_IO7(
+CAN_IO6(
   Cxt,
 
   IntRep, LiftedRep, IntRep,
-    UnliftedRep, UnliftedRep, UnliftedRep,
-      LiftedRep,
+    UnliftedRep, UnliftedRep, LiftedRep,
 
   Int#, Env, Int#,
-    MutableArrayArray# RealWorld, MutableArrayArray# RealWorld, MutableArray# RealWorld Val,
+    MutableArrayArray# RealWorld, MutableArrayArray# RealWorld,
       Names,
 
   Cxt (Lvl (I# a)) b (LvlSet (I# c))
-    (ST.SymTable (RUUU.Ref (AUM.Array d))) (ADL.Array (RUU.Ref (AUM.Array e))) (ALM.Array f)
-      g,
+    (ST.SymTable (RUUU.Ref (AUM.Array d))) (ADL.Array (RUU.Ref (AUM.Array e))) f,
 
   CoeCxt)

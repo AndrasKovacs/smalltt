@@ -1,3 +1,4 @@
+{-# language UnboxedTuples #-}
 
 module GenTestFiles where
 

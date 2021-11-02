@@ -23,12 +23,10 @@ module SymTable (
   , insert
   , delete
   , size
+  , src
   , eob
   , hash
   , hashByteString
-  , byteString
-  , spanToString
-  , spanToByteString
   , assocs
   , buckets
   , Entry(..)
@@ -46,7 +44,6 @@ import qualified Data.ByteString.Unsafe   as B
 import qualified Data.Ref.FFF             as RFFF
 import qualified Data.Ref.L               as RL
 import qualified Data.Ref.UUU             as RUUU
-import qualified FlatParse.Basic          as FP
 
 import Data.Bits
 import Data.Word
@@ -60,6 +57,8 @@ import Common
 import CoreTypes
 import IO
 
+--------------------------------------------------------------------------------
+
 
 #include "deriveCanIO.h"
 
@@ -71,12 +70,14 @@ import IO
 --------------------------------------------------------------------------------
 
 data Entry
-  = Top Lvl Ty {-# unpack #-} GTy Tm  -- level, type, type val, forced type val, def
-  | Local Lvl {-# unpack #-} GTy      -- level, type val, forced type val
+  -- type, type val, def, cached (TopVar x v)
+  = Top Ty {-# unpack #-} GTy Tm Tm
+  -- level, type val
+  | Local Lvl {-# unpack #-} GTy
 
 instance Show Entry where
-  showsPrec d (Local x _)            = showParen (d > 10) (("Loc " ++ show x)++)
-  showsPrec d (SymTable.Top x _ _ _) = showParen (d > 10) (("Top " ++ show x)++)
+  showsPrec d (Local x _)   = showParen (d > 10) (("Loc " ++ show x)++)
+  showsPrec d (Top x _ _ _) = showParen (d > 10) (("Top " ++ show x)++)
 
 -- Span hashing
 --------------------------------------------------------------------------------
@@ -321,8 +322,12 @@ insertWithHash k h v (SymTable tbl) = U.do
 
 updateWithHash :: Span -> Hash -> UMaybe Entry -> SymTable -> U.IO (UMaybe Entry)
 updateWithHash k h mv tbl = case mv of
-  UNothing -> deleteWithHash k h tbl
-  UJust v  -> insertWithHash k h v tbl
+  UNothing -> U.do
+    debug ["deletewithhash", showSpan (src tbl) k]
+    deleteWithHash k h tbl
+  UJust v  -> U.do
+    debug ["insertwithhash", showSpan (src tbl) k]
+    insertWithHash k h v tbl
 {-# inline updateWithHash #-}
 
 insert :: Span -> Entry -> SymTable -> U.IO (UMaybe Entry)
@@ -339,26 +344,14 @@ size :: SymTable -> U.IO Int
 size (SymTable tbl) = U.io $ RFFF.readFst =<< RUUU.readFst tbl
 {-# inline size #-}
 
-byteString :: SymTable -> B.ByteString
-byteString (SymTable tbl) = runIO do
+src :: SymTable -> B.ByteString
+src (SymTable tbl) = runIO do
   ref     <- RUUU.readFst tbl
   Ptr end <- RFFF.readSnd ref
   I# len  <- RFFF.readThd ref
   fptr    <- RL.read =<< RUUU.readThd tbl
   let start = plusAddr# end (negateInt# len)
   pure $ B.BS (ForeignPtr start fptr) (I# len)
-
-spanToByteString :: SymTable -> Span -> B.ByteString
-spanToByteString (SymTable tbl) (Span (Pos (I# x)) (Pos (I# y))) = runIO do
-  Ptr end <- RFFF.readSnd =<< RUUU.readFst tbl
-  fptr    <- RL.read =<< RUUU.readThd tbl
-  let start = plusAddr# end (negateInt# x)
-      len   = x -# y
-  pure $ B.BS (ForeignPtr start fptr) (I# len)
-
-spanToString :: SymTable -> Span -> String
-spanToString tbl s = FP.unpackUTF8 (spanToByteString tbl s)
-
 
 -- testing
 --------------------------------------------------------------------------------
@@ -380,18 +373,18 @@ loadFactor' tbl = do
 
 assocs :: SymTable -> IO [(String, Entry)]
 assocs stbl@(SymTable tbl) = do
-  buckets <- ALM.unsafeFreeze =<< RUUU.readSnd tbl
+  buckets <- ALM.freeze =<< RUUU.readSnd tbl
   pure $ ALI.foldl'
     (\acc b -> foldlBucket
-      (\acc h k v -> (spanToString stbl k, v):acc) acc b)
+      (\acc h k v -> (showSpan (src stbl) k, v):acc) acc b)
       [] buckets
 
 buckets :: SymTable -> IO [[(Hash, String, Entry)]]
 buckets stbl@(SymTable tbl) = do
-  buckets <- ALM.unsafeFreeze =<< RUUU.readSnd tbl
+  buckets <- ALM.freeze =<< RUUU.readSnd tbl
   pure $ ALI.foldl'
     (\acc b -> foldlBucket
-        (\acc h k v -> (h, spanToString stbl k, v):acc) [] b : acc)
+        (\acc h k v -> (h, showSpan (src stbl) k, v):acc) [] b : acc)
         [] buckets
 
 testHash :: B.ByteString -> Span -> Hash

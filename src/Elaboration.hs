@@ -29,14 +29,14 @@ import ElabState
 unify :: Cxt -> P.Tm -> G -> G -> U.IO ()
 unify cxt t l r = U.do
   debug ["unify", showValOpt cxt (g1 l) UnfoldNone, showValOpt cxt (g1 r) UnfoldNone]
-  Unif.unify (evalCxt cxt) (lvl cxt) CSRigid l r `catch` \case
+  Unif.unify (mcxt cxt) (lvl cxt) CSRigid l r `catch` \case
     UnifyEx e -> throw $ UnifyError cxt t (g1 l) (g1 r) e
     _         -> impossible
 {-# inline unify #-}
 
 solve :: Cxt -> P.Tm -> ConvState -> MetaVar -> Spine -> Val -> U.IO ()
 solve cxt pt cs x sp rhs = U.do
-  Unif.solve (evalCxt cxt) (lvl cxt) x sp rhs `catch` \case
+  Unif.solve (mcxt cxt) (lvl cxt) x sp rhs `catch` \case
     UnifyEx e -> throw $ UnifyError cxt pt (VFlex x sp) rhs e
     _         -> impossible
 {-# inline solve #-}
@@ -121,6 +121,7 @@ infer cxt topT = U.do
   Infer t a <- case topT of
     P.Var px -> U.do
       ma <- ST.lookup px (tbl cxt)
+
       case ma of
         UNothing             -> throw $ NotInScope px
         UJust (ST.Local x a) -> U.do
@@ -132,13 +133,15 @@ infer cxt topT = U.do
 
           U.pure (Infer (LocalVar (lvlToIx (lvl cxt) x)) a)
 
-        UJust (ST.Top x _ a _) -> U.do
+        UJust (ST.Top _ ga _ t) -> U.do
 
           debugging U.do
             foo <- U.io $ ST.assocs (tbl cxt)
+            let x = case t of TopVar x _ -> x; _ -> impossible
             debug ["top var", show foo, showSpan (src cxt) px, show x]
 
-          U.pure (Infer (TopVar x) a)
+          U.pure (Infer t ga)
+
 
     P.Let _ x ma t u ->
       checkWithAnnot cxt ma t \ ~t ~a va -> U.do
