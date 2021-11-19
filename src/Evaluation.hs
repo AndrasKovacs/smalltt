@@ -1,7 +1,7 @@
 {-# language UnboxedTuples, UnboxedSums #-}
 
 module Evaluation (
-  app, inlApp, appSp, appMask, eval, forceCS,
+  app, inlApp, appSp, eval, forceCS,
   forceF, forceFU, appCl, appCl', quote, quote0, eval0, nf0) where
 
 import qualified LvlSet as LS
@@ -60,16 +60,6 @@ appSp cxt t = \case
   SId         -> t
   SApp sp u i -> inlApp cxt (appSp cxt t sp) u i
 
-data ValLvl = ValLvl Val Lvl
-
-appMask :: MetaCxt -> Env -> Val -> LS.LvlSet -> Val
-appMask cxt ~e v mask = (case go cxt e v mask of ValLvl v _ -> v) where
-  go :: MetaCxt -> Env -> Val -> LS.LvlSet -> ValLvl
-  go cxt ENil        v m = ValLvl v 0
-  go cxt (EDef e v') v m = case go cxt e v m of
-    ValLvl v i | LS.member i m -> ValLvl (inlApp cxt v v' Expl) (i + 1)
-               | otherwise     -> ValLvl v (i + 1)
-
 data SpineLvl = SpineLvl Spine Lvl
 
 maskEnv :: Env -> LS.LvlSet -> Spine
@@ -80,13 +70,26 @@ maskEnv e mask = (case go e mask of SpineLvl sp _ -> sp) where
     SpineLvl sp l | LS.member l mask -> SpineLvl (SApp sp v' Expl) (l + 1)
                   | otherwise        -> SpineLvl sp (l + 1)
 
+-- In this case we know that there must be enough lambdas to eat the whole spine
+appMaskedEnv :: MetaCxt -> Tm -> Val -> Spine -> Val
+appMaskedEnv ms t ~v sp = let
+  go t           SId           = Closure ENil t
+  go (Lam _ _ t) (SApp sp u _) = case go t sp of
+    Closure env t -> Closure (EDef env u) t
+  go _ _ = impossible
+
+  in case sp of
+    SId -> v
+    sp  -> case go t sp of Closure env t -> eval ms env t
+
 insertedMeta :: MetaCxt -> Env -> MetaVar -> Val
 insertedMeta cxt ~e x = U.run do
   MC.read cxt x U.>>= \case
     Unsolved mask     ->
       U.pure (VFlex x (maskEnv e mask))
-    Solved _ mask _ v ->
-      let sp = maskEnv e mask in U.pure (VUnfold (UHSolved x) sp (appSp cxt v sp))
+    Solved _ mask t v ->
+      let sp = maskEnv e mask
+      in U.pure (VUnfold (UHSolved x) sp (appMaskedEnv cxt t v sp))
 {-# inline insertedMeta #-}
 
 eval' :: MetaCxt -> Env -> Tm -> Val
@@ -101,7 +104,6 @@ eval' cxt ~e = \case
   Pi x i a b     -> VPi x i (eval' cxt e a) (Closure e b)
   Irrelevant     -> VIrrelevant
   U              -> VU
-
 
 eval :: MetaCxt -> Env -> Tm -> Val
 eval cxt e t = eval' cxt e t

@@ -7,6 +7,7 @@ import qualified Data.Array.LM as ALM
 import qualified Data.ByteString as B
 import qualified Control.Exception as Ex
 import System.IO
+import Control.Monad
 
 import qualified MetaCxt as MC
 import qualified SymTable as ST
@@ -64,7 +65,7 @@ load path = do
               (Right topCxt, time) -> do
                 putStrLn ("elaborated in " ++ show time)
                 metas <- U.toIO $ MC.size (Top.mcxt topCxt)
-                putStrLn ("created " ++ show metas ++ " metas")
+                putStrLn ("created " ++ show metas ++ " metavariables")
                 putStrLn ("loaded " ++ show (Top.lvl topCxt) ++ " definitions")
                 pure (Just (State path src topCxt))
   putStrLn ("total load time: " ++ show time)
@@ -88,24 +89,38 @@ loop st = do
             loop (Just st)
       {-# inline loadTopDef #-}
 
-  let showTm0 st = CoreTypes.showTm0 (Top.mcxt (topCxt st)) (src st) (Top.info (topCxt st))
+  let showTm0 st =
+        CoreTypes.showTm0 (Top.mcxt (topCxt st)) (src st) (Top.info (topCxt st))
 
   let nf0 (State _ _ cxt) = Evaluation.nf0 (Top.mcxt cxt)
       {-# inline nf0 #-}
 
   let renderElab st = do
-        ADL.forIx (Top.mcxt (topCxt st)) \i e -> case e of
-          Unsolved _ ->
-            putStrLn $ '?':show i ++ " unsolved"
-          Solved _ _ t _ ->
-            putStrLn $ '?':show i ++ " = " ++ showTm0 st t
-        ALM.for (Top.info (topCxt st)) \(TopEntry x a t) -> do
-          putStrLn ""
-          putStrLn $ showSpan (src st) x ++ " : " ++ showTm0 st a
-          putStrLn $ "  = " ++ showTm0 st t
+       let size = Top.lvl (topCxt st)
+
+       let go :: MetaVar -> Lvl -> IO ()
+           go m i | i == size = pure ()
+           go m i =
+             ALM.read (Top.info (topCxt st)) (coerce i) >>= \case
+               TopEntry x a t frz -> do
+                 let go' m | m == frz = pure ()
+                     go' m = do
+                       ADL.read (Top.mcxt (topCxt st)) (coerce m) >>= \case
+                         Unsolved _ ->
+                           putStrLn $ show m ++ " unsolved"
+                         Solved _ _ t _ ->
+                           putStrLn $ show m ++ " = " ++ showTm0 st t
+                       go' (m + 1)
+                 go' m
+                 when (m /= frz) (putStrLn "")
+                 putStrLn $ showSpan (src st) x ++ " : " ++ showTm0 st a
+                 putStrLn $ "  = " ++ showTm0 st t
+                 putStrLn ""
+                 go frz (i + 1)
+       go 0 0
 
   let renderBro st = do
-        ALM.for (Top.info (topCxt st)) \(TopEntry x a t) ->
+        ALM.for (Top.info (topCxt st)) \(TopEntry x a t frz) ->
           putStrLn $ showSpan (src st) x ++ " : " ++ showTm0 st a
 
   putStr (maybe "" path st ++ "> ")

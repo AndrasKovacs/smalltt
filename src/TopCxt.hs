@@ -50,10 +50,10 @@ new src len = U.do
 {-# inline new #-}
 
 -- | Extend cxt with a top-level definition. Updates destructively.
-define :: Span -> Ty -> GTy -> Tm -> Cxt -> U.IO Cxt
-define x a ga t (Cxt len info tbl ms) = U.do
+define :: Span -> Ty -> GTy -> Tm -> MetaVar -> Cxt -> U.IO Cxt
+define x a ga t frz (Cxt len info tbl ms) = U.do
   let ~vt = E.eval ms ENil t
-  U.io $ ALM.write info (coerce len) (TopEntry x a t)
+  U.io $ ALM.write info (coerce len) (TopEntry x a t frz)
   ST.insert x (ST.Top a ga t (TopVar len vt)) tbl
   U.pure (Cxt (len + 1) info tbl ms)
 {-# inline define #-}

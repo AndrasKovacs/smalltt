@@ -292,7 +292,8 @@ elabTopLevel topCxt = \case
         t <- check cxt t va
         pure t a va)
       \ ~t ~a va -> U.do
-        topCxt <- Top.define x a va t topCxt
+        metascope <- MC.size $ Top.mcxt topCxt
+        topCxt <- Top.define x a va t (coerce metascope) topCxt
         elabTopLevel topCxt u
 {-# noinline elabTopLevel #-}
 

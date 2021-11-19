@@ -368,12 +368,14 @@ unify cxt l cs (G topt ftopt) (G topt' ftopt') = let
       (VFlex x sp, t') -> U.do
         guardCS cs
         solve cxt l x sp topt' `catch` \_ ->
-          solveLong cxt l x sp t'
+          undefined
+          -- solveLong cxt l x sp t'
 
       (t, VFlex x' sp') -> U.do
         guardCS cs
         solve cxt l x' sp' topt `catch` \_ ->
-          solveLong cxt l x' sp' t
+          undefined
+          -- solveLong cxt l x' sp' t
 
       (VUnfold h sp t, t') -> case cs of
         CSRigid -> go (G topt t) (G topt' t')

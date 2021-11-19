@@ -1,4 +1,7 @@
 
+the : (A : U) → A → A
+ = λ A x. x
+
 id : {A} → A → A
  = λ x. x
 
@@ -59,11 +62,10 @@ fullTree : Nat → Tree = λ n. n _ (λ t. node t t) leaf
 t2M  = fullTree n20
 t2Mb = fullTree n20b
 
-
 -- convtest1 : Eq n5M n5Mb
 --  = refl
 
--- convtest2 : Eq (add n10M meta) (add n10Mb meta)
+-- convtest2 : Eq n10M n10Mb
 --  = refl
 
 -- convt1M : Eq t2M t2Mb
@@ -174,12 +176,16 @@ EvalVar : {Γ A} → Var Γ A → EvalCon Γ → EvalTy A
           (λ rec env. rec (proj1 env))
 
 EvalTm : {Γ A} → Tm Γ A → EvalCon Γ → EvalTy A
- = λ t. t _
+ = λ t.
+        t _
           EvalVar
           (λ t env α. t (pair env α))
           (λ t u env. t env (u env))
 
-test : Tm nil (fun (fun ι ι) (fun ι ι))
-  = lam (lam (app (var (vs vz)) (app (var (vs vz))
-             (app (var (vs vz)) (app (var (vs vz))
-             (app (var (vs vz)) (app (var (vs vz)) (var vz))))))))
+-- test : Tm nil (fun (fun ι ι) (fun ι ι))
+--   = lam (lam (app (var (vs vz)) (app (var (vs vz))
+--              (app (var (vs vz)) (app (var (vs vz))
+--              (app (var (vs vz)) (app (var (vs vz)) (var vz))))))))
+
+test : Var (cons nil ι) ι
+ = vz

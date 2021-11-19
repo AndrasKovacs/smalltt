@@ -38,6 +38,7 @@ library
       Cxt.Types
       Elaboration
       ElabState
+      EnvMask
       Evaluation
       Exceptions
       GenTestFiles

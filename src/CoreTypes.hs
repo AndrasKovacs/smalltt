@@ -141,10 +141,11 @@ instance Show UnfoldHead where
   show (UHTopVar x _) = "(TopVar " ++ show x ++ ")"
   show (UHSolved x)   = "(Solved " ++ show x ++ ")"
 
-
 --------------------------------------------------------------------------------
 
-data TopEntry = TopEntry {-# unpack #-} Span Tm Tm  -- name, type, definition
+data TopEntry
+  -- name, type, definition, metacxt size in scope of definition
+  = TopEntry {-# unpack #-} Span Tm Tm MetaVar
 
 CAN_IO(TopEntry, LiftedRep, TopEntry, x, CoeTopEntry)
 
@@ -161,10 +162,10 @@ data Names
   = NNil TopInfo
   | NCons Names {-# unpack #-} Name
 
-showLocal :: B.ByteString -> Names -> Ix -> String
-showLocal src (NCons _ x)  0 = showName src x
-showLocal src (NCons ns _) l = showLocal src ns (l - 1)
-showLocal _   _            _ = impossible
+namesLen :: Names -> Lvl
+namesLen = go 0 where
+  go acc NNil{} = acc
+  go acc (NCons ns _) = go (acc + 1) ns
 
 -- Pretty printing
 --------------------------------------------------------------------------------
@@ -229,24 +230,27 @@ prettyTm ms prec src ns t = go prec ns t where
   lamBind x Expl = (x++)
 
   goInserted :: Int -> Names -> MetaVar -> ShowS
-  goInserted p ns m = fst (go ns) where
+  goInserted p topNs m = go p topNs 0 where
+
+    topL = namesLen topNs
 
     mask = runIO do
       ADL.unsafeRead ms (coerce m) >>= \case
-        Unsolved mask -> pure mask
+        Unsolved mask     -> pure mask
         Solved _ mask _ _ -> pure mask
 
-    go :: Names -> (ShowS, Lvl)
-    go NNil{} =
-      ((show m++), 0)
-    go (NCons ns (fresh ns -> (n, x))) = case go ns of
-      (s, l) | LS.member l mask -> ((par p appp $ s . (' ':) . (x++)), l + 1)
-             | otherwise        -> (s, l + 1)
+    go :: Int -> Names -> Ix -> ShowS
+    go p NNil{} i = (show m++)
+    go p (NCons ns _) i
+      | LS.member (topL - coerce i - 1) mask =
+          par p appp (go appp ns (i + 1) . (' ':) . (local topNs i ++))
+      | otherwise =
+          go p ns (i + 1)
 
   goTop :: Lvl -> ShowS
   goTop x s = let
     x' = runIO do
-      TopEntry x _ _ <- ALM.read topInfo (coerce x)
+      TopEntry x _ _ _ <- ALM.read topInfo (coerce x)
       pure x
     in showSpan src x' ++ s
 
