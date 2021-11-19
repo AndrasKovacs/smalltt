@@ -39,7 +39,7 @@ import qualified UIO
 -- debug printing, toggled by "debug" cabal flag
 --------------------------------------------------------------------------------
 
--- define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 type Dbg = HasCallStack

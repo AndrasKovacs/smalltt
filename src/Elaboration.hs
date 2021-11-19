@@ -195,6 +195,7 @@ infer cxt topT = U.do
                          let ~va = eval cxt a
                          pure a va)
       \ ~a ~va -> U.do
+
       Infer t vb <- binding cxt x i (gjoin va) \cxt _ -> insertApps cxt (infer cxt t)
       let ty = VPi (bind x) i va (valToClosure cxt (g1 vb))
       U.pure (Infer (Lam (bind x) i t) (gjoin ty))

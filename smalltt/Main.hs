@@ -22,13 +22,7 @@ import Parser
 
 --------------------------------------------------------------------------------
 -- TODO:
---   main : add more cmd options, :bro, top-level name elabs, unfold opts
---   - known call optimization, solved meta eval optimization
---   - hpalloc reductions through shared vars, renamings & other data
---   - try putting terms in a compact region
---   - organize args in records (UnifyCxt, EvalCxt, SolveCxt etc)
---       overload fields with microlens
---   - add parametrized flex unfolding depth, in unification and scopechecking
+-- - add parametrized flex unfolding depth, in unification and scopechecking
 
 --------------------------------------------------------------------------------
 

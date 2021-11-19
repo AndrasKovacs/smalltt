@@ -162,7 +162,7 @@ quote cxt l opt t = let
 
   cont = \case
     VFlex x sp                  -> goSp (Meta x) sp
-    VUnfold (UHSolved x)   sp v -> go v
+    VUnfold (UHSolved x)   sp _ -> goSp (Meta x) sp
     VUnfold (UHTopVar x v) sp _ -> goSp (TopVar x v) sp
     VLocalVar x sp              -> goSp (LocalVar (lvlToIx l x)) sp
     VLam x i t                  -> Lam x i (goBind t)

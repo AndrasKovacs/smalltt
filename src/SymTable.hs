@@ -323,10 +323,10 @@ insertWithHash k h v (SymTable tbl) = U.do
 updateWithHash :: Span -> Hash -> UMaybe Entry -> SymTable -> U.IO (UMaybe Entry)
 updateWithHash k h mv tbl = case mv of
   UNothing -> U.do
-    debug ["deletewithhash", showSpan (src tbl) k]
+    -- debug ["deletewithhash", showSpan (src tbl) k]
     deleteWithHash k h tbl
   UJust v  -> U.do
-    debug ["insertwithhash", showSpan (src tbl) k]
+    -- debug ["insertwithhash", showSpan (src tbl) k]
     insertWithHash k h v tbl
 {-# inline updateWithHash #-}
 
