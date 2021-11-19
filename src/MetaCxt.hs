@@ -4,36 +4,23 @@ module MetaCxt where
 
 import qualified Data.Array.Dynamic.L as ADL
 import qualified Data.Ref.F           as RF
-import qualified Data.Array.UM        as AUM
-import qualified Data.Ref.UU          as RUU
-
 import GHC.Exts
 
-import qualified UIO
 import qualified UIO as U
+import LvlSet
 import Common
 import CoreTypes
 
 --------------------------------------------------------------------------------
 
-#include "deriveCanIO.h"
-
-data MetaEntry = MEUnsolved | MESolved (RF.Ref MetaVar) Tm ~Val
-type MetaCxt = ADL.Array MetaEntry
-
-CAN_IO(MetaEntry, LiftedRep, MetaEntry, x, CoeMetaEntry)
-
-CAN_IO(MetaCxt, UnliftedRep, MutableArrayArray# RealWorld,
-       ADL.Array (RUU.Ref (AUM.Array x)), CoeMetaCxt)
-
 size :: MetaCxt -> U.IO Lvl
 size ms = coerce U.<$> U.io (ADL.size ms)
 {-# inline size #-}
 
-fresh :: MetaCxt -> U.IO Int
-fresh ms = U.do
+fresh :: MetaCxt -> LvlSet -> U.IO Int
+fresh ms mask = U.do
   x <- U.io $ ADL.size ms
-  U.io $ ADL.push ms MEUnsolved
+  U.io $ ADL.push ms (Unsolved mask)
   U.pure x
 {-# inlinable fresh #-}
 
@@ -43,9 +30,9 @@ read ms x = U.io $ ADL.unsafeRead ms (coerce x)
 
 solve :: MetaCxt -> MetaVar -> Tm -> Val -> U.IO ()
 solve ms x t ~v = U.io $ do
-  U.toIO (MetaCxt.read ms x) >>= \case
-    MESolved _ _ _ -> impossible
-    _              -> do
+  ADL.read ms (coerce x) >>= \case
+    Solved{} -> impossible
+    Unsolved mask -> do
       ref <- RF.new (-1)
-      ADL.write ms (coerce x) (MESolved ref t v)
+      ADL.write ms (coerce x) (Solved ref mask t v)
 {-# inline solve #-}

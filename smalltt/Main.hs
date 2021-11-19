@@ -88,16 +88,16 @@ loop st = do
             loop (Just st)
       {-# inline loadTopDef #-}
 
-  let showTm0 st = CoreTypes.showTm0 (src st) (Top.info (topCxt st))
+  let showTm0 st = CoreTypes.showTm0 (Top.mcxt (topCxt st)) (src st) (Top.info (topCxt st))
 
   let nf0 (State _ _ cxt) = Evaluation.nf0 (Top.mcxt cxt)
       {-# inline nf0 #-}
 
   let renderElab st = do
         ADL.forIx (Top.mcxt (topCxt st)) \i e -> case e of
-          MC.MEUnsolved ->
+          Unsolved _ ->
             putStrLn $ '?':show i ++ " unsolved"
-          MC.MESolved _ t _ ->
+          Solved _ _ t _ ->
             putStrLn $ '?':show i ++ " = " ++ showTm0 st t
         ALM.for (Top.info (topCxt st)) \(TopEntry x a t) -> do
           putStrLn ""

@@ -22,19 +22,36 @@ module CoreTypes (
   , Names(..)
   , prettyTm
   , showTm0
+  , MetaCxt
+  , MetaEntry(..)
   ) where
 
-import qualified Data.ByteString as B
-import qualified Data.Array.LM   as ALM
+import qualified Data.ByteString      as B
+import qualified Data.Array.LM        as ALM
+import qualified Data.Array.Dynamic.L as ADL
+import qualified Data.Ref.F           as RF
+import qualified Data.Array.UM        as AUM
+import qualified Data.Ref.UU          as RUU
 import IO (runIO)
 import GHC.Exts
 
+import qualified UIO as U
 import qualified UIO
 import qualified LvlSet as LS
 import Common
 import Data.Bits
 
 #include "deriveCanIO.h"
+
+--------------------------------------------------------------------------------
+
+data MetaEntry = Unsolved LS.LvlSet | Solved (RF.Ref MetaVar) LS.LvlSet Tm ~Val
+type MetaCxt = ADL.Array MetaEntry
+
+CAN_IO(MetaEntry, LiftedRep, MetaEntry, x, CoeMetaEntry)
+
+CAN_IO(MetaCxt, UnliftedRep, MutableArrayArray# RealWorld,
+       ADL.Array (RUU.Ref (AUM.Array x)), CoeMetaCxt)
 
 --------------------------------------------------------------------------------
 
@@ -78,7 +95,7 @@ data Tm
   | Let Span Tm Tm Tm
   | App Tm Tm Icit
   | Lam Name Icit Tm
-  | InsertedMeta MetaVar LS.LvlSet
+  | InsertedMeta MetaVar
   | Meta MetaVar
   | Pi Name Icit Ty Ty
   | Irrelevant
@@ -163,8 +180,8 @@ letp  = 0  :: Int -- let, lambda
 par :: Int -> Int -> ShowS -> ShowS
 par p p' = showParen (p' < p)
 
-prettyTm :: Int -> B.ByteString -> Names -> Tm -> ShowS
-prettyTm prec src ns t = go prec ns t where
+prettyTm :: MetaCxt -> Int -> B.ByteString -> Names -> Tm -> ShowS
+prettyTm ms prec src ns t = go prec ns t where
 
   topInfo :: TopInfo
   topInfo = go ns where
@@ -211,8 +228,14 @@ prettyTm prec src ns t = go prec ns t where
   lamBind x Impl = bracket (x++)
   lamBind x Expl = (x++)
 
-  goMask :: Int -> Names -> MetaVar -> LS.LvlSet -> ShowS
-  goMask p ns m mask = fst (go ns) where
+  goInserted :: Int -> Names -> MetaVar -> ShowS
+  goInserted p ns m = fst (go ns) where
+
+    mask = runIO do
+      ADL.unsafeRead ms (coerce m) >>= \case
+        Unsolved mask -> pure mask
+        Solved _ mask _ _ -> pure mask
+
     go :: Names -> (ShowS, Lvl)
     go NNil{} =
       ((show m++), 0)
@@ -254,9 +277,9 @@ prettyTm prec src ns t = go prec ns t where
       . (" = "++) . go letp ns t . ("; "++) . go letp (NCons ns n) u
 
     Meta m              -> (show m ++)
-    InsertedMeta m mask -> goMask p ns m mask
+    InsertedMeta m      -> goInserted p ns m
     TopVar x _          -> goTop x
     Irrelevant          -> ("Irrelevant"++)
 
-showTm0 :: B.ByteString -> TopInfo -> Tm -> String
-showTm0 src topinfo t = prettyTm 0 src (NNil topinfo) t []
+showTm0 :: MetaCxt -> B.ByteString -> TopInfo -> Tm -> String
+showTm0 ms src topinfo t = prettyTm ms 0 src (NNil topinfo) t []

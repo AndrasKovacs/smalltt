@@ -15,7 +15,6 @@ import Common
 import CoreTypes
 import LvlSet (LvlSet(..))
 import SymTable (SymTable(..))
-import MetaCxt
 
 #include "../deriveCanIO.h"
 

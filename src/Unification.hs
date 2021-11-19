@@ -16,7 +16,6 @@ import qualified UIO
 import Common
 import CoreTypes
 import Evaluation
-import MetaCxt (MetaCxt)
 import Exceptions
 import ElabState
 
@@ -109,9 +108,9 @@ occurs' :: MetaCxt -> MetaVar -> MetaVar -> MetaVar -> U.IO UBool
 occurs' ms frz occ x
   | x < frz   = U.pure UTrue
   | otherwise = MC.read ms x U.>>= \case
-      MC.MEUnsolved | occ == x  -> U.pure UFalse
-                    | otherwise -> U.pure UTrue
-      MC.MESolved cache t _ -> U.do
+      Unsolved _ | occ == x  -> U.pure UFalse
+                   | otherwise -> U.pure UTrue
+      Solved cache _ t _ -> U.do
         cached <- U.io $ RF.read cache
         if cached == occ then
           U.pure UTrue
@@ -124,16 +123,16 @@ occurs :: MetaCxt -> MetaVar -> MetaVar -> Tm -> U.IO UBool
 occurs ms frz occ t = let
   go = occurs ms frz occ; {-# inline go #-}
   in case t of
-    LocalVar x          -> U.pure UTrue
-    TopVar x _          -> U.pure UTrue
-    Let x a t u         -> (\x y z -> x <> y <> z) U.<$> go a U.<*> go t U.<*> go u
-    App t u i           -> (<>) U.<$> go t U.<*> go u
-    Lam x i t           -> go t
-    InsertedMeta x mask -> occurs' ms frz occ x
-    Meta x              -> occurs' ms frz occ x
-    Pi x i a b          -> (<>) U.<$> go a U.<*> go b
-    Irrelevant          -> U.pure UTrue
-    U                   -> U.pure UTrue
+    LocalVar x     -> U.pure UTrue
+    TopVar x _     -> U.pure UTrue
+    Let x a t u    -> (\x y z -> x <> y <> z) U.<$> go a U.<*> go t U.<*> go u
+    App t u i      -> (<>) U.<$> go t U.<*> go u
+    Lam x i t      -> go t
+    InsertedMeta x -> occurs' ms frz occ x
+    Meta x         -> occurs' ms frz occ x
+    Pi x i a b     -> (<>) U.<$> go a U.<*> go b
+    Irrelevant     -> U.pure UTrue
+    U              -> U.pure UTrue
 
 renameSp' :: MetaCxt -> MetaVar -> PartialRenaming -> RenState -> (Tm, UBool) -> Spine -> U.IO (Tm, UBool)
 renameSp' ms frz pren rs hd = \case

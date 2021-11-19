@@ -16,7 +16,6 @@ import qualified Evaluation as E
 import qualified SymTable as ST
 import Common
 import CoreTypes
-import MetaCxt
 
 #include "deriveCanIO.h"
 

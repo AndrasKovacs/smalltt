@@ -28,7 +28,7 @@ src cxt = ST.src (tbl cxt)
 {-# inline src #-}
 
 showTm :: Cxt -> Tm -> String
-showTm cxt t = prettyTm 0 (src cxt) (names cxt) t []
+showTm cxt t = prettyTm (mcxt cxt) 0 (src cxt) (names cxt) t []
 {-# inline showTm #-}
 
 showVal :: Cxt -> Val -> String

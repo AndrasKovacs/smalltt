@@ -61,8 +61,8 @@ freshMeta cxt = U.do
                    | otherwise        = acc
           in goSp (x + 1) l mask acc'
 
-  mvar <- MC.fresh (mcxt cxt)
-  let mt = InsertedMeta (coerce mvar) (mask cxt)
+  mvar <- MC.fresh (mcxt cxt) (mask cxt)
+  let mt = InsertedMeta (coerce mvar)
   let mv = VFlex (coerce mvar) (goSp 0 (lvl cxt) (mask cxt) SId)
   U.pure (mt // mv)
 {-# inline freshMeta #-}
@@ -70,8 +70,8 @@ freshMeta cxt = U.do
 -- | Create fresh meta as a term, under an extra binder.
 freshMetaUnder :: Cxt -> Icit -> U.IO Tm
 freshMetaUnder cxt i = U.do
-  mvar <- MC.fresh (mcxt cxt)
-  U.pure (InsertedMeta (coerce mvar) (LS.insert (lvl cxt) (mask cxt)))
+  mvar <- MC.fresh (mcxt cxt) (LS.insert (lvl cxt) (mask cxt))
+  U.pure (InsertedMeta (coerce mvar))
 {-# inline freshMetaUnder #-}
 
 goInsert' :: Cxt -> Infer -> U.IO Infer
