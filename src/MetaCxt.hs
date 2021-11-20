@@ -30,7 +30,7 @@ read ms x = U.io $ ADL.unsafeRead ms (coerce x)
 
 solve :: MetaCxt -> MetaVar -> Tm -> Val -> U.IO ()
 solve ms x t ~v = U.io $ do
-  ADL.read ms (coerce x) >>= \case
+  ADL.unsafeRead ms (coerce x) >>= \case
     Solved{} -> impossible
     Unsolved mask -> do
       ref <- RF.new (-1)

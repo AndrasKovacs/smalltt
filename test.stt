@@ -190,30 +190,33 @@ test : Tm nil (fun (fun ι ι) (fun ι ι))
 dup : {A} → A → Pair A A
  = λ x. pair x x
 
-pairTest = λ (x : U).
-    let x0  = dup x;
-    let x1  = dup x0;
-    let x2  = dup x1;
-    let x3  = dup x2;
-    let x4  = dup x3;
-    let x5  = dup x4;
-    let x6  = dup x5;
-    let x7  = dup x6;
-    let x8  = dup x7;
-    let x9  = dup x8;
-    let x10 = dup x9;
-    let x11 = dup x10;
-    let x12 = dup x11;
-    let x13 = dup x12;
-    let x14 = dup x13;
-    let x15 = dup x14;
-    let x16 = dup x15;
-    let x17 = dup x16;
-    let x18 = dup x17;
-    let x19 = dup x18;
-    let x20 = dup x19;
-    let x21 = dup x20;
-    let x22 = dup x21;
-    let x23 = dup x22;
-    let x24 = dup x23;
-    x
+-- pairTest = λ (x : U).
+--     let x0  = dup x;
+--     let x1  = dup x0;
+--     let x2  = dup x1;
+--     let x3  = dup x2;
+--     let x4  = dup x3;
+--     let x5  = dup x4;
+--     let x6  = dup x5;
+--     let x7  = dup x6;
+--     let x8  = dup x7;
+--     let x9  = dup x8;
+--     let x10 = dup x9;
+--     let x11 = dup x10;
+--     let x12 = dup x11;
+--     let x13 = dup x12;
+--     let x14 = dup x13;
+--     let x15 = dup x14;
+--     let x16 = dup x15;
+--     let x17 = dup x16;
+--     let x18 = dup x17;
+--     let x19 = dup x18;
+--     let x20 = dup x19;
+--     let x21 = dup x20;
+--     let x22 = dup x21;
+--     let x23 = dup x22;
+--     let x24 = dup x23;
+--     x24
+
+-- foo : Eq pairTest pairTest = refl
+-- foo : Eq {Nat} n10M n10M = refl {Nat}

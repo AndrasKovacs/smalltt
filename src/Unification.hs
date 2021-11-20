@@ -1,7 +1,7 @@
 {-# language UnboxedTuples #-}
 {-# options_ghc -Wno-orphans #-}
 
-module Unification (unify, solve, etaContract) where
+module Unification (unify, solve) where
 
 import qualified Data.Array.FM as AFM
 import qualified Data.Ref.F as RF
@@ -110,7 +110,7 @@ occurs' ms frz occ x
   | x < frz   = U.pure UTrue
   | otherwise = MC.read ms x U.>>= \case
       Unsolved _ | occ == x  -> U.pure UFalse
-                   | otherwise -> U.pure UTrue
+                 | otherwise -> U.pure UTrue
       Solved cache _ t _ -> U.do
         cached <- U.io $ RF.read cache
         if cached == occ then
@@ -280,45 +280,43 @@ guardCS cs = U.when (cs == CSFlex) $ throw $ UnifyEx CSFlexSolution
 {-# inline guardCS #-}
 
 
-data SVLS = SVLS Spine Val LS.LvlSet
 data SSLS = SSLS Spine Spine LS.LvlSet
+CAN_IO3(SSLS, LiftedRep, LiftedRep, IntRep, Spine, Spine, Int#, SSLS x y (LS.LvlSet (I# z)), CoeSSLS)
 
 -- Try to eta contract both sides, return trimmed lhs, rhs, and the set of
 -- variables that were trimmed.
-etaContract :: Spine -> Val -> SVLS
-etaContract sp rhs = let
+etaContract :: Spine -> Val -> (Spine -> Val -> LS.LvlSet -> U.IO a) -> U.IO a
+etaContract sp rhs cont = let
 
-  go :: Spine -> Spine -> LS.LvlSet -> SSLS
+  go :: Spine -> Spine -> LS.LvlSet -> U.IO SSLS
   go sp sp' trim = case (sp, sp') of
-    (left@(SApp sp (VLocalVar x SId) i), right@(SApp sp' (VLocalVar x' SId) i'))
-      | x == x'   -> go sp sp' (LS.insert x trim)
-      | otherwise -> SSLS left right trim
-    (sp, sp') -> SSLS sp sp' trim
+    (left@(SApp sp (VLocalVar x SId) i), right@(SApp sp' (VLocalVar x' SId) i')) -> U.do
+      U.when (LS.member x trim) (throw $ UnifyEx Conversion) -- non-linear spine
+      if x == x' then go sp sp' (LS.insert x trim)
+                 else U.pure (SSLS left right trim)
+    (sp, sp') -> U.pure (SSLS sp sp' trim)
 
   in case rhs of
-    VFlex x sp'     -> case go sp sp' mempty of
-                         SSLS sp sp' trim -> SVLS sp (VFlex x sp') trim
-    VLocalVar x sp' -> case go sp sp' mempty of
-                         SSLS sp sp' trim -> SVLS sp (VLocalVar x sp') trim
-    VUnfold h sp' v -> case go sp sp' mempty of
-                         SSLS sp sp' trim -> SVLS sp (VUnfold h sp' v) trim
-    _               -> SVLS sp rhs mempty
-
+    VFlex x sp'     -> go sp sp' mempty U.>>= \case
+                         SSLS sp sp' trim -> cont sp (VFlex x sp') trim
+    VLocalVar x sp' -> go sp sp' mempty U.>>= \case
+                         SSLS sp sp' trim -> cont sp (VLocalVar x sp') trim
+    VUnfold h sp' v -> go sp sp' mempty U.>>= \case
+                         SSLS sp sp' trim -> cont sp (VUnfold h sp' v) trim
+    _               -> cont sp rhs mempty
+{-# inline etaContract #-}
 
 solve :: MetaCxt -> Lvl -> MetaVar -> Spine -> Val -> U.IO ()
 solve cxt l x ~sp ~rhs = U.do
   debug ["attempt solve", show (VFlex x sp), show rhs]
   frz <- U.io getFrozen
   U.when (x < frz) $ throw $ UnifyEx $ FrozenSolution x
-
-  case etaContract sp rhs of
-    SVLS sp rhs trim -> U.do
-
-      pren <- invertSp cxt l x sp trim
-      rhs <- lams sp U.<$> rename cxt frz pren rhs
-      debug ["renamed", show rhs]
-      debug ["solve", show x, show pren, show rhs]
-      MC.solve cxt x rhs (eval cxt ENil rhs)
+  etaContract sp rhs \sp rhs trim -> U.do
+    pren <- invertSp cxt l x sp trim
+    rhs <- lams sp U.<$> rename cxt frz pren rhs
+    debug ["renamed", show rhs]
+    debug ["solve", show x, show pren, show rhs]
+    MC.solve cxt x rhs (eval cxt ENil rhs)
 
 solveLong :: MetaCxt -> Lvl -> MetaVar -> Spine -> Val -> U.IO ()
 solveLong cxt l x sp rhs = forceFU cxt rhs U.>>= \case
@@ -405,14 +403,12 @@ unify cxt l cs (G topt ftopt) (G topt' ftopt') = let
       (VFlex x sp, t') -> U.do
         guardCS cs
         solve cxt l x sp topt' `catch` \_ ->
-          undefined
-          -- solveLong cxt l x sp t'
+          solveLong cxt l x sp t'
 
       (t, VFlex x' sp') -> U.do
         guardCS cs
         solve cxt l x' sp' topt `catch` \_ ->
-          undefined
-          -- solveLong cxt l x' sp' t
+          solveLong cxt l x' sp' t
 
       (VUnfold h sp t, t') -> case cs of
         CSRigid -> go (G topt t) (G topt' t')
