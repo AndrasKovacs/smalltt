@@ -1,7 +1,7 @@
 {-# language UnboxedTuples #-}
 {-# options_ghc -Wno-orphans #-}
 
-module Unification (unify, solve) where
+module Unification (unify, solve, etaContract) where
 
 import qualified Data.Array.FM as AFM
 import qualified Data.Ref.F as RF
@@ -13,6 +13,7 @@ import Data.Bits
 import qualified MetaCxt as MC
 import qualified UIO as U
 import qualified UIO
+import qualified LvlSet as LS
 import Common
 import CoreTypes
 import Evaluation
@@ -240,28 +241,34 @@ fullcheck ms frz pren v = U.do
 -- UNIFICATION
 --------------------------------------------------------------------------------
 
-invertSp :: MetaCxt -> Lvl -> MetaVar -> Spine -> U.IO PartialRenaming
-invertSp cxt gamma m sp = U.do
+invertSp :: MetaCxt -> Lvl -> MetaVar -> Spine -> LS.LvlSet -> U.IO PartialRenaming
+invertSp cxt gamma m sp trim = U.do
   ren <- U.io $ AFM.new @Lvl (coerce gamma)
   U.io $ AFM.set ren (-1)
 
-  let go :: MetaCxt -> AFM.Array Lvl -> Spine -> U.IO Lvl
-      go ms ren = \case
+  let go :: MetaCxt -> AFM.Array Lvl -> LS.LvlSet -> Spine -> U.IO Lvl
+      go ms ren trim = \case
         SId         -> U.pure 0
         SApp sp t _ -> U.do
-          dom <- go ms ren sp
+          dom <- go ms ren trim sp
           forceFU ms t U.>>= \case
             VLocalVar x SId -> U.do
+
+              -- non-linear: variable was previously trimmed by eta-contraction
+              U.when (LS.member x trim) (throw $ UnifyEx Conversion)
+
               y <- U.io $ AFM.read ren (coerce x)
               case y of
                 (-1) -> U.do
                   U.io $ AFM.write ren (coerce x) dom
                   U.pure (dom + 1)
-                y    -> throw $ UnifyEx Conversion -- non-linear
+
+                -- non-linear: variable already mapped
+                y -> throw $ UnifyEx Conversion
             _ ->
               throw $ UnifyEx Conversion -- non-var in spine
 
-  dom <- go cxt ren sp
+  dom <- go cxt ren trim sp
   U.pure (PRen m dom gamma ren)
 
 lams :: Spine -> Tm -> Tm
@@ -272,16 +279,46 @@ guardCS :: ConvState -> U.IO ()
 guardCS cs = U.when (cs == CSFlex) $ throw $ UnifyEx CSFlexSolution
 {-# inline guardCS #-}
 
+
+data SVLS = SVLS Spine Val LS.LvlSet
+data SSLS = SSLS Spine Spine LS.LvlSet
+
+-- Try to eta contract both sides, return trimmed lhs, rhs, and the set of
+-- variables that were trimmed.
+etaContract :: Spine -> Val -> SVLS
+etaContract sp rhs = let
+
+  go :: Spine -> Spine -> LS.LvlSet -> SSLS
+  go sp sp' trim = case (sp, sp') of
+    (left@(SApp sp (VLocalVar x SId) i), right@(SApp sp' (VLocalVar x' SId) i'))
+      | x == x'   -> go sp sp' (LS.insert x trim)
+      | otherwise -> SSLS left right trim
+    (sp, sp') -> SSLS sp sp' trim
+
+  in case rhs of
+    VFlex x sp'     -> case go sp sp' mempty of
+                         SSLS sp sp' trim -> SVLS sp (VFlex x sp') trim
+    VLocalVar x sp' -> case go sp sp' mempty of
+                         SSLS sp sp' trim -> SVLS sp (VLocalVar x sp') trim
+    VUnfold h sp' v -> case go sp sp' mempty of
+                         SSLS sp sp' trim -> SVLS sp (VUnfold h sp' v) trim
+    _               -> SVLS sp rhs mempty
+
+
 solve :: MetaCxt -> Lvl -> MetaVar -> Spine -> Val -> U.IO ()
 solve cxt l x ~sp ~rhs = U.do
   debug ["attempt solve", show (VFlex x sp), show rhs]
   frz <- U.io getFrozen
   U.when (x < frz) $ throw $ UnifyEx $ FrozenSolution x
-  pren <- invertSp cxt l x sp
-  rhs <- lams sp U.<$> rename cxt frz pren rhs
-  debug ["renamed", show rhs]
-  debug ["solve", show x, show pren, show rhs]
-  MC.solve cxt x rhs (eval cxt ENil rhs)
+
+  case etaContract sp rhs of
+    SVLS sp rhs trim -> U.do
+
+      pren <- invertSp cxt l x sp trim
+      rhs <- lams sp U.<$> rename cxt frz pren rhs
+      debug ["renamed", show rhs]
+      debug ["solve", show x, show pren, show rhs]
+      MC.solve cxt x rhs (eval cxt ENil rhs)
 
 solveLong :: MetaCxt -> Lvl -> MetaVar -> Spine -> Val -> U.IO ()
 solveLong cxt l x sp rhs = forceFU cxt rhs U.>>= \case
