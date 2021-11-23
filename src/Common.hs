@@ -177,7 +177,6 @@ instance Show QuoteOption where
 
 --------------------------------------------------------------------------------
 
--- WARNING: EnvMask.looked depends on internals below!
 newtype Icit = Icit# Int deriving Eq
 pattern Impl :: Icit
 pattern Impl = Icit# (-1)
@@ -292,6 +291,22 @@ bind (Bind# x y) = Name# x y
 showBind :: B.ByteString -> Bind -> String
 showBind src BEmpty    = "_"
 showBind src (BSpan x) = showSpan src x
+
+-- A Name and an Icit packed to two words
+--------------------------------------------------------------------------------
+
+-- data NameIcit = NI Name Icit
+data NameIcit = NameIcit# Int Int
+
+pattern NI :: Name -> Icit -> NameIcit
+pattern NI n i <- ((\case NameIcit# x y -> (Name# (unsafeShiftR x 1) y, Icit# ((x .&. 1) - 2)))
+                    -> (n, i)) where
+  NI (Name# x y) (Icit# i) = NameIcit# (unsafeShiftL x 1 .|. (i + 2)) y
+{-# complete NI #-}
+
+instance Show NameIcit where
+  showsPrec d (NI n i) =
+    showParen (d > 10) (("NI "++). showsPrec 11 n . (' ':) . showsPrec 11 i)
 
 
 -- Span equality

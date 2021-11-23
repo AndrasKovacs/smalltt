@@ -138,11 +138,15 @@ loop st = do
         loop (Just st)
     ':':'n':'t':' ':(dropSp -> rest) ->
       loadTopDef rest \st a t -> do
-        putStrLn $ showTm0 st (nf0 st UnfoldAll a)
+        (nf, t) <- timedPure (nf0 st UnfoldAll a)
+        putStrLn $ showTm0 st nf
+        putStrLn $ "normalized in " ++ show t
         loop (Just st)
     ':':'n':' ':(dropSp -> rest) ->
       loadTopDef rest \st a t -> do
-        putStrLn $ showTm0 st (nf0 st UnfoldAll t)
+        (nf, t) <- timedPure (nf0 st UnfoldAll t)
+        putStrLn $ showTm0 st nf
+        putStrLn $ "normalized in " ++ show t
         loop (Just st)
     ':':'e':' ':(dropSp -> rest) ->
       loadTopDef rest \st a t -> do

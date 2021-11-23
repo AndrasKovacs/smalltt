@@ -1,0 +1,101 @@
+
+Bool : U
+ = (B : U) → B → B → B
+
+true : Bool
+ = λ B t f. t
+
+and : Bool → Bool → Bool
+ = λ a b B t f. a B (b B t f) f
+
+Nat : U
+ = (n : U) → (n → n) → n → n
+
+add : Nat → Nat → Nat
+ = λ a b n s z. a n s (b n s z)
+
+mul : Nat → Nat → Nat
+ = λ a b n s. a n (b n s)
+
+suc : Nat → Nat
+ = λ a n s z. s (a n s z)
+
+Eq : {A : U} → A → A → U
+ = λ {A} x y. (P : A → U) → P x → P y
+
+refl : {A : U}{x : A} → Eq {A} x x
+ = λ P px. px
+
+n2  : Nat = λ N s z. s (s z)
+n3  : Nat = λ N s z. s (s (s z))
+n4  : Nat = λ N s z. s (s (s (s z)))
+n5  : Nat = λ N s z. s (s (s (s (s z))))
+n10    = mul n2 n5
+n10b   = mul n5 n2
+n15    = add n10  n5
+n15b   = add n10b n5
+n18    = add n15  n3
+n18b   = add n15b n3
+n19    = add n15  n4
+n19b   = add n15b n4
+n20    = mul n2 n10
+n20b   = mul n2 n10b
+n21    = suc n20
+n21b   = suc n20b
+n22    = suc n21
+n22b   = suc n21b
+n23    = suc n22
+n23b   = suc n22b
+n100   = mul n10   n10
+n100b  = mul n10b  n10b
+n10k   = mul n100  n100
+n10kb  = mul n100b n100b
+n100k  = mul n10k  n10
+n100kb = mul n10kb n10b
+n1M    = mul n10k  n100
+n1Mb   = mul n10kb n100b
+n5M    = mul n1M   n5
+n5Mb   = mul n1Mb  n5
+n10M   = mul n5M   n2
+n10Mb  = mul n5Mb  n2
+
+Tree : U = (T : U) → (T → T → T) → T → T
+leaf : Tree = λ T n l. l
+node : Tree → Tree → Tree = λ t1 t2 T n l. n (t1 T n l) (t2 T n l)
+
+fullTree : Nat → Tree
+ = λ n. n Tree (λ t. node t t) leaf
+
+forceTree : Tree → Bool
+ = λ t. t Bool and true
+
+t20k   = fullTree n10
+t20kb  = fullTree n10b
+t65k   = fullTree n15
+t65kb  = fullTree n15b
+t512k  = fullTree n18
+t512kb = fullTree n18b
+t1M    = fullTree n19
+t1Mb   = fullTree n19b
+t2M    = fullTree n20
+t2Mb   = fullTree n20b
+t4M    = fullTree n22
+t4Mb   = fullTree n22b
+t8M    = fullTree n23
+t8Mb   = fullTree n23b
+
+-- convn1M : Eq n1M n1Mb = refl
+-- convn5M : Eq n5M n5Mb = refl
+-- convn10M : Eq n10M n5Mb = refl
+
+-- convt20k  : Eq t20k t20kb = refl
+-- convt65k  : Eq t65k t65kb = refl
+-- convt512K : Eq t512k t512kb = refl
+-- convt1M   : Eq t1M t1Mb = refl
+-- convt2M   : Eq t2M t2Mb = refl
+-- convt4M   : Eq t4M t4Mb = refl
+-- convt8M   : Eq t8M t8Mb = refl
+
+forcet2M = forceTree t2M
+forcet4M = forceTree t4M
+forcet8M = forceTree t8M

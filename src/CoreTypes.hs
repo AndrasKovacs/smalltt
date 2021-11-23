@@ -229,6 +229,8 @@ prettyTm ms prec src ns t = go prec ns t where
   lamBind x Impl = bracket (x++)
   lamBind x Expl = (x++)
 
+  -- prints full inserted spine, right now this is not used!
+  -- we instead just print ?X(..)
   goInserted :: Int -> Names -> MetaVar -> ShowS
   goInserted p topNs m = go p topNs 0 where
 
@@ -281,7 +283,7 @@ prettyTm ms prec src ns t = go prec ns t where
       . (" = "++) . go letp ns t . ("; "++) . go letp (NCons ns n) u
 
     Meta m              -> (show m ++)
-    InsertedMeta m      -> goInserted p ns m
+    InsertedMeta m      -> (show m ++).("(..)"++)
     TopVar x _          -> goTop x
     Irrelevant          -> ("Irrelevant"++)
 

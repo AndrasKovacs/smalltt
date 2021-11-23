@@ -97,19 +97,19 @@ insertApps cxt act = act U.>>= \case
 
 -- | Insert fresh implicit applications until we hit a Pi with
 --   a particular binder name.
-insertAppUntilName :: P.Tm -> Cxt -> Span -> U.IO Infer -> U.IO Infer
-insertAppUntilName topT cxt name act = go cxt U.=<< act where
-  go cxt (Infer t (G a fa)) = forceFU cxt fa U.>>= \case
+insertAppsUntilName :: P.Tm -> Cxt -> Span -> U.IO Infer -> U.IO Infer
+insertAppsUntilName topT cxt name act = go cxt U.=<< act where
+  go cxt (Infer t (G topa ftopa)) = forceFU cxt ftopa U.>>= \case
     fa@(VPi x Impl a b) -> U.do
       if eqName cxt x (NSpan name) then
-        U.pure (Infer t (G a fa))
+        U.pure (Infer t (G topa fa))
       else U.do
         (m, mv) <- freshMeta cxt
         let b' = appCl' cxt b mv
         go cxt (Infer (App t m Impl) (gjoin b'))
     _ ->
       throw $ NoNamedArgument topT name
-{-# inline insertAppUntilName #-}
+{-# inline insertAppsUntilName #-}
 
 -- Elaboration
 --------------------------------------------------------------------------------
@@ -152,7 +152,7 @@ infer cxt topT = U.do
 
       U.bind3 (\pure -> case inf of
         P.Named x -> U.do
-          Infer t tty <- insertAppUntilName topT cxt x $ infer cxt t
+          Infer t tty <- insertAppsUntilName topT cxt x $ infer cxt t
           pure Impl t tty
         P.NoName Impl -> U.do
           Infer t tty <- infer cxt t

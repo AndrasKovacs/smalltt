@@ -70,17 +70,18 @@ maskEnv e mask = (case go e mask of SpineLvl sp _ -> sp) where
     SpineLvl sp l | LS.member l mask -> SpineLvl (SApp sp v' Expl) (l + 1)
                   | otherwise        -> SpineLvl sp (l + 1)
 
--- In this case we know that there must be enough lambdas to eat the whole spine
-appMaskedEnv :: MetaCxt -> Tm -> Val -> Spine -> Val
-appMaskedEnv ms t ~v sp = let
-  go t           SId           = Closure ENil t
-  go (Lam _ _ t) (SApp sp u _) = case go t sp of
-    Closure env t -> Closure (EDef env u) t
-  go _ _ = impossible
+-- -- In this case we know that there must be enough lambdas to eat the whole spine
+-- -- EDIT: but with eta contracted meta solutions, we don't necessarily have!
+-- appMaskedEnv :: MetaCxt -> Tm -> Val -> Spine -> Val
+-- appMaskedEnv ms t ~v sp = let
+--   go t           SId           = Closure ENil t
+--   go (Lam _ _ t) (SApp sp u _) = case go t sp of
+--     Closure env t -> Closure (EDef env u) t
+--   go _ _ = impossible
 
-  in case sp of
-    SId -> v
-    sp  -> case go t sp of Closure env t -> eval ms env t
+--   in case sp of
+--     SId -> v
+--     sp  -> case go t sp of Closure env t -> eval ms env t
 
 insertedMeta :: MetaCxt -> Env -> MetaVar -> Val
 insertedMeta cxt ~e x = U.run do
@@ -89,7 +90,7 @@ insertedMeta cxt ~e x = U.run do
       U.pure (VFlex x (maskEnv e mask))
     Solved _ mask t v ->
       let sp = maskEnv e mask
-      in U.pure (VUnfold (UHSolved x) sp (appMaskedEnv cxt t v sp))
+      in U.pure (VUnfold (UHSolved x) sp (appSp cxt v sp))
 {-# inline insertedMeta #-}
 
 eval' :: MetaCxt -> Env -> Tm -> Val

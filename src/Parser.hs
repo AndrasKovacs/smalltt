@@ -116,10 +116,10 @@ manyIdents :: Parser Spans
 manyIdents = go SNil where
   go acc = (idented \x -> go (SCons x acc)) <|> pure acc
 
-spansToImplPi :: Pos -> Tm -> Tm -> Spans -> Tm
-spansToImplPi l a acc = \case
+spansToExplPi :: Pos -> Tm -> Tm -> Spans -> Tm
+spansToExplPi l a acc = \case
   SNil       -> acc
-  SCons x xs -> spansToImplPi l a (Pi l (BSpan x) Impl a acc) xs
+  SCons x xs -> spansToExplPi l a (Pi l (BSpan x) Expl a acc) xs
 
 spansToApps :: Span -> Spans -> Tm
 spansToApps x = \case
@@ -164,14 +164,13 @@ pi' = do
             a <- tm' <* parR'
             optional_ arrow
             b <- pi'
-            pure $! (Pi l (BSpan x) Expl a $! spansToImplPi l a b xs)
+            pure $! (Pi l (BSpan x) Expl a $! spansToExplPi l a b xs)
 
           ")" -> ws >> do
             let t = spansToApps x xs
             branch arrow
-              (goApp t)
               (Pi l BEmpty Expl t <$> pi')
-
+              (goApp t)
           _ ->
             branch arrow
               (do a <- Pi l BEmpty Expl (spansToApps x xs) <$> (pi' <* parR')
@@ -187,7 +186,7 @@ pi' = do
        (do t <- tm' <* parR'
            branch arrow
              (Pi l BEmpty Expl t <$> pi')
-             (pure t))
+             (goApp t))
 
     _   -> ws >> do
       t <- app'

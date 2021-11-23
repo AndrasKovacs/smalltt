@@ -69,9 +69,9 @@ render src (Span pos _) msg = let
   ls     = FP.lines src
   (l, c) = head $ FP.posLineCols src [pos]
   line   = if l < length ls then ls !! l else ""
-  linum  = show l
+  linum  = show (l + 1)
   lpad   = map (const ' ') linum
-  in show l ++ ":" ++ show c ++ ":\n" ++
+  in linum  ++ ":" ++ show c ++ ":\n" ++
      lpad   ++ "|\n" ++
      linum  ++ "| " ++ line ++ "\n" ++
      lpad   ++ "| " ++ replicate c ' ' ++ "^\n" ++
