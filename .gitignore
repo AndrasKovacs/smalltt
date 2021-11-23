@@ -12,3 +12,6 @@ dist-newstyle/
 *.aux
 *.glob
 *.lock
+*.agdai
+*.vok
+*.vos
