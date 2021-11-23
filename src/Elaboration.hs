@@ -76,7 +76,7 @@ freshMetaUnder cxt i = U.do
 
 goInsert' :: Cxt -> Infer -> U.IO Infer
 goInsert' cxt (Infer t (G a fa)) = forceFU cxt fa U.>>= \case
-  VPi x Impl a b -> U.do
+  VPi (NI x Impl) a b -> U.do
     (m, mv) <- freshMeta cxt
     let b' = appCl' cxt b mv
     goInsert' cxt (Infer (App t m Impl) (gjoin b'))
@@ -91,8 +91,8 @@ insertApps' cxt act = goInsert' cxt U.=<< act
 --   an implicit lambda (i.e. neutral).
 insertApps :: Cxt -> U.IO Infer -> U.IO Infer
 insertApps cxt act = act U.>>= \case
-  res@(Infer (Lam _ Impl _) _) -> U.pure res
-  res                          -> insertApps' cxt (U.pure res)
+  res@(Infer (Lam (NI _ Impl) _) _) -> U.pure res
+  res                               -> insertApps' cxt (U.pure res)
 {-# inline insertApps #-}
 
 -- | Insert fresh implicit applications until we hit a Pi with
@@ -100,7 +100,7 @@ insertApps cxt act = act U.>>= \case
 insertAppsUntilName :: P.Tm -> Cxt -> Span -> U.IO Infer -> U.IO Infer
 insertAppsUntilName topT cxt name act = go cxt U.=<< act where
   go cxt (Infer t (G topa ftopa)) = forceFU cxt ftopa U.>>= \case
-    fa@(VPi x Impl a b) -> U.do
+    fa@(VPi (NI x Impl) a b) -> U.do
       if eqName cxt x (NSpan name) then
         U.pure (Infer t (G topa fa))
       else U.do
@@ -163,12 +163,12 @@ infer cxt topT = U.do
       \i ~t (G tty ftty) ->
 
       U.bind2 (\pure -> forceFU cxt tty U.>>= \case
-        VPi x i' a b | i == i'   -> pure a b
-                     | otherwise -> impossible
+        VPi (NI x i') a b | i == i'   -> pure a b
+                          | otherwise -> impossible
         ftty -> U.do
           a <- snd U.<$> freshMeta cxt
           b <- Closure (env cxt) U.<$> freshMetaUnder cxt i
-          let expected = VPi NX i a b
+          let expected = VPi (NI NX i) a b
           unify cxt topT (G tty ftty) (gjoin expected)
           pure a b)
       \ ~a ~b -> U.do
@@ -182,7 +182,7 @@ infer cxt topT = U.do
       let ~va = eval cxt a
       binding cxt x i (gjoin va) \cxt _ -> U.do
         b <- checkType cxt b
-        U.pure (Infer (Pi (bind x) i a b) (gjoin VU))
+        U.pure (Infer (Pi (NI (bind x) i) a b) (gjoin VU))
 
     P.Lam _ x P.Named{} ma t ->
       throw InferNamedLam
@@ -197,8 +197,8 @@ infer cxt topT = U.do
       \ ~a ~va -> U.do
 
       Infer t vb <- binding cxt x i (gjoin va) \cxt _ -> insertApps cxt (infer cxt t)
-      let ty = VPi (bind x) i va (valToClosure cxt (g1 vb))
-      U.pure (Infer (Lam (bind x) i t) (gjoin ty))
+      let ty = VPi (NI (bind x) i) va (valToClosure cxt (g1 vb))
+      U.pure (Infer (Lam (NI (bind x) i) t) (gjoin ty))
 
     P.U _ ->
       U.pure (Infer U (gjoin VU))
@@ -237,7 +237,7 @@ check cxt topT (G topA ftopA) = U.do
 
   ftopA <- forceFU cxt ftopA
   case (topT, ftopA) of
-    (P.Lam _ x inf ma t, VPi x' i a b)
+    (P.Lam _ x inf ma t, VPi (NI x' i) a b)
       | (case inf of P.NoName i' -> i == i'
                      P.Named n   -> eqName cxt x' (NSpan n) && i == Impl) ->
 
@@ -251,12 +251,12 @@ check cxt topT (G topA ftopA) = U.do
           pure va')
       \a ->
       binding cxt x i (gjoin a) \cxt v -> U.do
-        Lam (bind x) i U.<$> (check cxt t $! (gjoin $! appCl' cxt b v))
+        Lam (NI (bind x) i) U.<$> (check cxt t $! (gjoin $! appCl' cxt b v))
 
-    (t, VPi x Impl a b) ->
+    (t, VPi (NI x Impl) a b) ->
       inserting cxt x \cxt v -> U.do
         t <- check cxt t $! (gjoin $! appCl' cxt b v)
-        U.pure (Lam x Impl t)
+        U.pure (Lam (NI x Impl) t)
 
     (P.Let _ x ma t u, ftopA) ->
       checkWithAnnot cxt ma t \ ~t ~a va ->

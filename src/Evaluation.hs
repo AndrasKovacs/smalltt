@@ -41,7 +41,7 @@ app cxt t u i = case t of
   VLocalVar x sp   -> VLocalVar x (SApp sp u i)
   VUnfold   h sp v -> VUnfold h (SApp sp u i) (app cxt v u i)
   VFlex     x sp   -> VFlex x (SApp sp u i)
-  VLam _ _ t       -> appCl' cxt t u
+  VLam _ t         -> appCl' cxt t u
   VIrrelevant      -> VIrrelevant
   _                -> impossible
 
@@ -50,7 +50,7 @@ inlApp cxt t u i = case t of
   VLocalVar x sp   -> VLocalVar x (SApp sp u i)
   VUnfold   h sp v -> VUnfold h (SApp sp u i) (app cxt v u i)
   VFlex     x sp   -> VFlex x (SApp sp u i)
-  VLam _ _ t       -> appCl' cxt t u
+  VLam _ t         -> appCl' cxt t u
   VIrrelevant      -> VIrrelevant
   _                -> impossible
 {-# inline inlApp #-}
@@ -101,8 +101,8 @@ eval' cxt ~e = \case
   App t u i      -> inlApp cxt (eval' cxt e t) (eval' cxt e u) i
   Let _ _ t u    -> let ~vt = eval' cxt e t; e' = EDef e vt in eval' cxt e' u
   InsertedMeta x -> insertedMeta cxt e x
-  Lam x i t      -> VLam x i (Closure e t)
-  Pi x i a b     -> VPi x i (eval' cxt e a) (Closure e b)
+  Lam xi t       -> VLam xi (Closure e t)
+  Pi xi a b      -> VPi xi (eval' cxt e a) (Closure e b)
   Irrelevant     -> VIrrelevant
   U              -> VU
 
@@ -169,8 +169,8 @@ quote cxt l opt t = let
     VUnfold (UHSolved x)   sp _ -> goSp (Meta x) sp
     VUnfold (UHTopVar x v) sp _ -> goSp (TopVar x v) sp
     VLocalVar x sp              -> goSp (LocalVar (lvlToIx l x)) sp
-    VLam x i t                  -> Lam x i (goBind t)
-    VPi x i a b                 -> Pi x i (go a) (goBind b)
+    VLam xi t                   -> Lam xi (goBind t)
+    VPi xi a b                  -> Pi xi (go a) (goBind b)
     VU                          -> U
     VIrrelevant                 -> Irrelevant
 

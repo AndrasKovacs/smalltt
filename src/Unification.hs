@@ -128,10 +128,10 @@ occurs ms frz occ t = let
     TopVar x _     -> U.pure UTrue
     Let x a t u    -> (\x y z -> x <> y <> z) U.<$> go a U.<*> go t U.<*> go u
     App t u i      -> (<>) U.<$> go t U.<*> go u
-    Lam x i t      -> go t
+    Lam _ t        -> go t
     InsertedMeta x -> occurs' ms frz occ x
     Meta x         -> occurs' ms frz occ x
-    Pi x i a b     -> (<>) U.<$> go a U.<*> go b
+    Pi _ a b       -> (<>) U.<$> go a U.<*> go b
     Irrelevant     -> U.pure UTrue
     U              -> U.pure UTrue
 
@@ -181,14 +181,14 @@ rename' ms frz pren rs t = let
       else
         U.pure (t // tf)
 
-    VLam x i t -> U.do
+    VLam xi t -> U.do
       (t, tf) <- goBind t
-      U.pure (Lam x i t // tf)
+      U.pure (Lam xi t // tf)
 
-    VPi x i a b -> U.do
+    VPi xi a b -> U.do
       (a, af) <- go a
       (b, bf) <- goBind b
-      U.pure (Pi x i a b // af <> bf)
+      U.pure (Pi xi a b // af <> bf)
 
     VU ->
       U.pure (U // UTrue)
@@ -231,8 +231,8 @@ fullcheck ms frz pren v = U.do
       | otherwise ->
         goSp sp
 
-    VLam x i t  -> goBind t
-    VPi x i a b -> (<>) U.<$> go a U.<*> goBind b
+    VLam _ t    -> goBind t
+    VPi _ a b   -> (<>) U.<$> go a U.<*> goBind b
     VUnfold{}   -> impossible
     VU          -> U.pure UTrue
     VIrrelevant -> U.pure UTrue
@@ -273,7 +273,7 @@ invertSp cxt gamma m sp trim = U.do
 
 lams :: Spine -> Tm -> Tm
 lams SId           acc = acc
-lams (SApp sp t i) acc = lams sp (Lam NX i acc)
+lams (SApp sp t i) acc = lams sp (Lam (NI NX i) acc)
 
 guardCS :: ConvState -> U.IO ()
 guardCS cs = U.when (cs == CSFlex) $ throw $ UnifyEx CSFlexSolution
@@ -312,9 +312,14 @@ solve cxt l x ~sp ~rhs = U.do
   debug ["attempt solve", show (VFlex x sp), show rhs]
   frz <- U.io getFrozen
   U.when (x < frz) $ throw $ UnifyEx $ FrozenSolution x
+
+  -- TURN OFF eta-contraction here
+
   etaContract sp rhs \sp rhs trim -> U.do
+
   -- U.do
   --   let trim = mempty
+
     pren <- invertSp cxt l x sp trim
     rhs <- lams sp U.<$> rename cxt frz pren rhs
     debug ["renamed", show rhs]
@@ -323,7 +328,7 @@ solve cxt l x ~sp ~rhs = U.do
 
 solveLong :: MetaCxt -> Lvl -> MetaVar -> Spine -> Val -> U.IO ()
 solveLong cxt l x sp rhs = forceFU cxt rhs U.>>= \case
-  VLam _ i t ->
+  VLam (NI _ i) t ->
     let v = VLocalVar l SId
     in solveLong cxt (l + 1) x (SApp sp v i) (appCl' cxt t v)
   VFlex x' sp' | x == x'   -> unifySp cxt l CSFull sp sp'
@@ -338,7 +343,7 @@ flexFlex cxt l t x ~sp t' x' ~sp' =
 
 rigidEtaSp :: MetaCxt -> Lvl -> ConvState -> Lvl -> Spine -> Val -> U.IO ()
 rigidEtaSp cxt l cs x sp v = forceCS cxt cs v U.>>= \case
-  VLam _ i t' ->
+  VLam (NI _ i) t' ->
     let v = VLocalVar l SId
     in rigidEtaSp cxt (l + 1) cs x (SApp sp v i) (appCl' cxt t' v)
   VLocalVar x' sp' | x == x' ->
@@ -348,10 +353,10 @@ rigidEtaSp cxt l cs x sp v = forceCS cxt cs v U.>>= \case
 
 rigidEta :: MetaCxt -> Lvl -> ConvState -> Val -> Val -> U.IO ()
 rigidEta cxt l cs ~t ~t' = case (t, t') of
-  (VLocalVar x sp, VLam _ i t')  ->
+  (VLocalVar x sp, VLam (NI _ i) t')  ->
     let v = VLocalVar l SId
     in rigidEtaSp cxt (l + 1) cs x (SApp sp v i) (appCl' cxt t' v)
-  (VLam _ i t, VLocalVar x' sp') ->
+  (VLam (NI _ i) t, VLocalVar x' sp') ->
     let v = VLocalVar l SId
     in rigidEtaSp cxt (l + 1) cs x' (SApp sp' v i) (appCl' cxt t v)
   _ ->
@@ -383,10 +388,10 @@ unify cxt l cs (G topt ftopt) (G topt' ftopt') = let
     case (t, t') of
 
       -- rigid, canonical
-      (VLocalVar x sp, VLocalVar x' sp') | x == x' -> unifySp cxt l cs sp sp'
-      (VLam _ _ t    , VLam _ _ t'     )           -> goBind t t'
-      (VPi _ i a b   , VPi _ i' a' b'  ) | i == i' -> go' a a' U.>> goBind b b'
-      (VU            , VU              )           -> U.pure ()
+      (VLocalVar x sp  , VLocalVar x' sp'   ) | x == x' -> unifySp cxt l cs sp sp'
+      (VLam _ t        , VLam _ t'          )           -> goBind t t'
+      (VPi (NI _ i) a b, VPi (NI _ i') a' b') | i == i' -> go' a a' U.>> goBind b b'
+      (VU              , VU                 )           -> U.pure ()
 
       (VFlex x sp, VFlex x' sp')
         | x == x'   -> unifySp cxt l cs sp sp'

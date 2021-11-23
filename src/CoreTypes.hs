@@ -57,8 +57,8 @@ data Val
   = VLocalVar Lvl Spine
   | VFlex MetaVar Spine
   | VUnfold UnfoldHead Spine ~Val
-  | VLam Name Icit Closure
-  | VPi Name Icit VTy Closure
+  | VLam NameIcit Closure
+  | VPi NameIcit VTy Closure
   | VU
   | VIrrelevant
   deriving Show
@@ -72,10 +72,10 @@ data Tm
   | TopVar Lvl ~Val
   | Let Span Tm Tm Tm
   | App Tm Tm Icit
-  | Lam Name Icit Tm
+  | Lam NameIcit Tm
   | InsertedMeta MetaVar
   | Meta MetaVar
-  | Pi Name Icit Ty Ty
+  | Pi NameIcit Ty Ty
   | Irrelevant
   | U
   deriving Show
@@ -240,19 +240,19 @@ prettyTm ms prec src ns t = go prec ns t where
     App t u Expl -> par p appp $ go appp ns t . (' ':) . go atomp ns u
     App t u Impl -> par p appp $ go appp ns t . (' ':) . bracket (go letp ns u)
 
-    Lam (fresh ns -> (n, x)) i t ->
+    Lam (NI (fresh ns -> (n, x)) i) t ->
       par p letp $ ("λ "++) . lamBind x i . goLam (NCons ns n) t where
-        goLam ns (Lam (fresh ns -> (n, x)) i t) =
+        goLam ns (Lam (NI (fresh ns -> (n, x)) i) t) =
           (' ':) . lamBind x i . goLam (NCons ns n) t
         goLam ns t =
           (". "++) . go letp ns t
 
     U                   -> ("U"++)
-    Pi NEmpty Expl a b  -> par p pip $ go appp ns a . (" → "++) . go pip (NCons ns NEmpty) b
+    Pi (NI NEmpty Expl) a b  -> par p pip $ go appp ns a . (" → "++) . go pip (NCons ns NEmpty) b
 
-    Pi (fresh ns -> (n, x)) i a b ->
+    Pi (NI (fresh ns -> (n, x)) i) a b ->
       par p pip $ piBind ns x i a . goPi (NCons ns n) b where
-        goPi ns (Pi (fresh ns -> (n, x)) i a b)
+        goPi ns (Pi (NI (fresh ns -> (n, x)) i) a b)
           | x /= "_" = piBind ns x i a . goPi (NCons ns n) b
         goPi ns b = (" → "++) . go pip ns b
 
