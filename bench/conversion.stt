@@ -66,36 +66,64 @@ node : Tree → Tree → Tree = λ t1 t2 T n l. n (t1 T n l) (t2 T n l)
 fullTree : Nat → Tree
  = λ n. n Tree (λ t. node t t) leaf
 
+-- full tree with given trees at bottom level
+fullTreeWithLeaf : Tree → Nat → Tree
+ = λ bottom n. n Tree (λ t. node t t) bottom
+
 forceTree : Tree → Bool
  = λ t. t Bool and true
 
-t20k   = fullTree n10
-t20kb  = fullTree n10b
-t65k   = fullTree n15
-t65kb  = fullTree n15b
-t512k  = fullTree n18
-t512kb = fullTree n18b
-t1M    = fullTree n19
-t1Mb   = fullTree n19b
-t2M    = fullTree n20
-t2Mb   = fullTree n20b
-t4M    = fullTree n22
-t4Mb   = fullTree n22b
-t8M    = fullTree n23
-t8Mb   = fullTree n23b
+t15  = fullTree n15
+t15b = fullTree n15b
+t18  = fullTree n18
+t18b = fullTree n18b
+t19  = fullTree n19
+t19b = fullTree n19b
+t20  = fullTree n20
+t20b = fullTree n20b
+t21  = fullTree n21
+t21b = fullTree n21b
+t22  = fullTree n22
+t22b = fullTree n22b
+t23  = fullTree n23
+t23b = fullTree n23b
+
+-- Nat conversion
+--------------------------------------------------------------------------------
 
 -- convn1M : Eq n1M n1Mb = refl
 -- convn5M : Eq n5M n5Mb = refl
 -- convn10M : Eq n10M n5Mb = refl
 
--- convt20k  : Eq t20k t20kb = refl
--- convt65k  : Eq t65k t65kb = refl
--- convt512K : Eq t512k t512kb = refl
--- convt1M   : Eq t1M t1Mb = refl
--- convt2M   : Eq t2M t2Mb = refl
--- convt4M   : Eq t4M t4Mb = refl
--- convt8M   : Eq t8M t8Mb = refl
+-- Full tree conversion
+--------------------------------------------------------------------------------
 
-forcet2M = forceTree t2M
-forcet4M = forceTree t4M
-forcet8M = forceTree t8M
+-- convt15  : Eq t15  t15b  = refl
+-- convt18  : Eq t18  t18b  = refl
+-- convt19  : Eq t19  t19b  = refl
+-- convt20  : Eq t20  t20b  = refl
+-- convt21  : Eq t21  t21b  = refl
+-- convt22  : Eq t22  t22b  = refl
+-- convt23  : Eq t23  t23b  = refl
+
+-- Full meta-containing tree conversion
+--------------------------------------------------------------------------------
+
+-- convmt15 : Eq t15  (fullTreeWithLeaf _ n15 ) = refl
+-- convmt18 : Eq t18  (fullTreeWithLeaf _ n18 ) = refl
+-- convmt19 : Eq t19  (fullTreeWithLeaf _ n19 ) = refl
+-- convmt20 : Eq t20  (fullTreeWithLeaf _ n20 ) = refl
+-- convmt21 : Eq t21  (fullTreeWithLeaf _ n21 ) = refl
+-- convmt22 : Eq t22  (fullTreeWithLeaf _ n22 ) = refl
+-- convmt23 : Eq t23  (fullTreeWithLeaf _ n23 ) = refl
+
+-- Full tree forcing
+--------------------------------------------------------------------------------
+
+forcet15  = forceTree t15
+forcet18  = forceTree t18
+forcet19  = forceTree t19
+forcet20  = forceTree t20
+forcet21  = forceTree t21
+forcet22  = forceTree t22
+forcet23  = forceTree t23

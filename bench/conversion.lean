@@ -1,4 +1,7 @@
 
+-- Notes: some kind of memoization is likely up to tree 1M conversion
+--        at 2M it slows down 100x
+
 set_option maxHeartbeats 1000000
 set_option maxRecDepth   1000000
 
@@ -48,34 +51,77 @@ def n10Mb  := mul n5Mb  n2
 def Tree := ∀ (T : Type u), (T → T → T) → T → T
 def leaf : Tree := λ T n l => l
 def node (t1 t2 : Tree) : Tree := λ T n l => n (t1 T n l) (t2 T n l)
-def fullTree (n : CNat) : Tree := n _ (λ t => node t t) leaf
+def fullTree (n : CNat) : Tree := n Tree (λ t => node t t) leaf
 
-def t20k  := fullTree n10
-def t20kb := fullTree n10b
-def t65k  := fullTree n15
-def t65kb := fullTree n15b
-def t512k  := fullTree n18
-def t512kb := fullTree n18b
-def t1M  := fullTree n19
-def t1Mb := fullTree n19b
-def t2M  := fullTree n20
-def t2Mb := fullTree n20b
-def t4M  := fullTree n22
-def t4Mb := fullTree n22b
-def t8M  := fullTree n23
-def t8Mb := fullTree n23b
+def fullTree2 (n : CNat) : Tree := n Tree (λ t => node t (node t leaf)) leaf
 
-def forceTree : Tree → Bool := λ t => t Bool and true
+-- full tree with given trees at bottom level
+def fullTreeWithLeaf : Tree → CNat → Tree
+ := λ bottom n => n Tree (λ t => node t t) bottom
 
--- def convt20k : t20k = t20kb := rfl
--- def convt65k : t65k = t65kb := rfl
--- def convt512k : t512k = t512kb := rfl
--- def convt1M  : t1M = t1Mb := rfl
--- def convt2M  : t2M = t2Mb := rfl
+def forceTree : Tree → Bool
+ := λ t => t CBool cand ctrue _ true false
 
--- def convt4M  : t4M = t4Mb := rfl
--- def convt8M  : t8M = t8Mb := rfl
+--------------------------------------------------------------------------------
 
--- #eval forceTree t2M
--- #eval forceTree t4M
--- #eval forceTree t8M
+def t15  := fullTree n15
+def t15b := fullTree n15b
+def t18  := fullTree n18
+def t18b := fullTree n18b
+def t19  := fullTree n19
+def t19b := fullTree n19b
+def t20  := fullTree n20
+def t20b := fullTree n20b
+def t21  := fullTree n21
+def t21b := fullTree n21b
+def t22  := fullTree n22
+def t22b := fullTree n22b
+def t23  := fullTree n23
+def t23b := fullTree n23b
+
+-- Nat conversion
+--------------------------------------------------------------------------------
+
+-- not enough stack space
+
+-- Full tree conversion
+--------------------------------------------------------------------------------
+
+-- def convt15  : t15 =  t15b  := rfl
+-- def convt18  : t18 =  t18b  := rfl
+-- def convt19  : t19 =  t19b  := rfl
+-- def convt20  : t20 =  t20b  := rfl
+-- def convt21  : t21 =  t21b  := rfl
+-- def convt22  : t22 =  t22b  := rfl
+-- def convt23  : t23 =  t23b  := rfl
+
+-- Full meta-containing tree conversion
+--------------------------------------------------------------------------------
+
+-- * does not elaborate! "can't synthesize placeholder"
+-- def convmt15 : t15 = (fullTreeWithLeaf _ n15 ) := rfl
+-- def convmt18 : t18 = (fullTreeWithLeaf _ n18 ) := rfl
+-- def convmt19 : t19 = (fullTreeWithLeaf _ n19 ) := rfl
+-- def convmt20 : t20 = (fullTreeWithLeaf _ n20 ) := rfl
+-- def convmt21 : t21 = (fullTreeWithLeaf _ n21 ) := rfl
+-- def convmt22 : t22 = (fullTreeWithLeaf _ n22 ) := rfl
+-- def convmt23 : t23 = (fullTreeWithLeaf _ n23 ) := rfl
+
+-- Full tree forcing
+--------------------------------------------------------------------------------
+
+-- #reduce forceTree t15
+-- #reduce forceTree t18
+-- #reduce forceTree t19
+-- #reduce forceTree t20
+-- #reduce forceTree t21
+-- #reduce forceTree t22
+-- #reduce forceTree t23
+
+-- #eval forceTree t15
+-- #eval forceTree t18
+-- #eval forceTree t19
+-- #eval forceTree t20
+-- #eval forceTree t21
+-- #eval forceTree t22
+-- #eval forceTree t23

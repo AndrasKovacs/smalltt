@@ -7,6 +7,8 @@ An alternative IO implementation, working around GHC's inability to unbox throug
 
 module UIO where
 
+import Data.Time.Clock
+
 import qualified "primdata" IO   as StdIO
 import qualified Data.Ref.UUU    as RUUU
 import qualified Data.Ref.FFF    as RFFF
@@ -158,3 +160,18 @@ instance CanIO () where
   pure# ~_ s = (# s, (# #) #)
   {-# inline bind #-}
   {-# inline pure# #-}
+
+--------------------------------------------------------------------------------
+
+CAN_IO(UTCTime, LiftedRep, UTCTime, x, CoeUTCTime)
+CAN_IO2((a, NominalDiffTime), LiftedRep, LiftedRep, a, NominalDiffTime, (x, y), CoeTimed)
+
+-- | Time an IO computation. Result is forced to whnf.
+timed :: CanIO a => IO a -> IO (a, NominalDiffTime)
+timed a =
+  io getCurrentTime >>= \t1 ->
+  a >>= \res ->
+  io getCurrentTime >>= \t2 ->
+  let diff = diffUTCTime t2 t1
+  in pure (res, diff)
+{-# inline timed #-}

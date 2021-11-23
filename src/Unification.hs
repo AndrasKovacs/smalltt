@@ -383,6 +383,10 @@ unify cxt l cs (G topt ftopt) (G topt' ftopt') = let
   {-# inline goBind #-}
 
   in U.do
+    -- turn off speculative conversion
+
+    -- t  <- forceFU cxt ftopt
+    -- t' <- forceFU cxt ftopt'
     t  <- forceCS cxt cs ftopt
     t' <- forceCS cxt cs ftopt'
     case (t, t') of

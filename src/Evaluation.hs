@@ -12,10 +12,6 @@ import CoreTypes
 
 --------------------------------------------------------------------------------
 
--- TODO: inserted meta better evaluation (dep on solved/unsolved)
-
---------------------------------------------------------------------------------
-
 localVar :: Env -> Ix -> Val
 localVar (EDef _ v) 0 = v
 localVar (EDef e _) x = localVar e (x - 1)

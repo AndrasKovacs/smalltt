@@ -297,6 +297,32 @@ elabTopLevel topCxt = \case
         elabTopLevel topCxt u
 {-# noinline elabTopLevel #-}
 
+-- elabTopLevel :: Top.Cxt -> P.TopLevel -> U.IO Top.Cxt
+-- elabTopLevel topCxt = \case
+--   P.Nil ->
+--     U.pure topCxt
+--   P.Definition x ma t u -> U.do
+--     frz <- MC.size $ Top.mcxt topCxt
+--     U.io $ setFrozen (coerce frz)
+--     let cxt = empty topCxt
+--     U.bind3 (\pure -> case ma of
+--       UNothing -> U.do
+--         (Infer t va, time) <- U.timed (insertApps cxt $ infer cxt t)
+--         let a = quote cxt UnfoldNone (g1 va)
+--         U.io $ putStrLn $ showSpan (ST.src (Top.tbl topCxt)) x ++ " " ++ show time
+--         pure t a va
+--       UJust a -> U.do
+--         a <- checkType cxt a
+--         let va = gjoin $! eval cxt a
+--         (t, time) <- U.timed (check cxt t va)
+--         U.io $ putStrLn $ showSpan (ST.src (Top.tbl topCxt)) x ++ " " ++ show (time * 1000)
+--         pure t a va)
+--       \ ~t ~a va -> U.do
+--         metascope <- MC.size $ Top.mcxt topCxt
+--         topCxt <- Top.define x a va t (coerce metascope) topCxt
+--         elabTopLevel topCxt u
+-- {-# noinline elabTopLevel #-}
+
 elab :: B.ByteString -> P.TopLevel -> IO (Either Exception Top.Cxt)
 elab src top = U.toIO U.do
   U.io ElabState.reset

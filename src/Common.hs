@@ -409,7 +409,8 @@ timed a = do
   t1  <- getCurrentTime
   res <- a
   t2  <- getCurrentTime
-  P.pure (res, diffUTCTime t2 t1)
+  let diff = diffUTCTime t2 t1
+  P.pure (res, diff)
 {-# inline timed #-}
 
 -- | Time a lazy pure value. Result is forced to whnf.
@@ -418,5 +419,6 @@ timedPure ~a = do
   t1  <- getCurrentTime
   let res = a
   t2  <- getCurrentTime
-  P.pure (res, diffUTCTime t2 t1)
+  let diff = diffUTCTime t2 t1
+  P.pure (res, diff)
 {-# noinline timedPure #-}

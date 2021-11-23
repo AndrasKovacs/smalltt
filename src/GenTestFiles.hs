@@ -16,11 +16,15 @@ smallttStlc10k       = writeFile "bench/stlc10k.stt"         $ times 80 smallttS
 smallttStlcNoImpl10k = writeFile "bench/stlc_noimpl10k.stt"  $ times 80 smallttStlcNoImpl
 smallttStlc100k      = writeFile "bench/stlc100k.stt"        $ times 800 smallttStlc
 
+leanStlc1k           = writeFile "bench/stlc1k.lean"         $ times 8 leanStlc
+leanStlc5k           = writeFile "bench/stlc5k.lean"         $ times 40 leanStlc
 leanStlc10k          = writeFile "bench/stlc10k.lean"        $ times 80 leanStlc
 leanStlcNoImpl10k    = writeFile "bench/stlc_noimpl10k.lean" $ times 80 leanStlcNoImpl
 leanStlc100k         = writeFile "bench/stlc100k.lean"       $ times 800 leanStlc
 
 agdaStlcNoImpl10k    = writeFile "bench/stlc_noimpl10k.agda" $ times 80 agdaStlcNoImpl
+agdaStlc1k           = writeFile "bench/stlc1k.agda"         $ times 8 agdaStlc
+agdaStlc5k           = writeFile "bench/stlc5k.agda"         $ times 16 agdaStlc
 agdaStlc10k          = writeFile "bench/stlc10k.agda"        $ times 80 agdaStlc
 agdaStlc100k         = writeFile "bench/stlc100k.agda"       $ times 800 agdaStlc
 
