@@ -281,7 +281,8 @@ guardCS cs = U.when (cs == CSFlex) $ throw $ UnifyEx CSFlexSolution
 
 
 data SSLS = SSLS Spine Spine LS.LvlSet
-CAN_IO3(SSLS, LiftedRep, LiftedRep, IntRep, Spine, Spine, Int#, SSLS x y (LS.LvlSet (I# z)), CoeSSLS)
+CAN_IO3(SSLS, LiftedRep, LiftedRep, IntRep, Spine, Spine, Int#,
+        SSLS x y (LS.LvlSet (I# z)), CoeSSLS)
 
 -- Try to eta contract both sides, return trimmed lhs, rhs, and the set of
 -- variables that were trimmed.
@@ -312,6 +313,8 @@ solve cxt l x ~sp ~rhs = U.do
   frz <- U.io getFrozen
   U.when (x < frz) $ throw $ UnifyEx $ FrozenSolution x
   etaContract sp rhs \sp rhs trim -> U.do
+  -- U.do
+  --   let trim = mempty
     pren <- invertSp cxt l x sp trim
     rhs <- lams sp U.<$> rename cxt frz pren rhs
     debug ["renamed", show rhs]

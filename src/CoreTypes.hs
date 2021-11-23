@@ -1,30 +1,7 @@
 {-# language UnboxedTuples  #-}
 {-# options_ghc -funbox-strict-fields #-}
 
-module CoreTypes (
-    Spine(..)
-  , Closure(..)
-  , Env(..)
-  , Ty
-  , VTy
-  , Val(..)
-  , Tm(..)
-  , TopInfo
-  , TopVals
-  , TopEntry(..)
-  , UnfoldHead
-  , pattern UHTopVar
-  , pattern UHSolved
-  , G(..)
-  , GTy
-  , gjoin
-  , eqUH
-  , Names(..)
-  , prettyTm
-  , showTm0
-  , MetaCxt
-  , MetaEntry(..)
-  ) where
+module CoreTypes where
 
 import qualified Data.ByteString      as B
 import qualified Data.Array.LM        as ALM
@@ -43,6 +20,7 @@ import Data.Bits
 
 #include "deriveCanIO.h"
 
+-- Metacxt
 --------------------------------------------------------------------------------
 
 data MetaEntry = Unsolved LS.LvlSet | Solved (RF.Ref MetaVar) LS.LvlSet Tm ~Val

@@ -36,6 +36,13 @@ import qualified UIO
 
 #include "deriveCanIO.h"
 
+-- config
+--------------------------------------------------------------------------------
+
+-- | Maximum number of allowed local binders.
+maxLocals :: Lvl
+maxLocals = 64; {-# inline maxLocals #-}
+
 -- debug printing, toggled by "debug" cabal flag
 --------------------------------------------------------------------------------
 
@@ -98,10 +105,6 @@ infixl 0 $$!
 ($$!) :: (a -> b) -> a -> b
 ($$!) f x = f x
 {-# inline ($$!) #-}
-
--- | Maximum number of allowed local binders.
-maxLocals :: Lvl
-maxLocals = 64; {-# inline maxLocals #-}
 
 -- Unboxed Maybe
 --------------------------------------------------------------------------------
@@ -175,6 +178,7 @@ instance Show QuoteOption where
   show UnfoldFlex = "UnfoldFlex"
   show UnfoldNone = "UnfoldNone"
 
+-- Icitness
 --------------------------------------------------------------------------------
 
 newtype Icit = Icit# Int deriving Eq

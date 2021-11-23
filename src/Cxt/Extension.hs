@@ -27,7 +27,7 @@ binding (Cxt lvl env mask tbl mcxt ns) x i a k = let
     BEmpty  -> U.do
       k (Cxt lvl' env' mask' tbl mcxt (NCons ns NEmpty)) v
     BSpan x -> U.do
-      U.when (lvl >= 64) $ throw TooManyLocals
+      U.when (lvl' > maxLocals) $ throw TooManyLocals
       h   <- ST.hash tbl x
       old <- ST.insertWithHash x h (ST.Local lvl a) tbl
       res <- k (Cxt lvl' env' mask' tbl mcxt (NCons ns (NSpan x))) v
