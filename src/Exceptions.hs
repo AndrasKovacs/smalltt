@@ -84,10 +84,10 @@ showException src = \case
     printf ("Can't solve frozen metavariable %s when trying to " ++
             "unify\n\n  %s\n\nwith\n\n  %s\n")
       (show x)
-      (showValOpt cxt l UnfoldFlex) (showValOpt cxt r UnfoldFlex)
+      (showValOpt cxt l UnfoldMetas) (showValOpt cxt r UnfoldMetas)
   UnifyError cxt t l r _ -> render src (P.span t) $
     printf "Can't unify\n\n  %s\n\nwith\n\n  %s\n"
-      (showValOpt cxt l UnfoldFlex) (showValOpt cxt r UnfoldFlex)
+      (showValOpt cxt l UnfoldMetas) (showValOpt cxt r UnfoldMetas)
   TooManyLocals ->
     "Too many local variables! You can't have more than 64."
   UnifyEx _ ->

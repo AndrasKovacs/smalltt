@@ -1,0 +1,129 @@
+
+Bool : U
+ = (B : U) → B → B → B
+
+true : Bool
+ = λ B t f. t
+
+and : Bool → Bool → Bool
+ = λ a b B t f. a B (b B t f) f
+
+Nat : U
+ = (n : U) → (n → n) → n → n
+
+add : Nat → Nat → Nat
+ = λ a b n s z. a n s (b n s z)
+
+mul : Nat → Nat → Nat
+ = λ a b n s. a n (b n s)
+
+suc : Nat → Nat
+ = λ a n s z. s (a n s z)
+
+Eq : {A : U} → A → A → U
+ = λ {A} x y. (P : A → U) → P x → P y
+
+refl : {A : U}{x : A} → Eq {A} x x
+ = λ P px. px
+
+n2  : Nat = λ N s z. s (s z)
+n3  : Nat = λ N s z. s (s (s z))
+n4  : Nat = λ N s z. s (s (s (s z)))
+n5  : Nat = λ N s z. s (s (s (s (s z))))
+n10    = mul n2 n5
+n10b   = mul n5 n2
+n15    = add n10  n5
+n15b   = add n10b n5
+n18    = add n15  n3
+n18b   = add n15b n3
+n19    = add n15  n4
+n19b   = add n15b n4
+n20    = mul n2 n10
+n20b   = mul n2 n10b
+n21    = suc n20
+n21b   = suc n20b
+n22    = suc n21
+n22b   = suc n21b
+n23    = suc n22
+n23b   = suc n22b
+n100   = mul n10   n10
+n100b  = mul n10b  n10b
+n10k   = mul n100  n100
+n10kb  = mul n100b n100b
+n100k  = mul n10k  n10
+n100kb = mul n10kb n10b
+n1M    = mul n10k  n100
+n1Mb   = mul n10kb n100b
+n5M    = mul n1M   n5
+n5Mb   = mul n1Mb  n5
+n10M   = mul n5M   n2
+n10Mb  = mul n5Mb  n2
+
+Tree : U = (T : U) → (T → T → T) → T → T
+leaf : Tree = λ T n l. l
+node : Tree → Tree → Tree = λ t1 t2 T n l. n (t1 T n l) (t2 T n l)
+
+fullTree : Nat → Tree
+ = λ n. n Tree (λ t. node t t) leaf
+
+-- full tree with given trees at bottom level
+fullTreeWithLeaf : Tree → Nat → Tree
+ = λ bottom n. n Tree (λ t. node t t) bottom
+
+forceTree : Tree → Bool
+ = λ t. t Bool and true
+
+t15  = fullTree n15
+t15b = fullTree n15b
+t18  = fullTree n18
+t18b = fullTree n18b
+t19  = fullTree n19
+t19b = fullTree n19b
+t20  = fullTree n20
+t20b = fullTree n20b
+t21  = fullTree n21
+t21b = fullTree n21b
+t22  = fullTree n22
+t22b = fullTree n22b
+t23  = fullTree n23
+t23b = fullTree n23b
+
+-- Nat conversion
+--------------------------------------------------------------------------------
+
+-- convn1M : Eq n1M n1Mb = refl      -- 65 ms
+-- convn5M : Eq n5M n5Mb = refl      -- 206 ms
+-- convn10M : Eq n10M n10Mb = refl   -- 600 ms
+
+-- Full tree conversion
+--------------------------------------------------------------------------------
+
+-- convt15  : Eq t15  t15b  = refl  -- 15 ms
+-- convt18  : Eq t18  t18b  = refl  -- 90 ms
+-- convt19  : Eq t19  t19b  = refl  -- 170 ms
+-- convt20  : Eq t20  t20b  = refl  -- 388 ms
+-- convt21  : Eq t21  t21b  = refl  -- 857 ms
+-- convt22  : Eq t22  t22b  = refl  -- 1.8 s
+-- convt23  : Eq t23  t23b  = refl  -- 3.6 s
+
+-- Full meta-containing tree conversion
+--------------------------------------------------------------------------------
+
+-- convmt15 : Eq t15  (fullTreeWithLeaf _ n15 ) = refl -- 15 ms
+-- convmt18 : Eq t18  (fullTreeWithLeaf _ n18 ) = refl -- 90 ms
+-- convmt19 : Eq t19  (fullTreeWithLeaf _ n19 ) = refl -- 187 ms
+-- convmt20 : Eq t20  (fullTreeWithLeaf _ n20 ) = refl -- 387 ms
+-- convmt21 : Eq t21  (fullTreeWithLeaf _ n21 ) = refl -- 820 ms
+-- convmt22 : Eq t22  (fullTreeWithLeaf _ n22 ) = refl -- 1.7 s
+-- convmt23 : Eq t23  (fullTreeWithLeaf _ n23 ) = refl -- 3.35 s
+
+-- Full tree forcing
+--------------------------------------------------------------------------------
+
+forcet15  = forceTree t15 -- 13 ms
+forcet18  = forceTree t18 -- 105 ms
+forcet19  = forceTree t19 -- 200 ms
+forcet20  = forceTree t20 -- 460 ms
+forcet21  = forceTree t21 -- 990 ms
+forcet22  = forceTree t22 -- 2.15 s
+forcet23  = forceTree t23 -- 4.35 s

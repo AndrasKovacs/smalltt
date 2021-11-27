@@ -28,7 +28,7 @@ import ElabState
 
 unify :: Cxt -> P.Tm -> G -> G -> U.IO ()
 unify cxt t l r = U.do
-  debug ["unify", showValOpt cxt (g1 l) UnfoldNone, showValOpt cxt (g1 r) UnfoldNone]
+  debug ["unify", showValOpt cxt (g1 l) UnfoldMetas, showValOpt cxt (g1 r) UnfoldMetas]
   Unif.unify (mcxt cxt) (lvl cxt) CSRigid l r `catch` \case
     UnifyEx e -> throw $ UnifyError cxt t (g1 l) (g1 r) e
     _         -> impossible
@@ -75,7 +75,7 @@ freshMetaUnder cxt i = U.do
 {-# inline freshMetaUnder #-}
 
 goInsert' :: Cxt -> Infer -> U.IO Infer
-goInsert' cxt (Infer t (G a fa)) = forceFU cxt fa U.>>= \case
+goInsert' cxt (Infer t (G a fa)) = forceAll cxt fa U.>>= \case
   VPi (NI x Impl) a b -> U.do
     (m, mv) <- freshMeta cxt
     let b' = appCl' cxt b mv
@@ -99,7 +99,7 @@ insertApps cxt act = act U.>>= \case
 --   a particular binder name.
 insertAppsUntilName :: P.Tm -> Cxt -> Span -> U.IO Infer -> U.IO Infer
 insertAppsUntilName topT cxt name act = go cxt U.=<< act where
-  go cxt (Infer t (G topa ftopa)) = forceFU cxt ftopa U.>>= \case
+  go cxt (Infer t (G topa ftopa)) = forceAll cxt ftopa U.>>= \case
     fa@(VPi (NI x Impl) a b) -> U.do
       if eqName cxt x (NSpan name) then
         U.pure (Infer t (G topa fa))
@@ -119,6 +119,7 @@ infer cxt topT = U.do
   debug ["infer", showPTm cxt topT]
 
   Infer t a <- case topT of
+
     P.Var px -> U.do
       ma <- ST.lookup px (tbl cxt)
 
@@ -126,22 +127,21 @@ infer cxt topT = U.do
         UNothing             -> throw $ NotInScope px
         UJust (ST.Local x a) -> U.do
 
-          debugging U.do
-            foo <- U.io $ ST.assocs (tbl cxt)
-            debug ["local var", show foo, showSpan (src cxt) px, show x,
-                   show $ lvlToIx (lvl cxt) x, show $ lvl cxt]
+          -- debugging U.do
+          --   foo <- U.io $ ST.assocs (tbl cxt)
+          --   debug ["local var", show foo, showSpan (src cxt) px, show x,
+          --          show $ lvlToIx (lvl cxt) x, show $ lvl cxt]
 
           U.pure (Infer (LocalVar (lvlToIx (lvl cxt) x)) a)
 
         UJust (ST.Top _ ga _ t) -> U.do
 
-          debugging U.do
-            foo <- U.io $ ST.assocs (tbl cxt)
-            let x = case t of TopVar x _ -> x; _ -> impossible
-            debug ["top var", show foo, showSpan (src cxt) px, show x]
+          -- debugging U.do
+          --   foo <- U.io $ ST.assocs (tbl cxt)
+          --   let x = case t of TopVar x _ -> x; _ -> impossible
+          --   debug ["top var", show foo, showSpan (src cxt) px, show x]
 
           U.pure (Infer t ga)
-
 
     P.Let _ x ma t u ->
       checkWithAnnot cxt ma t \ ~t ~a va -> U.do
@@ -162,7 +162,7 @@ infer cxt topT = U.do
           pure Expl t tty)
       \i ~t (G tty ftty) ->
 
-      U.bind2 (\pure -> forceFU cxt tty U.>>= \case
+      U.bind2 (\pure -> forceAll cxt tty U.>>= \case
         VPi (NI x i') a b | i == i'   -> pure a b
                           | otherwise -> impossible
         ftty -> U.do
@@ -235,7 +235,7 @@ check :: Cxt -> P.Tm -> GTy -> U.IO Tm
 check cxt topT (G topA ftopA) = U.do
   debug ["check", showPTm cxt topT, showValOpt cxt topA UnfoldNone]
 
-  ftopA <- forceFU cxt ftopA
+  ftopA <- forceAll cxt ftopA
   case (topT, ftopA) of
     (P.Lam _ x inf ma t, VPi (NI x' i) a b)
       | (case inf of P.NoName i' -> i == i'
@@ -297,31 +297,6 @@ elabTopLevel topCxt = \case
         elabTopLevel topCxt u
 {-# noinline elabTopLevel #-}
 
--- elabTopLevel :: Top.Cxt -> P.TopLevel -> U.IO Top.Cxt
--- elabTopLevel topCxt = \case
---   P.Nil ->
---     U.pure topCxt
---   P.Definition x ma t u -> U.do
---     frz <- MC.size $ Top.mcxt topCxt
---     U.io $ setFrozen (coerce frz)
---     let cxt = empty topCxt
---     U.bind3 (\pure -> case ma of
---       UNothing -> U.do
---         (Infer t va, time) <- U.timed (insertApps cxt $ infer cxt t)
---         let a = quote cxt UnfoldNone (g1 va)
---         U.io $ putStrLn $ showSpan (ST.src (Top.tbl topCxt)) x ++ " " ++ show time
---         pure t a va
---       UJust a -> U.do
---         a <- checkType cxt a
---         let va = gjoin $! eval cxt a
---         (t, time) <- U.timed (check cxt t va)
---         U.io $ putStrLn $ showSpan (ST.src (Top.tbl topCxt)) x ++ " " ++ show (time * 1000)
---         pure t a va)
---       \ ~t ~a va -> U.do
---         metascope <- MC.size $ Top.mcxt topCxt
---         topCxt <- Top.define x a va t (coerce metascope) topCxt
---         elabTopLevel topCxt u
--- {-# noinline elabTopLevel #-}
 
 elab :: B.ByteString -> P.TopLevel -> IO (Either Exception Top.Cxt)
 elab src top = U.toIO U.do

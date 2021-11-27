@@ -106,6 +106,26 @@ infixl 0 $$!
 ($$!) f x = f x
 {-# inline ($$!) #-}
 
+-- Unboxed bool
+--------------------------------------------------------------------------------
+
+newtype UBool = UBool# Int deriving Eq via Int
+pattern UTrue, UFalse :: UBool
+pattern UTrue = UBool# 1
+pattern UFalse = UBool# 0
+{-# complete UTrue, UFalse #-}
+
+infixr 3 &&#
+(&&#) :: UBool -> UBool -> UBool
+(&&#) (UBool# x) (UBool# y) = UBool# (x .&. y)
+{-# inline (&&#) #-}
+
+CAN_IO(UBool, IntRep, Int#, UBool# (I# x), CoeUBool)
+
+instance Show UBool where
+  show UTrue = "True"
+  show _     = "False"
+
 -- Unboxed Maybe
 --------------------------------------------------------------------------------
 
@@ -166,17 +186,20 @@ instance Show ConvState where
 
 newtype QuoteOption = QuoteOption# Int deriving Eq via Int
 pattern UnfoldAll :: QuoteOption
-pattern UnfoldAll  = QuoteOption# 0
-pattern UnfoldFlex :: QuoteOption
-pattern UnfoldFlex = QuoteOption# 1
+pattern UnfoldAll = QuoteOption# 0
+pattern UnfoldMetas :: QuoteOption
+pattern UnfoldMetas = QuoteOption# 1
+pattern UnfoldTop :: QuoteOption
+pattern UnfoldTop = QuoteOption# 2
 pattern UnfoldNone :: QuoteOption
-pattern UnfoldNone = QuoteOption# 2
-{-# complete UnfoldAll, UnfoldFlex, UnfoldNone #-}
+pattern UnfoldNone = QuoteOption# 3
+{-# complete UnfoldAll, UnfoldMetas, UnfoldTop, UnfoldNone #-}
 
 instance Show QuoteOption where
-  show UnfoldAll  = "UnfoldAll"
-  show UnfoldFlex = "UnfoldFlex"
-  show UnfoldNone = "UnfoldNone"
+  show UnfoldAll   = "UnfoldAll"
+  show UnfoldMetas = "UnfoldMetas"
+  show UnfoldTop   = "UnfoldTop"
+  show UnfoldNone  = "UnfoldNone"
 
 -- Icitness
 --------------------------------------------------------------------------------

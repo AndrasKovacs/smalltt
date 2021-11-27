@@ -39,13 +39,13 @@ showValOpt :: Cxt -> Val -> QuoteOption -> String
 showValOpt cxt t opt = showTm cxt (quote cxt opt t)
 {-# inline showValOpt #-}
 
-forceFU :: Cxt -> Val -> U.IO Val
-forceFU cxt t = E.forceFU (mcxt cxt) t
-{-# inline forceFU #-}
+force :: Cxt -> Val -> U.IO Val
+force cxt t = E.force (mcxt cxt) t
+{-# inline force #-}
 
-forceF :: Cxt -> Val -> U.IO Val
-forceF cxt t = E.forceF (mcxt cxt) t
-{-# inline forceF #-}
+forceAll :: Cxt -> Val -> U.IO Val
+forceAll cxt t = E.forceAll (mcxt cxt) t
+{-# inline forceAll #-}
 
 app :: Cxt -> Val -> Val -> Icit -> Val
 app cxt t u i = E.app (mcxt cxt) t u i
