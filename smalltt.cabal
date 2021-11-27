@@ -48,7 +48,6 @@ library
       MetaCxt
       Parser
       Presyntax
-      Region
       SymTable
       TopCxt
       UIO
