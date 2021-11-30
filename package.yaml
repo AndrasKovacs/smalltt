@@ -114,7 +114,7 @@ executables:
     - condition: false
       other-modules: Paths_smalltt
 
-  smalltt-2-b:
+  smalltt-2:
     source-dirs:
       - smalltt
     main:

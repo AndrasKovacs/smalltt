@@ -1,0 +1,111 @@
+
+id : {A:U} → A → A
+ = λ x. x
+
+Pair : U → U → U
+  = λ A B. (P : U) → (A → B → P) → P
+
+dup : {A:U} → A → Pair A A
+  = λ a P p. p a a
+
+Nat : U
+ = (n : U) → (n → n) → n → n
+
+zero : Nat
+ = λ n s z. z
+
+suc : Nat → Nat
+ = λ a n s z. s (a n s z)
+
+Vec : U → Nat → U
+ = λ A n. (V : Nat → U) → ({n} → A → V n → V (suc n)) → V zero → V n
+
+nil : {A:U} → Vec A zero
+ = λ V c n. n
+
+cons : {A:U}{n:Nat} → A → Vec A n → Vec A (suc n)
+ = λ a as V c n. c a (as V c n)
+
+--------------------------------------------------------------------------------
+
+idTest [elabtime] : {A} → A → A
+  = id id id id id id id id id id id id id id id id id id id id
+    id id id id id id id id id id id id id id id id id id id id
+
+pairTest [elabtime] =
+  let x0  = dup U;
+  let x1  = dup x0;
+  let x2  = dup x1;
+  let x3  = dup x2;
+  let x4  = dup x3;
+  let x5  = dup x4;
+  let x6  = dup x5;
+  let x7  = dup x6;
+  let x8  = dup x7;
+  let x9  = dup x8;
+  let x10 = dup x9;
+  let x11 = dup x10;
+  let x12 = dup x11;
+  let x13 = dup x12;
+  let x14 = dup x13;
+  let x15 = dup x14;
+  let x16 = dup x15;
+  let x17 = dup x16;
+  let x18 = dup x17;
+  let x19 = dup x18;
+  let x20 = dup x19;
+  x20
+
+vecTest [elabtime]
+ =
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+
+   nil
+
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))

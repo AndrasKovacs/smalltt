@@ -95,7 +95,7 @@ loop st = do
   let nf0 (State _ _ cxt) = Evaluation.nf0 (Top.mcxt cxt)
       {-# inline nf0 #-}
 
-  let zonk0 (State _ _ cxt) = Evaluation.zonk (Top.mcxt cxt) SId 0
+  let zonk0 (State _ _ cxt) = Evaluation.zonk (Top.mcxt cxt) ENil 0
       {-# inline zonk0 #-}
 
   let renderElab st = do

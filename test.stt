@@ -5,9 +5,9 @@ the : (A : U) → A → A
 id : {A} → A → A
  = λ x. x
 
-idTest : {A} → A → A
-  = id id id id id id id id id id id id id id id id id id id id
-    id id id id id id id id id id id id id id id id id id id id
+-- idTest : {A} → A → A
+--   = id id id id id id id id id id id id id id id id id id id id
+--     id id id id id id id id id id id id id id id id id id id id
 
 Nat : U
  = (n : U) → (n → n) → n → n
