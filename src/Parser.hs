@@ -264,15 +264,24 @@ tm' = (do
 
 --------------------------------------------------------------------------------
 
-topDef :: Span -> Parser TopLevel
-topDef x = local (const 1) do
+topDef2 :: TopInfo -> Parser TopLevel
+topDef2 inf = do
   uoptioned (colon `notFollowedBy` eq *> tm') \a -> do
     eq'
     rhs <- tm'
-    local (const 0) (Definition x a rhs <$> top)
+    local (const 0) (Definition inf a rhs <$> top)
+
+topDef1 :: Span -> Parser TopLevel
+topDef1 x = local (const 1) do
+  branch $(symbol "[")
+    (do elabt <- branch $(symbol "elabtime") (pure True) (pure False)
+        nft   <- branch $(symbol "nftime"  ) (pure True) (pure False)
+        $(symbol' "]")
+        topDef2 (TopInfo x elabt nft))
+    (topDef2 (TopInfo x False False))
 
 top :: Parser TopLevel
-top =  (exactLvl 0 >> idented topDef)
+top =  (exactLvl 0 >> idented topDef1)
    <|> (Nil <$ eof `cut` [Msg "end of file", Msg "top-level definition at column 1"])
 
 --------------------------------------------------------------------------------

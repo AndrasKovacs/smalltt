@@ -2,7 +2,7 @@
 
 module Evaluation (
   app, inlApp, appSp, eval, force, forceAll, forceMetas, forceTop, appCl,
-  appCl', quote, quote0, eval0, nf0
+  appCl', quote, quote0, eval0, nf0, zonk
   ) where
 
 import qualified LvlSet as LS
@@ -228,3 +228,26 @@ quote0 cxt = quote cxt 0
 nf0 :: MetaCxt -> QuoteOption -> Tm -> Tm
 nf0 cxt opt t = quote0 cxt opt (eval0 cxt t)
 {-# inline nf0 #-}
+
+--------------------------------------------------------------------------------
+
+zonk :: MetaCxt -> Spine -> Lvl -> Tm -> Tm
+zonk ms sp l t = let
+  go     = zonk ms sp l; {-# inline go #-}
+  goBind = zonk ms (SApp sp (VLocalVar l SId) Expl) (l + 1); {-# inline goBind #-}
+  goLet  = zonk ms sp (l + 1); {-# inline goLet #-}
+  in case t of
+    LocalVar x     -> LocalVar x
+    TopVar x v     -> TopVar x v
+    Let x a t u    -> Let x (go a) (go t) (goLet u)
+    App t u i      -> App (go t) (go u) i
+    Lam xi t       -> Lam xi (goBind t)
+    InsertedMeta x -> U.run $ MC.read ms x U.>>= \case
+                        Unsolved _     ->
+                          U.pure (InsertedMeta x)
+                        Solved _ _ _ v ->
+                          U.pure (quote ms l UnfoldMetas $ appSp ms v sp)
+    Meta x         -> Meta x
+    Pi xi a b      -> Pi xi (go a) (goBind b)
+    Irrelevant     -> Irrelevant
+    U              -> U

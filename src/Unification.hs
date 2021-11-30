@@ -1,7 +1,7 @@
 {-# language UnboxedTuples #-}
 {-# options_ghc -Wno-orphans #-}
 
-module Unification (unify, solve) where
+module Unification (unify, solve, unifySp) where
 
 import qualified Data.Array.FM as AFM
 import qualified Data.Ref.F as RF

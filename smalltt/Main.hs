@@ -57,13 +57,13 @@ load path = do
             putStrLn "unknown parse error"
             pure Nothing
           (OK top _ _, time) -> do
-            putStrLn ("parsed in " ++ show time)
+            putStrLn (path ++ " parsed in " ++ show time)
             timed (elab src top) >>= \case
               (Left e, _) -> do
                 putStrLn (showException src e)
                 pure Nothing
               (Right topCxt, time) -> do
-                putStrLn ("elaborated in " ++ show time)
+                putStrLn (path ++ " elaborated in " ++ show time)
                 metas <- U.toIO $ MC.size (Top.mcxt topCxt)
                 putStrLn ("created " ++ show metas ++ " metavariables")
                 putStrLn ("loaded " ++ show (Top.lvl topCxt) ++ " definitions")
@@ -95,6 +95,9 @@ loop st = do
   let nf0 (State _ _ cxt) = Evaluation.nf0 (Top.mcxt cxt)
       {-# inline nf0 #-}
 
+  let zonk0 (State _ _ cxt) = Evaluation.zonk (Top.mcxt cxt) SId 0
+      {-# inline zonk0 #-}
+
   let renderElab st = do
        let size = Top.lvl (topCxt st)
 
@@ -119,6 +122,20 @@ loop st = do
                  go frz (i + 1)
        go 0 0
 
+  let renderZonkedElab st = do
+       let size = Top.lvl (topCxt st)
+
+       let go :: MetaVar -> Lvl -> IO ()
+           go m i | i == size = pure ()
+           go m i =
+             ALM.read (Top.info (topCxt st)) (coerce i) >>= \case
+               TopEntry x a t frz -> do
+                 putStrLn $ showSpan (src st) x ++ " : " ++ showTm0 st (zonk0 st a)
+                 putStrLn $ "  = " ++ showTm0 st (zonk0 st t)
+                 putStrLn ""
+                 go frz (i + 1)
+       go 0 0
+
   let renderBro st = do
         ALM.for (Top.info (topCxt st)) \(TopEntry x a t frz) ->
           putStrLn $ showSpan (src st) x ++ " : " ++ showTm0 st a
@@ -136,6 +153,10 @@ loop st = do
       loadTopDef rest \st a t -> do
         putStrLn $ showTm0 st a
         loop (Just st)
+    ':':'z':'t':' ':(dropSp -> rest) ->
+      loadTopDef rest \st a t -> do
+        putStrLn $ showTm0 st (zonk0 st a)
+        loop (Just st)
     ':':'n':'t':' ':(dropSp -> rest) ->
       loadTopDef rest \st a t -> do
         (nf, t) <- timedPure (nf0 st UnfoldAll a)
@@ -148,6 +169,10 @@ loop st = do
         putStrLn $ showTm0 st nf
         putStrLn $ "normalized in " ++ show t
         loop (Just st)
+    ':':'z':' ':(dropSp -> rest) ->
+      loadTopDef rest \st a t -> do
+        putStrLn $ showTm0 st (zonk0 st t)
+        loop (Just st)
     ':':'e':' ':(dropSp -> rest) ->
       loadTopDef rest \st a t -> do
         putStrLn $ showTm0 st t
@@ -156,17 +181,24 @@ loop st = do
       whenLoaded \st -> do
         renderElab st
         loop (Just st)
+    ':':'z':'o':'u':'t':_ ->
+      whenLoaded \st -> do
+        renderZonkedElab st
+        loop (Just st)
     ':':'b':'r':'o':_ ->
       whenLoaded \st -> renderBro st >> loop (Just st)
 
     ':':'?':_ -> do
       putStrLn ":l <file>    load file"
       putStrLn ":r           reload file"
-      putStrLn ":t  <name>   show elaborated type of top-level definition"
-      putStrLn ":nt <name>   show normal elaborated type of top-level definition"
       putStrLn ":e  <name>   show elaborated version of top-level definition"
       putStrLn ":n  <name>   show normal form of top-level definition"
+      putStrLn ":z  <name>   show zonked form of top-level definition"
+      putStrLn ":t  <name>   show elaborated type of top-level definition"
+      putStrLn ":nt <name>   show normal type of top-level definition"
+      putStrLn ":zt <name>   show zonked type of top-level definition"
       putStrLn ":out         show whole elaboration output"
+      putStrLn ":zout        show zonked whole elaboration output"
       putStrLn ":bro         show defined top-level names and their types"
       putStrLn ":q           quit"
       putStrLn ":?           show this message"

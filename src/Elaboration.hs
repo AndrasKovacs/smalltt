@@ -27,19 +27,12 @@ import ElabState
 --------------------------------------------------------------------------------
 
 unify :: Cxt -> P.Tm -> G -> G -> U.IO ()
-unify cxt t l r = U.do
+unify cxt pt l r = U.do
   debug ["unify", showValOpt cxt (g1 l) UnfoldMetas, showValOpt cxt (g1 r) UnfoldMetas]
+  let ecxt = ErrorCxt (mcxt cxt) (tbl cxt) (names cxt) (lvl cxt); {-# inline ecxt #-}
   Unif.unify (mcxt cxt) (lvl cxt) CSRigid l r `catch` \case
-    UnifyEx e -> throw $ UnifyError cxt t (g1 l) (g1 r) e
-    _         -> impossible
-{-# inline unify #-}
-
-solve :: Cxt -> P.Tm -> ConvState -> MetaVar -> Spine -> Val -> U.IO ()
-solve cxt pt cs x sp rhs = U.do
-  Unif.solve (mcxt cxt) (lvl cxt) x sp rhs `catch` \case
-    UnifyEx e -> throw $ UnifyError cxt pt (VFlex x sp) rhs e
-    _         -> impossible
-{-# inline solve #-}
+     UnifyEx e -> throw $ UnifyError ecxt pt (g1 l) (g1 r) e
+     _         -> impossible
 
 -- Fresh metas and meta insertions
 --------------------------------------------------------------------------------
@@ -271,26 +264,58 @@ check cxt topT (G topA ftopA) = U.do
       unify cxt topT inferred (G topA ftopA)
       U.pure t
 
+
+-- Top level elaboration
 --------------------------------------------------------------------------------
+
+printingElabTime :: U.CanIO a => Top.Cxt -> Span -> Bool -> U.IO a -> U.IO a
+printingElabTime topCxt x timing act
+  | timing    = U.do
+    (a, time) <- U.timed act
+    U.io $ putStrLn (showTopSpan topCxt x ++ " elaborated in " ++ show time)
+    U.pure a
+  | otherwise = act
+{-# inline printingElabTime #-}
+
+printingNfTime :: Top.Cxt -> Span -> Bool -> Tm -> U.IO ()
+printingNfTime topCxt x timing t
+  | timing    = U.io do
+    let cxt = empty topCxt
+    time <- timedPure_ (quote cxt UnfoldAll (eval cxt t))
+    putStrLn (showTopSpan topCxt x ++ " normalized in " ++ show time)
+  | otherwise = U.pure ()
+{-# inline printingNfTime #-}
+
+showTopSpan :: Top.Cxt -> Span -> String
+showTopSpan topCxt x = showSpan (ST.src (Top.tbl topCxt)) x
+{-# noinline showTopSpan #-}
 
 elabTopLevel :: Top.Cxt -> P.TopLevel -> U.IO Top.Cxt
 elabTopLevel topCxt = \case
+
   P.Nil ->
     U.pure topCxt
-  P.Definition x ma t u -> U.do
+
+  P.Definition (P.TopInfo x elabt nft) ma t u -> U.do
+
     frz <- MC.size $ Top.mcxt topCxt
     U.io $ setFrozen (coerce frz)
     let cxt = empty topCxt
     U.bind3 (\pure -> case ma of
+
       UNothing -> U.do
-        Infer t va <- insertApps cxt $ infer cxt t
+        Infer t va <- printingElabTime topCxt x elabt (insertApps cxt $ infer cxt t)
         let a = quote cxt UnfoldNone (g1 va)
+        printingNfTime topCxt x nft t
         pure t a va
+
       UJust a -> U.do
         a <- checkType cxt a
         let va = gjoin $! eval cxt a
-        t <- check cxt t va
+        t <- printingElabTime topCxt x elabt (check cxt t va)
+        printingNfTime topCxt x nft t
         pure t a va)
+
       \ ~t ~a va -> U.do
         metascope <- MC.size $ Top.mcxt topCxt
         topCxt <- Top.define x a va t (coerce metascope) topCxt

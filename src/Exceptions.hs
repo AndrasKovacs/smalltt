@@ -10,11 +10,11 @@ import Text.Printf
 
 import qualified Presyntax as P
 import qualified UIO as U
+import qualified SymTable as ST
+import Evaluation
 import Common
 import CoreTypes
-import Cxt.Types
 import IO
-import InCxt
 
 --------------------------------------------------------------------------------
 
@@ -24,8 +24,13 @@ data UnifyEx
   | FrozenSolution MetaVar
   deriving Show
 
+data ErrorCxt = ErrorCxt MetaCxt ST.SymTable Names Lvl
+
+instance Show ErrorCxt where
+  show _ = "<ErrorCxt>"
+
 data Exception
-  = UnifyError Cxt P.Tm Val Val UnifyEx           -- checking, lhs, rhs
+  = UnifyError {-# unpack #-} ErrorCxt P.Tm Val Val UnifyEx  -- checking, lhs, rhs
   | TooManyLocals
   | UnifyEx UnifyEx
   | NoNamedArgument P.Tm {-# unpack #-} Span      -- checking, name
@@ -78,16 +83,20 @@ render src (Span pos _) msg = let
      msg
 {-# noinline render #-}
 
+showVal :: ErrorCxt -> Val -> String
+showVal (ErrorCxt ms tbl ns l) v =
+  prettyTm ms 0 (ST.src tbl) ns (quote ms l UnfoldMetas v) []
+
 showException :: B.ByteString -> Exception -> String
 showException src = \case
   UnifyError cxt t l r (FrozenSolution x) -> render src (P.span t) $
     printf ("Can't solve frozen metavariable %s when trying to " ++
             "unify\n\n  %s\n\nwith\n\n  %s\n")
       (show x)
-      (showValOpt cxt l UnfoldMetas) (showValOpt cxt r UnfoldMetas)
+      (showVal cxt l) (showVal cxt r)
   UnifyError cxt t l r _ -> render src (P.span t) $
     printf "Can't unify\n\n  %s\n\nwith\n\n  %s\n"
-      (showValOpt cxt l UnfoldMetas) (showValOpt cxt r UnfoldMetas)
+      (showVal cxt l) (showVal cxt r)
   TooManyLocals ->
     "Too many local variables! You can't have more than 64."
   UnifyEx _ ->

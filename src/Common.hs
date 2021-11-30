@@ -123,8 +123,8 @@ infixr 3 &&#
 CAN_IO(UBool, IntRep, Int#, UBool# (I# x), CoeUBool)
 
 instance Show UBool where
-  show UTrue = "True"
-  show _     = "False"
+  show UTrue = "UTrue"
+  show _     = "UFalse"
 
 -- Unboxed Maybe
 --------------------------------------------------------------------------------
@@ -445,3 +445,13 @@ timedPure ~a = do
   let diff = diffUTCTime t2 t1
   P.pure (res, diff)
 {-# noinline timedPure #-}
+
+-- | Time a lazy pure value. Result is forced to whnf.
+timedPure_ :: a -> P.IO NominalDiffTime
+timedPure_ ~a = do
+  t1  <- getCurrentTime
+  let res = a
+  t2  <- getCurrentTime
+  let diff = diffUTCTime t2 t1
+  P.pure diff
+{-# noinline timedPure_ #-}
