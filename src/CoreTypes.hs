@@ -67,9 +67,14 @@ CAN_IO(Val, LiftedRep, Val, x, CoeVal)
 
 type Ty = Tm
 
+newtype DontPrint a = DontPrint a
+
+instance Show (DontPrint a) where
+  showsPrec _ _ x = x
+
 data Tm
   = LocalVar Ix
-  | TopVar Lvl ~Val
+  | TopVar Lvl ~(DontPrint Val)
   | Let Span Tm Tm Tm
   | App Tm Tm Icit
   | Lam NameIcit Tm

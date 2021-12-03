@@ -14,6 +14,7 @@ import qualified UIO
 import qualified UIO as U
 import qualified Evaluation as E
 import qualified SymTable as ST
+import qualified MetaCxt as MC
 import Common
 import CoreTypes
 
@@ -21,22 +22,23 @@ import CoreTypes
 
 -- | Top-level elaboration context.
 data Cxt = Cxt {
-  lvl    :: Lvl,         -- size of cxt
-  info   :: TopInfo,     -- span, term, ty for each def
-  tbl    :: ST.SymTable, -- symtable
-  mcxt   :: MetaCxt      -- metacontext
+  lvl    :: Lvl,         -- ^ Size of context.
+  info   :: TopInfo,     -- ^ Span, term, type for each definition.
+  tbl    :: ST.SymTable, -- ^ Symbol table.
+  mcxt   :: MetaCxt,     -- ^ Metacontext.
+  frz    :: MetaVar      -- ^ All metavars small than frz are frozen.
   }
 
-CAN_IO4(
+CAN_IO5(
   Cxt,
 
-  IntRep, UnliftedRep, UnliftedRep, UnliftedRep,
+  IntRep, UnliftedRep, UnliftedRep, UnliftedRep, IntRep,
 
   Int#, MutableArray# RealWorld TopEntry,
-    MutableArrayArray# RealWorld, MutableArrayArray# RealWorld,
+    MutableArrayArray# RealWorld, MutableArrayArray# RealWorld, Int#,
 
   Cxt (Lvl (I# a)) (ALM.Array b) (ST.SymTable (RUUU.Ref (AUM.Array c)))
-      (ADL.Array (RUU.Ref (AUM.Array d))),
+      (ADL.Array (RUU.Ref (AUM.Array d))) (MkMetaVar (I# e)),
 
   CoeTop)
 
@@ -46,14 +48,16 @@ new src len = U.do
   info   <- U.io $ ALM.new len (error "undefined top entry")
   tbl    <- ST.new src
   ms     <- U.io $ ADL.empty
-  U.pure (Cxt 0 info tbl ms)
+  U.pure (Cxt 0 info tbl ms 0)
 {-# inline new #-}
 
--- | Extend cxt with a top-level definition. Updates destructively.
-define :: Span -> Ty -> GTy -> Tm -> MetaVar -> Cxt -> U.IO Cxt
-define x a ga t frz (Cxt len info tbl ms) = U.do
+-- | Extend cxt with a top-level definition. Updates destructively. Freezes all
+--   current metavariables.
+define :: Span -> Ty -> GTy -> Tm -> Cxt -> U.IO Cxt
+define x a ga t (Cxt len info tbl ms _) = U.do
   let ~vt = E.eval ms ENil t
+  frz <- coerce U.<$> MC.size ms
   U.io $ ALM.write info (coerce len) (TopEntry x a t frz)
-  ST.insert x (ST.Top a ga t (TopVar len vt)) tbl
-  U.pure (Cxt (len + 1) info tbl ms)
+  ST.insert x (ST.Top a ga t (TopVar len (coerce vt))) tbl
+  U.pure (Cxt (len + 1) info tbl ms frz)
 {-# inline define #-}

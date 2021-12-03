@@ -93,7 +93,7 @@ insertedMeta cxt ~e x = U.run do
 eval' :: MetaCxt -> Env -> Tm -> Val
 eval' cxt ~e = \case
   LocalVar x     -> localVar e x
-  TopVar x v     -> VUnfold (UHTopVar x v) SId v
+  TopVar x v     -> VUnfold (UHTopVar x (coerce v)) SId (coerce v)
   Meta x         -> meta cxt x
   App t u i      -> inlApp cxt (eval' cxt e t) (eval' cxt e u) i
   Let _ _ t u    -> let ~vt = eval' cxt e t; e' = EDef e vt in eval' cxt e' u
@@ -202,7 +202,7 @@ quote cxt l opt t = let
   cont = \case
     VFlex x sp                  -> goSp (Meta x) sp
     VUnfold (UHSolved x)   sp _ -> goSp (Meta x) sp
-    VUnfold (UHTopVar x v) sp _ -> goSp (TopVar x v) sp
+    VUnfold (UHTopVar x v) sp _ -> goSp (TopVar x (coerce v)) sp
     VLocalVar x sp              -> goSp (LocalVar (lvlToIx l x)) sp
     VLam xi t                   -> Lam xi (goBind t)
     VPi xi a b                  -> Pi xi (go a) (goBind b)

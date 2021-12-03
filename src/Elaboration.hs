@@ -20,7 +20,6 @@ import CoreTypes
 import Cxt
 import Exceptions
 import InCxt
-import ElabState
 
 #include "deriveCanIO.h"
 
@@ -30,7 +29,7 @@ unify :: Cxt -> P.Tm -> G -> G -> U.IO ()
 unify cxt pt l r = U.do
   debug ["unify", showValOpt cxt (g1 l) UnfoldMetas, showValOpt cxt (g1 r) UnfoldMetas]
   let ecxt = ErrorCxt (mcxt cxt) (tbl cxt) (names cxt) (lvl cxt); {-# inline ecxt #-}
-  Unif.unify (mcxt cxt) (lvl cxt) CSRigid l r `catch` \case
+  Unif.unify (mcxt cxt) (lvl cxt) (frz cxt) CSRigid l r `catch` \case
      UnifyEx e -> throw $ UnifyError ecxt pt (g1 l) (g1 r) e
      _         -> impossible
 
@@ -298,8 +297,6 @@ elabTopLevel topCxt = \case
 
   P.Definition (P.TopInfo x elabt nft) ma t u -> U.do
 
-    frz <- MC.size $ Top.mcxt topCxt
-    U.io $ setFrozen (coerce frz)
     let cxt = empty topCxt
     U.bind3 (\pure -> case ma of
 
@@ -317,14 +314,12 @@ elabTopLevel topCxt = \case
         pure t a va)
 
       \ ~t ~a va -> U.do
-        metascope <- MC.size $ Top.mcxt topCxt
-        topCxt <- Top.define x a va t (coerce metascope) topCxt
+        topCxt <- Top.define x a va t topCxt
         elabTopLevel topCxt u
 {-# noinline elabTopLevel #-}
 
 
 elab :: B.ByteString -> P.TopLevel -> IO (Either Exception Top.Cxt)
 elab src top = U.toIO U.do
-  U.io ElabState.reset
   topCxt <- Top.new src (P.topLen top)
   try (elabTopLevel topCxt top)
