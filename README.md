@@ -3,6 +3,8 @@
 - See [Demo.stt](Demo.stt) for notes on usage, goals and benchmarks.
 - See [krakow-pres.pdf](krakow-pres.pdf) for a presentation I previously gave about this system.
 
+**NOTE**: as of november 2020, the implementation here is obsolete in some respects. The evaluator can be greatly simplified along the lines of [this](https://gist.github.com/AndrasKovacs/a0e0938113b193d6b9c1c0620d853784). Here's also a [video](https://www.youtube.com/watch?v=ZEWjnmkfgxE) where I talk about conversion checking using the simplified glued evaluator. I might update this repo at some point to reflect newer best practices.
+
 ## Some benchmarks
 
 Benchmarks are informal and unfortunately not yet automated or easily reproducible. Loading [Demo.stt](Demo.stt) causes `smalltt` benchmark times (but not memory usage) to be displayed, but there's no equivalent for Agda and Coq now.
