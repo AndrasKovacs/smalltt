@@ -42,6 +42,9 @@ data Infer = Infer Tm {-# unpack #-} GTy
 CAN_IO3(Infer, LiftedRep, LiftedRep, LiftedRep, Tm, Val, Val, Infer x (G y z), CoeInfer)
 CAN_IO2((Tm, Val), LiftedRep, LiftedRep, Tm, Val, (x, y), CoeTmVal)
 
+-- CAN_IO(Infer, LiftedRep, Infer, x, CoeInfer)
+-- CAN_IO((Tm, Val), LiftedRep, (Tm, Val), x, CoeTmVal)
+
 -- | Create fresh meta both as a term and a value.
 freshMeta :: Cxt -> U.IO (Tm, Val)
 freshMeta cxt = U.do
