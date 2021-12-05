@@ -363,7 +363,7 @@ unify ms l frz cs (G topt ftopt) (G topt' ftopt') = let
   goBind t t' =
     let v = VLocalVar l SId
     in unify ms (l + 1) frz cs (gjoin $! appCl' ms t v)
-                                (gjoin $! appCl' ms t' v)
+                               (gjoin $! appCl' ms t' v)
   {-# inline goBind #-}
 
   guardCS cs = U.when (cs == CSFlex) $ throw $ UnifyEx CSFlexSolution

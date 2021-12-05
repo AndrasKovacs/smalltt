@@ -189,16 +189,13 @@ pattern UnfoldAll :: QuoteOption
 pattern UnfoldAll = QuoteOption# 0
 pattern UnfoldMetas :: QuoteOption
 pattern UnfoldMetas = QuoteOption# 1
-pattern UnfoldTop :: QuoteOption
-pattern UnfoldTop = QuoteOption# 2
 pattern UnfoldNone :: QuoteOption
-pattern UnfoldNone = QuoteOption# 3
-{-# complete UnfoldAll, UnfoldMetas, UnfoldTop, UnfoldNone #-}
+pattern UnfoldNone = QuoteOption# 2
+{-# complete UnfoldAll, UnfoldMetas, UnfoldNone #-}
 
 instance Show QuoteOption where
   show UnfoldAll   = "UnfoldAll"
   show UnfoldMetas = "UnfoldMetas"
-  show UnfoldTop   = "UnfoldTop"
   show UnfoldNone  = "UnfoldNone"
 
 -- Icitness

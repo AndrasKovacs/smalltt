@@ -1,7 +1,7 @@
 {-# language UnboxedTuples, UnboxedSums #-}
 
 module Evaluation (
-  app, inlApp, appSp, eval, force, forceAll, forceMetas, forceTop, appCl,
+  app, inlApp, appSp, eval, force, forceAll, forceMetas, appCl,
   appCl', quote, quote0, eval0, nf0, zonk
   ) where
 
@@ -132,27 +132,6 @@ forceAllFlex ms x sp ~xsp =
 {-# noinline forceAllFlex #-}
 
 -- | Force + eliminate all top def unfolding from the head.
-forceTop :: MetaCxt -> Val -> U.IO Val
-forceTop ms = \case
-  xsp@(VFlex x sp)        -> forceTopFlex ms x sp xsp
-  VUnfold UHTopVar{} sp v -> forceTop' ms v
-  t                       -> U.pure t
-{-# inline forceTop #-}
-
-forceTop' :: MetaCxt -> Val -> U.IO Val
-forceTop' ms = \case
-  xsp@(VFlex x sp)       -> forceTopFlex ms x sp xsp
-  VUnfold UHTopVar{} _ v -> forceTop' ms v
-  t                      -> U.pure t
-
-forceTopFlex :: MetaCxt -> MetaVar -> Spine -> Val -> U.IO Val
-forceTopFlex ms x sp ~xsp =
-  MC.read ms x U.>>= \case
-    Unsolved _     -> U.pure xsp
-    Solved _ _ _ v -> forceTop' ms $! appSp ms v sp
-{-# noinline forceTopFlex #-}
-
--- | Force + eliminate all top def unfolding from the head.
 forceMetas :: MetaCxt -> Val -> U.IO Val
 forceMetas ms = \case
   xsp@(VFlex x sp)        -> forceMetasFlex ms x sp xsp
@@ -198,9 +177,8 @@ quote ms l opt t = let
 
   in case opt of
     UnfoldAll   -> cont (U.run (forceAll   ms t))
-    UnfoldTop   -> cont (U.run (forceTop   ms t))
     UnfoldMetas -> cont (U.run (forceMetas ms t))
-    _           -> cont t
+    UnfoldNone  -> cont (U.run (force      ms t))
 
 --------------------------------------------------------------------------------
 
