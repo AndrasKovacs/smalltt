@@ -183,15 +183,3 @@ forcet21 1.084352871s
 forcet22 2.158011218s
 forcet23 4.433878401s
 -}
-
-
--- without VUnfold
-{-
-forcet15 normalized in 0.016488811s
-forcet18 normalized in 0.09272001s
-forcet19 normalized in 0.164339971s
-forcet20 normalized in 0.212746959s
-forcet21 normalized in 0.461474293s
-forcet22 normalized in 0.982313208s
-forcet23 normalized in 1.963281371s
--}

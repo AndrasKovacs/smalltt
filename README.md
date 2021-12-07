@@ -19,15 +19,15 @@ Broadly speaking, I have two kinds of potentially interesting features.
 
 Both are documented here in more detail.
 
-I admit that throwing in "dirty" GHC-specific optimizations makes the code less
-readable, but since comparative benchmarking is an important goal here, I wanted
-to make sure that I don't leave significant performance on the table. Most of
-the tricks are just workarounds for GHC-specific limitations, and could be
-omitted when working in a different language. You may ask: why work in Haskell?
-While Haskell has weak points, it also has several valuable strong points,
-especially the runtime system performance for our typical workloads. I discuss
-this in more detail in the section on [Haskell-specific
+I admit that some of the "dirty" GHC-specific optimizations make the code less
+readable. But I just wanted to try to see if they work, and how much they
+matter. Most of them have modest but non-zero benefits, so I just left them in
+the code. I discuss this in more detail in the section on [Haskell-specific
 optimizations](#haskell-specific-optimizations).
+
+### Installation
+
+TODO
 
 ### Language overview
 
@@ -164,7 +164,7 @@ discussion in Coq: https://github.com/coq/coq/issues/12526. As a result, basic
 operations involving metas are usually linear in the size of the local scope.
 My benchmarking showed that this is not a significant bottleneck in realistic
 user-written code, and we don't really have machine-generated code (e.g. by
-tactics) to introduce pathological cases.
+tactics) that could introduce pathological cases.
 
 ### Glued evaluation
 
@@ -205,29 +205,21 @@ Only being able to control top-level unfolding is not quite sufficient for
 sophisticated interactive proving, but the technique here could be extended
 to richer unfolding control with modest additional overheads.
 
-<!-- Importantly, we only need a *single* evaluator for all purposes. Contrast the -->
-<!-- following: -->
-
-<!-- - Agda has a slow evaluator and a separate, faster abstract machine. The latter -->
-<!--   cannot be used during conversion checking if there are metavariables in the -->
-<!--   involved terms. Both are written in Haskell and interpret AST. -->
-<!-- - Coq has an AST interpreter written in OCaml, a separate bytecode VM written in -->
-<!--   C, and also a native code compiler (compiling to OCaml). Of these, only the -->
-<!--   OCaml reducer can handle metavariables. -->
-<!-- - Lean 4 has a kernel AST interpreter, a bytecode interpreter, and a native code -->
-<!--   backend. Of these, only the kernel interpreter can be used generally during -->
-<!--   elaboration. -->
-
-<!-- TODO: perf remarks -->
+Importantly, we can make do with a *single* evaluator for all purposes, with
+fairly good performance. In contrast, Agda, Coq and Lean all have multiple
+evaluators, and in all cases only the *slowest* evaluators can be used without
+restrictions during elaboration. As we'll see in benchmarks, smalltt is robustly
+faster than all "slow" evaluators, and can be faster or slower than the Coq
+bytecode VM depending on workloads.
 
 #### On hash consing
 
 Hash consing means memoization for certain classes of objects. It is frequently
-brought up as an optimization technique in typechecking. However, specifically
-in the context of dependent elaboration, I prefer to not use hash consing.
+mentioned as an optimization technique in typechecking. However, specifically
+in the context of dependent elaboration, it's not obviously desirable.
 
-First, hash consing alone is inadequate for eliminating size explosions. Hash
-consing merges duplicate expressions to a single copy. But it does not handle
+Hash consing alone is inadequate for eliminating size explosions. Hash consing
+merges duplicate expressions to a single copy. But it does not handle
 *beta-reduction* at all, which is a major source of size explosion! For a simple
 example, using Peano naturals, it is easy to give a compact definition for
 `oneMillion`, involving arithmetic operations. But if I normalize `oneMillion`,
@@ -237,12 +229,93 @@ If I have something like a first-order term language, hash consing can be very
 effective. But in dependent type theory, we have higher-order programs with
 potentially explosive behavior, and it isn't hard to produce size explosions
 even in the presence of full hash-consing. Considering this, and the performance
-and complexity overhead of hash consing, I choose to not do hash consing in
-smalltt.
+and complexity overhead of hash consing, I decide to skip it in smalltt.
+
+Hash consing is better suited to more static data, like literals or types in
+systems without type-level beta, such as simple type theory, Hindley-Milner or
+System F. In those cases, hash-consing captures all compression which is
+possible by rewriting along conversion rules.
 
 ### Approximate conversion checking
 
-Non-deterministic unfolding
+Approximate conversion checking means deciding conversion without computing all
+beta-redexes. It's an important feature in pretty much every major TT
+implementation. For example, if I again have `oneMillion` as a definition,
+checking that `oneMillion` is convertible to itself should immediately return
+with success, without unfolding the numeral.
+
+- An important property here is whether a system permits **approximate meta
+  solutions**. For example, if I unify `f ?0 = f ?1` where `f` is a defined
+  function, I might skip computing the `f` application, and pretend that `f` is
+  injective, solving `?0` with `?1`. But if `f` is actually a constant function,
+  this causes `?0` and `?1` to be unnecessarily equated. AFAIK Coq and Lean both
+  permit approximate solutions, and Agda does not.
+- Another property is how **optimistic** the approximation algorithm is. A very
+  optimistic algorithm might do the following: if we have identical defined head
+  symbols on sides, first try to unify spines, and then retry with unfolding if
+  that fails. This algorithm expects that unifiable values near by,
+  i.e. reachable after few reductions. The downside of unbounded optimism is
+  that the recursive backtracking can cause massive slowdown when unifiable
+  values are not in fact near.
+
+Smalltt
+- Does not allow approximate meta solutions.
+- Has bounded approximation: it only performs limited speculation, and
+  switches to full reductions on failure.
+
+Concretely, smalltt has three states in unification: "rigid", "flex" and "full".
+- "Rigid": this is the starting state. In this state we can solve metas, and can
+  initiate speculation. Whenever we have the same top-level head symbol on both
+  sides, we try unify the spines in "flex" mode, if that fails, we unfold and
+  evaluate the sides, and unify them in "full" mode. We stay in "rigid" mode
+  when we recurse under canonical type and term formers.
+- "Flex": in this state we cannot solve metas, every situation which requires
+  a meta solution fails. Moreover, we cannot unfold any top-level definition;
+  if we have identical defined head symbols, we can recurse into spines, but
+  any situation which requires unfolding also causes failure.
+- "Rigid": in this state we can solve metas, and we always immediately unfold
+  any defined symbol.
+
+**Example**. We unify `cons oneMillion (cons oneMillion nil)` with
+itself. Assume that `cons` and `nil` are rigid term formers for lists.  We start
+in rigid mode, which recurses under the `cons`-es, and tries to unify
+`oneMillion` with itself twice. Both cases succeed speculatively, because head
+symbols match and `oneMillion` is applied to zero arguments.
+
+**Example**. We unify `const ?0 true` with `const false false`, where `const` is
+a top-level definition. We start in rigid mode, and since we have `const` head
+on both sides, we try to unify spines in flex mode. This fails, since `true /=
+false`. So we unfold the `const`-s, and unify sides in"full mode.
+
+In short, smalltt unification backtracks at most once on any path leading to a
+subterm ("sub-value" actually, since we recurse on values).
+
+We could have a huge number of different speculative algorithms. A natural
+generalization to smalltt is to parametrize the "rigid" state with the number of
+times we speculate in that state. For example, if we can speculate twice, that
+means that after the first failed "flex" unification we unfold sides and
+continue in "rigid 1" state, and "rigid 0" corresponds to the "full" state.
+I briefly implemented this but did not find much difference in the benchmarks.
+
+### Pairing up values
+
+In infer/check and in unification, instead of using plain values, we use pairs
+of values, named `data G = G {g1 :: Val, g2 :: Val}` in the source. Hence,
+`unify` takes two `G`-s, and we `infer` returns a `G` for inferred type.
+
+In `G`, the two values are always convertible, but the first value is always the
+*least reduced* available version, and the second one is potentially more
+reduced.
+
+For example, if we do `check`-ing, the checking type can be headed by a
+top-level definition, so we have to compute it until we hit a rigid head symbol,
+to see whether it's a Pi type or not. This computation yields a new value which
+is more reduced than what we started with. But we don't want to throw away
+either of these values! The original version is usually smaller, hence better
+for printing and meta solutions, the forced version is more efficient to compute
+with, since we don't want to redo the same forcing later.
 
 
 ## Haskell-specific optimizations
+
+TODO
