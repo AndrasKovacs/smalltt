@@ -315,7 +315,31 @@ either of these values! The original version is usually smaller, hence better
 for printing and meta solutions, the forced version is more efficient to compute
 with, since we don't want to redo the same forcing later.
 
+### Eta-short solutions
+
+TODO
+
+### Approximate occurs & scope checking, meta freezing
+
+TODO
+
+
 
 ## Haskell-specific optimizations
+
+
+### IO unboxing
+
+TODO
+
+### Custom exceptions
+
+TODO
+
+### Join-point-friendly functions
+
+TODO
+
+### Library support: hashtable, arrays, mutrefs, parsing
 
 TODO
