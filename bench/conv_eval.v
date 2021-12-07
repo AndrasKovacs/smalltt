@@ -98,6 +98,24 @@ Definition t23b := fullTree n23b.
 (* -- Full tree forcing *)
 (* -------------------------------------------------------------------------------- *)
 
+Eval vm_compute in forceTree t15.
+Eval vm_compute in forceTree t18.
+Eval vm_compute in forceTree t19.
+Eval vm_compute in forceTree t20.
+Eval vm_compute in forceTree t21.
+Eval vm_compute in forceTree t22.
+Eval vm_compute in forceTree t23.
+
+
+Goal True. let x := eval vm_compute in t15 in idtac. Abort.
+Goal True. let x := eval vm_compute in t18 in idtac. Abort.
+Goal True. let x := eval vm_compute in t19 in idtac. Abort.
+Goal True. let x := eval vm_compute in t20 in idtac. Abort.
+Goal True. let x := eval vm_compute in t21 in idtac. Abort.
+Goal True. let x := eval vm_compute in t22 in idtac. Abort.
+Goal True. let x := eval vm_compute in t23 in idtac. Abort.
+
+
 (* Eval compute in forceTree t15. *)
 (* Eval compute in forceTree t18. *)
 (* Eval compute in forceTree t19. *)
