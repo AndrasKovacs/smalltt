@@ -100,20 +100,6 @@ library:
     - ghc-prim
 
 executables:
-  smalltt-2-parseonly:
-    source-dirs:
-      - parseonly
-    main:
-      Main.hs
-    ghc-options:
-      - -rtsopts
-      - -threaded
-    dependencies:
-      - smalltt
-    when:
-    - condition: false
-      other-modules: Paths_smalltt
-
   smalltt-2:
     source-dirs:
       - smalltt

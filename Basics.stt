@@ -1,0 +1,64 @@
+
+-- Comments are the same as in Haskell.
+
+-- There is a distinguished top level scope. Local definitions can be written
+-- like "let x : A = t; u" or "let x = t; u".  Name shadowing is allowed
+-- everywhere.
+
+-- We have type-in-type:
+typeInType : U = U
+
+-- Explicit polymorphic identity. Top-level definitions must be indented, as in
+-- Haskell.
+id : (A : U) → A → A
+ = λ A x. x
+
+-- Implicit polymorphic identity. We intentionally shadow the previous id.
+id : {A : U} → A → A
+ = λ x. x
+
+-- The type of an implicit binder can be ommitted.
+id : {A} → A → A
+ = λ x. x
+
+-- Binders can be grouped, the same way as in Agda
+const : (A B : U) → A → B → A
+ = λ A B x y. x
+
+const : {A B} → A → B → A
+ = λ x y. x
+
+-- Non-unicode syntax is usable as well:
+const : {A B} -> A -> B -> A
+ = \x y. x
+
+-- Top-level type annotations can be ommitted. Lambda args can be annotated as
+-- well.
+const = λ {A}{B}(x : A) (y : B). x
+
+-- Let-definitions are allowed in any expression
+test : U
+ = let x : U = U;
+   let y = x;
+   x
+
+-- Implicit arguments can be given explicitly:
+test = id {U} (U → U)
+
+-- We can also use named implicit arguments, following Agda behavior
+test = const {B = U} U
+test = id {{A B} → A → B → A} (λ x y. x) {B = U} U
+
+-- Likewise, we can use named implicit lambdas.
+const : {A B} → A → B → A
+ = λ {B = foo} x (y : foo). x
+
+-- We can use underscope anywhere to request an inferred term
+test = id {_} (U → U)
+test : _ = U
+
+id : (A : U) → A → A
+ = λ A x. x
+
+id2 : (A : U) → A → A
+ = λ A x. id _ x
