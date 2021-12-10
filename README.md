@@ -17,17 +17,33 @@ Broadly speaking, I have two kinds of potentially interesting features.
 2. [GHC-specific tricks](#haskell-specific-optimizations), libraries and
    optimizations.
 
-Both are documented here in more detail.
+TODO BENCHMARK link & org
 
 I admit that some of the "dirty" GHC-specific optimizations make the code less
 readable. But I just wanted to try to see if they work, and how much they
-matter. Most of them have modest but non-zero benefits, so I just left them in
+matter. Most of them have modest but non-zero benefits, so I left them in
 the code. I discuss this in more detail in the section on [Haskell-specific
 optimizations](#haskell-specific-optimizations).
 
 ### Installation
 
-TODO
+First, clone or download this repository.
+
+Using `stack`:
+- Install [stack](https://docs.haskellstack.org/en/stable/README/).
+- Run `stack install` in the smalltt directory. If you have LLVM installed, use
+   `stack install --flag smalltt:llvm` instead, that gives some performance
+   boost.
+
+Using `cabal`:
+- Install [`cabal`](https://www.haskell.org/cabal/)
+- Run `cabal v2-update`.
+- Run `cabal v2-install` in the smalltt directory. If you have LLVM, use
+  `cabal v2-install -fllvm` instead.
+
+Also make sure that the executable is on the PATH. On Linux-es, the `stack`
+install directory is `$HOME/.local/bin`, and the `cabal` one is
+`$HOME/.cabal/bin`.
 
 ### Language overview
 
