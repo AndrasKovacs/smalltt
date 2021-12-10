@@ -12,10 +12,9 @@ or extension.
 
 Broadly speaking, I have two kinds of potentially interesting features.
 
-1. [High-level design features](#design) in elaboration. This could be interesting to a
+1. [Elaboration design and algorithms.](#design) This could be interesting to a
    general audience of language implementors.
-2. [GHC-specific tricks](#haskell-specific-optimizations), libraries and
-   optimizations.
+2. [GHC-specific optimizations](#ghc-specific-optimizations).
 
 TODO BENCHMARK link & org
 
@@ -36,7 +35,7 @@ Using `stack`:
    boost.
 
 Using `cabal`:
-- Install [`cabal`](https://www.haskell.org/cabal/)
+- Install [cabal](https://www.haskell.org/cabal/)
 - Run `cabal v2-update`.
 - Run `cabal v2-install` in the smalltt directory. If you have LLVM, use
   `cabal v2-install -fllvm` instead.
@@ -497,7 +496,7 @@ freezing behavior, like allowing metas to be active within a single module.
 
 Setting RTS options is important and often overlooked. The performance gains
 from the right settings can be easily 30-50%. The default arena size in GHC (1MB
-or 4MB from ghc 9.2) is very tiny compared to typical RAM sizes. In smalltt I
+or 4MB starting from GHC 9.2) is very tiny compared to typical RAM sizes. In smalltt I
 set the default RTS options to be `-A64M -N8`. This means that effective arena
 size is 8 * 64 = 512MB, so smalltt allocates in 512MB chunks. Is this wasteful?
 RAM sizes below 8GB are getting increasingly rare; 512MB is 1/16th of that, and
@@ -514,10 +513,10 @@ GHC versions indicates yet more GHC advantage.
 ### IO unboxing
 
 This fancy optimization turned out to not have a huge impact on performance, but
-I still had to at least implement it out and benchmark it, to be able to come to
+I still had to at least implement it and benchmark it, to be able to come to
 this conclusion.
 
-In a nutshell, `IO a` blocks the unboxing of `a`. It's been a long-standing
+In a nutshell, `IO a` blocks the unboxing of `a`. This has been a long-standing
 limitation, but fortunately GHC 9.4 will include a fix. I implemented a
 workaround of my own which works in GHC 9.0 and 9.2.
 
@@ -534,12 +533,55 @@ to constrained monads.
 
 ### Custom exceptions
 
-TODO
+This is the dirtiest trick here. I use custom catching and throwing functions,
+to avoid the overhead of the standard type fingerprint mechanism.  See
+`Exception#` in [`src/Exceptions.hs`](src/Exceptions.hs). The idea is that My
+own primitive `Exception#` type includes the standard typesafe `SomeException`
+constructor, but has another one for my own custom exceptions. As a result, I
+can catch and throw standard exceptions, but also custom exceptions which have
+zero fingerprint overhead. This relies on the ability to silently and unsafely
+cast the `SomeException` constructor between the standard `Exception` type and
+my `Exception#` type. The memory representation is the same so it works.
 
-### Join-point-friendly functions
+I had an old benchmark where custom exceptions had roughly 1/5 the overhead of
+standard exceptions. I haven't yet benchmarked both versions in smalltt, I
+really should.
 
-TODO
+### Combinators yielding better join points in IO-like monads.
 
-### Library support: hashtable, arrays, mutrefs, parsing
+Sometimes GHC gets confused when we work in standard `IO` or my unboxed `IO`.
+Consider code like the following.
+```{.haskell}
+do foo <- case b of
+            True  -> ...
+            False -> ...
+   bar
+```
+Let's have the abbreviation `type RW = State# RealWorld#`. `IO` is defined as
+```{.haskell}
+newtype IO a = IO {unIO :: RW -> (# RW, a #)
+```
+The mistake that GHC often makes here, is that it pushes the `RW ->` abstraction
+under the `case` split, so we get `True -> \s -> ...` in the Core output. As a
+result, when this `case` gets turned into a join point, the join point has type
+```{.haskell}
+(RW -> (# RW, a #)) -> RW -> (# RW, b #)
+```
+while we would rather have `\s -> case b of True -> ...; False -> ...`, and
+the following type for the continuation:
+```{.haskell}
+a -> RW -> (# RW, b #)
+```
+This alone is probably not catastrophic, because `RW ->` is erased during
+further compilation. But `RW ->` does appear to block a bunch of inlining and
+unboxing at the Core level. And with my custom unboxed `IO`, this leads to
+failure to inline the monadic binding, which really is catastrophic for
+performance.
+
+So I defined the `bind1`-`bind4` combinators in
+[`src/UIO.hs`](src/UIO.hs). These seem to reliably fix this issue. You can find
+several examples for their usage in [`src/Elaboration.hs`](src/Elaboration.hs).
+
+### Data structures & libraries: mutrefs, arrays, hashtable, parsing
 
 TODO
