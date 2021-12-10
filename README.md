@@ -190,10 +190,11 @@ See [this
 file](https://github.com/AndrasKovacs/elaboration-zoo/blob/master/GluedEval.hs)
 for a minimal demo of glued evaluation. In short, top-level variables are
 evaluated to values which represent lazy ("non-deterministic") choice between
-unfolding the definition, and not unfolding it. This has a moderate constant
-overhead during evaluation. Later, the quotation function has the choice of
-visiting either evaluation branches, or both, in which case as much as possible
-computation is shared between the branches.
+unfolding the definition, and not unfolding it. This has a noticeable constant
+overhead during evaluation but overall the trade-off is well worth it. Later,
+the quotation function has the choice of visiting either evaluation branches, or
+both, in which case as much as possible computation is shared between the
+branches.
 
 When we need high-performance evaluation during conversion checking, we have it,
 and when we solve a metavariable, we are able to quote values to terms which are
@@ -232,9 +233,9 @@ even in the presence of full hash-consing. Considering this, and the performance
 and complexity overhead of hash consing, I decide to skip it in smalltt.
 
 Hash consing is better suited to more static data, like literals or types in
-systems without type-level beta, such as simple type theory, Hindley-Milner or
-System F. In those cases, hash-consing captures all compression which is
-possible by rewriting along conversion rules.
+systems without type-level beta rules, such as simple type theory,
+Hindley-Milner or System F. In those cases, hash consing fully captures the
+compression which is possible by rewriting along conversion rules.
 
 ### Approximate conversion checking
 
@@ -252,11 +253,11 @@ with success, without unfolding the numeral.
   permit approximate solutions, and Agda does not.
 - Another property is how **optimistic** the approximation algorithm is. A very
   optimistic algorithm might do the following: if we have identical defined head
-  symbols on sides, first try to unify spines, and then retry with unfolding if
-  that fails. This algorithm expects that unifiable values near by,
+  symbols on sides, first we try to unify spines, and if that fails we retry
+  with unfolding. This algorithm expects that unifiable values are nearby,
   i.e. reachable after few reductions. The downside of unbounded optimism is
-  that the recursive backtracking can cause massive slowdown when unifiable
-  values are not in fact near.
+  that recursive backtracking can cause massive slowdown when unifiable values
+  are not in fact near.
 
 Smalltt
 - Does not allow approximate meta solutions.
@@ -264,6 +265,7 @@ Smalltt
   switches to full reductions on failure.
 
 Concretely, smalltt has three states in unification: "rigid", "flex" and "full".
+TODO link.
 - "Rigid": this is the starting state. In this state we can solve metas, and can
   initiate speculation. Whenever we have the same top-level head symbol on both
   sides, we try unify the spines in "flex" mode, if that fails, we unfold and
@@ -292,16 +294,27 @@ subterm ("sub-value" actually, since we recurse on values).
 
 We could have a huge number of different speculative algorithms. A natural
 generalization to smalltt is to parametrize the "rigid" state with the number of
-times we speculate in that state. For example, if we can speculate twice, that
-means that after the first failed "flex" unification we unfold sides and
-continue in "rigid 1" state, and "rigid 0" corresponds to the "full" state.
-I briefly implemented this but did not find much difference in the benchmarks.
+shots we get at speculation (smalltt has just one shot). We start in "rigid N"
+state, and when a speculative (flex) spine unification fails, we continue in
+"rigid (N-1)", and "rigid 0" corresponds to the "full" state. I had this briefly
+but did not find much difference in the benchmarks compared to the one-shot
+speculation. Alternatively, we could parameterize the "flex" mode with a number
+of allowed unfoldings (currently unfolding is not allowed).
+
+I haven't yet done benchmarking on larger, more realistic codebases. The point
+is that the current system is compatible with a large number of approximate
+conversion checking algorithms, so we could adapt based it on more real-world
+performance data. The main limitation is that we can only suspend top-level
+unfoldings, and local let-s and immediate local beta-redexes are always
+computed.
+
 
 ### Pairing up values
 
 In infer/check and in unification, instead of using plain values, we use pairs
 of values, named `data G = G {g1 :: Val, g2 :: Val}` in the source. Hence,
-`unify` takes two `G`-s, and we `infer` returns a `G` for inferred type.
+`unify` takes two `G`-s, and we `infer` returns a `G` for inferred type. TODO
+link.
 
 In `G`, the two values are always convertible, but the first value is always the
 *least reduced* available version, and the second one is potentially more
@@ -317,20 +330,191 @@ with, since we don't want to redo the same forcing later.
 
 ### Eta-short solutions
 
-TODO
+We prefer to get meta solutions which are as eta-short as
+possible. Eta-expansion increases code size and makes evaluation of code slower.
 
-### Approximate occurs & scope checking, meta freezing
+In the standard implementation of syntax-directed function eta-conversion
+checking, we do the following:
+1. If we have lambdas on both sides, we recurse under binders.
+2. If we have a lambda only on one side, we recurse under that lambda, and
+   apply the other side to a fresh variable.
+3. We only attempt solving metas after we've checked case 2. For example,
+   if we have a lambda on one side, and a meta-headed value on the other side,
+   first we perform eta-expansion according to step 2.
 
-TODO
+In smaltt, this is slightly modified to allow eta-short meta solutions.  If we
+have a meta on one side, and a non-meta on the other side, we immediately
+attempt a solution. However, this can fail if the sides are eta-convertible.
+For example, trying to solve `?0` with `λ x. ?0 x` fails because `?0` occurs
+rigidly in the solution. So in case of solution failure, we just retry with full
+eta expansion. Such failure seems to be very rare in practice, so we almost
+always get the eta-short solutions. TODO link.
 
+Furthermore, we do additional eta-contraction in pattern unification. We try to
+contract meta spines, for example `?0 x y z = ?1 x y z` is contracted to `?0 =
+?1`. This is also used in Coq. We have to be careful though not to change
+pattern conditions by contraction, e.g. not remove non-linear bound vars by
+contraction. TODO link.
 
+Eta-short solutions are also important for preserving top-level unfoldings.  For
+example, assume a function `f : Nat → Nat` defined as a lambda `λ x. t`, where
+`t` can be a large definition. If I unify `?0 = f`, the eta-long unification
+would solve `?0 := λ x. t x`, while the eta-short version can preserve the `f`
+unfolding, and solve simply as `?0 := f`.
 
-## Haskell-specific optimizations
+### Meta solution checking & quoting
 
+Let's look now at the actual process of generating meta solutions. In basic
+pattern unification, we have problems like `?m x₁ x₂ ... xₙ = rhs`, where `?m`
+is a meta, `xᵢ` are distinct bound variables, and `rhs` is a value. We aim to
+quote `rhs` to a solution term, and at the same time check occurs & scoping
+conditions on it.
+- Scoping: `rhs` can only depend on `xᵢ` bound variables.
+- Occurs: `?0` cannot occur in `rhs` (we assume that rhs is not headed by `?0`).
+
+If both conditions hold, then it is possible to quote `rhs` to some `t` term
+which depends only on `xᵢ` bound variables, so that `λ x₁ x₂ ... xₙ. t` is a
+well-formed term. In the actual implementation we a variable renaming data
+structure (TODO link) to map De Bruijn levels in `rhs` to the correct De Bruijn
+indices in the output.
+
+The naive implementation beta-normalizes `rhs` while quoting, which we want to
+avoid. In smalltt the `rhs` is quoted without unfolding any top-level
+definitions or any previously solved meta. However, this is not entirely
+straightforward, because the `rhs` conditions should be still checked modulo
+full beta-reductions.
+
+We have three different quotation modes, somewhat similarly to what we have
+seen in unification. TODO links.
+- "rigid": the starting mode. We stay in rigid mode when going under
+  canonical type/term formers. Illegal var occurrences cause an error to be
+  thrown. When we hit an unfolding, we recurse into the spine in flex mode, if
+  that returns a possibly invalid term, we check the unfolding in full mode. If
+  that succeeds, we learn that the term is actually valid, and return it.
+- "flex": this mode returns a boolean flag alongside a term. A true flag means
+  that the term is definitely valid, a false means that it is possibly invalid.
+  Illegal var occurrences cause a special `Irrelevant` term to be returned along
+  with a false flag.
+- "full": this mode does not return any term, it just fully evaluates the value
+  and throws an error on any illegal var occurrence.
+
+The overall result of this algorithm is that top definitions are *never*
+unfolded in any meta solution, but we check validity up to full beta-reduction.
+Recall the `?0 = const {Bool}{Bool} true y` example. This yields the `?0`
+solution `const {Bool}{Bool} true Irrelevant`. Note that the `Irrelevant` part
+disappears during evaluation.
+
+In unification, `Irrelevant` immediately unifies with anything, since it signals
+that we are in an irrelevant evaluation context.
+
+It would be better in this case to solve `?0` with `true`. Smalltt does not
+bother with performing unfolding for code optimization, but it certainly could;
+the primary goal is demonstrate the infrastructure where we have the freedom
+to unfold in different ways.
+
+### Meta freezing & approximate occurs checking
+
+"Freezing" metas means that at certain points during elaboration we mark
+unsolved metas as unsolvable. This may be used as a performance optimization
+and/or a way to enforce meta scoping. All major systems use at least some meta
+freezing. No meta freezing would mean that metas are solvable across the whole
+program, across module hierarchies.
+
+Smalltt freezes metas like Agda does: a top-level definition together with its
+optional type annotation constitutes the elaboration unit where fresh metas are
+solvable (but in Agda such blocks can be greatly enlarged through mutually
+recursive definitions).
+
+This enforces a scoping invariant: metas can be grouped to mutual blocks before
+each top-level definition. Within a mutual block metas can refer to each other
+freely, but outside of the block they can only refer to in-scope top defs and
+metas in previous blocks.
+
+An **active** meta is in the current meta block. It can be solved or unsolved,
+and an unsolved active meta may become solved.
+
+A **frozen** meta is in a previous meta block. A frozen unsolved meta cannot be
+solved.
+
+This yields a major optimization opportunity in meta occurs checking: an active
+unsolved meta can only occur in the solution of an active meta, but
+no other top-level definition! We exploit this in rigid and flex solution
+quoting. There, we only look inside solutions of active metas, to do approximate
+occurs checking.
+
+For example, assume we're checking for `?m` occurrences, and we hit `?n spine`,
+where `?n` is a solved active meta. It is not enough to check `spine`, we also
+need to look into the `?n` solution. We do this by simply recursively walking
+the *term* solution of `?n`, which may lead to looking into solutions of other
+active metas. Here we employ a very simple caching mechanism: we only visit
+each active solved meta at most once. So the amount of work done in approximate
+occurs checking is limited by the total size of all active meta solutions.
+
+As a result, smalltt is able to very quickly check the classic nested pair
+example:
+
+```
+dup : {A} → A → Pair A A
+ = ...
+
+pairTest =
+  let x0  = dup U ;
+  let x1  = dup x0;
+  let x2  = dup x1;
+  ...
+  x20
+```
+
+At each `dup`, the normal form of the inferred `A` type doubles. In smalltt
+this benchmark is technically quadratic, since at each `dup` we search all
+previous active solved metas. But these meta solutions are all tiny, they
+are of the form `?n := Pair ?(n-1) ?(n-1)`. This takes exponential time
+in all tested systems besides smalltt.
+
+More sophisticated caching mechanisms are plausible and probably desirable. For
+better UX, it could make sense to combine smarter caching with more relaxed meta
+freezing behavior, like allowing metas to be active within a single module.
+
+## GHC-specific optimizations
+
+### Runtime system options
+
+Setting RTS options is important and often overlooked. The performance gains
+from the right settings can be easily 30-50%. The default arena size in GHC (1MB
+or 4MB from ghc 9.2) is very tiny compared to typical RAM sizes. In smalltt I
+set the default RTS options to be `-A64M -N8`. This means that effective arena
+size is 8 * 64 = 512MB, so smalltt allocates in 512MB chunks. Is this wasteful?
+RAM sizes below 8GB are getting increasingly rare; 512MB is 1/16th of that, and
+1/32nd of 16GB. If we can trade RAM for performance, while still keeping the
+risk of running out of RAM very low, then we should do it. The RAM is there to
+be used!
+
+One of the main reasons why smalltt is compiled with GHC is the RTS performance,
+which is overall great. I plan to update my old [normalization
+benchmarks](https://github.com/AndrasKovacs/normalization-bench) at some point;
+even there GHC performs well, but my newer unstructured benchmarking with newer
+GHC versions indicates yet more GHC advantage.
 
 ### IO unboxing
 
-TODO
+This fancy optimization turned out to not have a huge impact on performance, but
+I still had to at least implement it out and benchmark it, to be able to come to
+this conclusion.
+
+In a nutshell, `IO a` blocks the unboxing of `a`. It's been a long-standing
+limitation, but fortunately GHC 9.4 will include a fix. I implemented a
+workaround of my own which works in GHC 9.0 and 9.2.
+
+[UIO.hs](src/UIO.hs) contains the basic machinery. There's a new `IO` definition
+whose operations all require a `CanIO a` constraint on the return value. The
+`CanIO` methods use a bunch of levity-polymorphic magic to make this
+work. Unfortunately I haven't yet written nicer TH code to derive `CanIO`.
+There are only some CPP macros in [src/deriveCanIO.h](src/deriveCanIO.h).
+
+Unboxed `IO` is not a monad but a constrained monad, so I use
+[`QualifiedDo`](https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/qualified_do.html)
+to write `do`-blocks for it. I don't want to wholesale rebind my `do` notation
+to constrained monads.
 
 ### Custom exceptions
 
