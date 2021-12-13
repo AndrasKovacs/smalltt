@@ -59,6 +59,7 @@ appSp ms t = \case
 
 data SpineLvl = SpineLvl Spine Lvl
 
+-- | Pick the values from an `Env` which are in a `LS.LvlSet`.
 maskEnv :: Env -> LS.LvlSet -> Spine
 maskEnv e mask = (case go e mask of SpineLvl sp _ -> sp) where
   go :: Env -> LS.LvlSet -> SpineLvl
@@ -94,6 +95,7 @@ eval :: MetaCxt -> Env -> Tm -> Val
 eval ms e t = eval' ms e t
 {-# inline eval #-}
 
+-- Forcing
 --------------------------------------------------------------------------------
 
 -- | Eliminate newly solved VFlex-es from the head.
@@ -206,6 +208,7 @@ zonkApps ms env l = \case
                  (# | t #) -> let t' = inlApp ms t (eval ms env u) i in (# | t' #)
   t         -> let t' = zonk ms env l t in (# t' | #)
 
+-- | Unfold all solved metas in a term.
 zonk :: MetaCxt -> Env -> Lvl -> Tm -> Tm
 zonk ms env l t = let
   go     = zonk ms env l; {-# inline go #-}

@@ -289,14 +289,14 @@ top =  (exactLvl 0 >> idented topDef1)
 src :: Parser TopLevel
 src = ws *> top
 
-parse :: B.ByteString -> Result Error TopLevel
+parse :: Src -> Result Error TopLevel
 parse = runParser src
 
-parseFile :: String -> IO (B.ByteString, Result Error TopLevel)
+parseFile :: String -> IO (Src, Result Error TopLevel)
 parseFile path = do
   src <- B.readFile path
   let res = parse src
   pure (src, res)
 
-parseString :: String -> (B.ByteString, Result Error TopLevel)
+parseString :: String -> (Src, Result Error TopLevel)
 parseString  (packUTF8 -> str) = (str, parse str)

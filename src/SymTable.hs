@@ -32,7 +32,6 @@ module SymTable (
   , Entry(..)
   , loadFactor
   , loadFactor'
-  , test
   ) where
 
 import qualified Data.Array.LI            as ALI
@@ -59,12 +58,9 @@ import IO
 
 --------------------------------------------------------------------------------
 
-
 #include "deriveCanIO.h"
 
---------------------------------------------------------------------------------
 -- TODO: factor out all the shared reads from insert/delete for Cxt.Extension
-
 
 -- Symtable entries
 --------------------------------------------------------------------------------
@@ -141,7 +137,7 @@ hash (SymTable tbl) k = U.do
   U.pure (hash# src k)
 {-# inline hash #-}
 
-hashByteString :: B.ByteString -> U.IO Hash
+hashByteString :: Src -> U.IO Hash
 hashByteString str = U.io $ B.unsafeUseAsCString str \(Ptr addr) -> do
   let !(I# l) = B.length str
   pure $! hash# (plusAddr# addr l) (Span (Pos (I# l)) (Pos 0))
@@ -239,11 +235,11 @@ new# :: Ptr Word8 -> Int -> ForeignPtrContents -> U.IO SymTable
 new# = new'# initSlots
 {-# inline new# #-}
 
-new :: B.ByteString -> U.IO SymTable
+new :: Src -> U.IO SymTable
 new (B.BS (ForeignPtr base ftc) (I# len)) =
   new# (Ptr (plusAddr# base len)) (I# len) ftc
 
-lookupByteString :: B.ByteString -> SymTable -> IO (UMaybe Entry)
+lookupByteString :: Src -> SymTable -> IO (UMaybe Entry)
 lookupByteString k (SymTable tbl) = B.unsafeUseAsCString k \(Ptr base) -> do
   let !(I# len) = B.length k
   buckets  <- RUUU.readSnd tbl
@@ -344,7 +340,7 @@ size :: SymTable -> U.IO Int
 size (SymTable tbl) = U.io $ RFFF.readFst =<< RUUU.readFst tbl
 {-# inline size #-}
 
-src :: SymTable -> B.ByteString
+src :: SymTable -> Src
 src (SymTable tbl) = runIO do
   ref     <- RUUU.readFst tbl
   Ptr end <- RFFF.readSnd ref
@@ -387,24 +383,24 @@ buckets stbl@(SymTable tbl) = do
         (\acc h k v -> (h, showSpan (src stbl) k, v):acc) [] b : acc)
         [] buckets
 
-testHash :: B.ByteString -> Span -> Hash
+testHash :: Src -> Span -> Hash
 testHash str s = runIO $ B.unsafeUseAsCString str \(Ptr addr) -> do
   let !(I# l) = B.length str
       eob = plusAddr# addr l
   pure $ hash# eob s
 
-testEqSpan :: B.ByteString -> Span -> Span -> Bool
+testEqSpan :: Src -> Span -> Span -> Bool
 testEqSpan str s s' = runIO $ B.unsafeUseAsCString str \(Ptr addr) -> do
   let !(I# l) = B.length str
       eob = plusAddr# addr l
   pure $ isTrue# (eqSpan# eob s s')
 
-test = do
-  tbl <- U.toIO $ new "EvalCon0EvalCon0        "
-  U.toIO $ insert (Span (Pos 24) (Pos 16)) (Local 10 (gjoin VU)) tbl
-  U.toIO $ insert (Span (Pos 16) (Pos 8)) (Local 10 (gjoin VU)) tbl
-  -- U.toIO $ insert (Span (Pos 8) (Pos 0)) (Local 10 (gjoin VU)) tbl
-  -- lk <- U.toIO $ SymTable.lookup (Span (Pos 16) (Pos 8)) tbl
-  -- print lk
+-- test = do
+--   tbl <- U.toIO $ new "EvalCon0EvalCon0        "
+--   U.toIO $ insert (Span (Pos 24) (Pos 16)) (Local 10 (gjoin VU)) tbl
+--   U.toIO $ insert (Span (Pos 16) (Pos 8)) (Local 10 (gjoin VU)) tbl
+--   -- U.toIO $ insert (Span (Pos 8) (Pos 0)) (Local 10 (gjoin VU)) tbl
+--   -- lk <- U.toIO $ SymTable.lookup (Span (Pos 16) (Pos 8)) tbl
+--   -- print lk
 
-  mapM_ print =<< buckets tbl
+--   mapM_ print =<< buckets tbl

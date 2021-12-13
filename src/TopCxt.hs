@@ -2,7 +2,6 @@
 
 module TopCxt where
 
-import qualified Data.ByteString      as B
 import qualified Data.Array.LM        as ALM
 import qualified Data.Array.Dynamic.L as ADL
 import qualified Data.Array.UM        as AUM
@@ -43,7 +42,7 @@ CAN_IO5(
   CoeTop)
 
 -- | New top context from a source file and the number of top defs.
-new :: B.ByteString -> Int -> U.IO Cxt
+new :: Src -> Int -> U.IO Cxt
 new src len = U.do
   info   <- U.io $ ALM.new len (error "undefined top entry")
   tbl    <- ST.new src

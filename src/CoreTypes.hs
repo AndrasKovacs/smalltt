@@ -1,9 +1,14 @@
 {-# language UnboxedTuples  #-}
 {-# options_ghc -funbox-strict-fields #-}
 
+{-|
+
+
+
+-}
+
 module CoreTypes where
 
-import qualified Data.ByteString      as B
 import qualified Data.Array.LM        as ALM
 import qualified Data.Array.Dynamic.L as ADL
 import qualified Data.Ref.F           as RF
@@ -99,6 +104,7 @@ CAN_IO2(G, LiftedRep, LiftedRep, Val, Val, G x y, CoeG)
 ------------------------------------------------------------
 
 -- data UnfoldHead = UHTopVar Lvl ~Val | UHSolved MetaVar
+-- | Top-level things whose unfolding can be delayed.
 data UnfoldHead = UnfoldHead# Int ~Val
 
 eqUH :: UnfoldHead -> UnfoldHead -> Bool
@@ -111,10 +117,12 @@ unpackUH# (UnfoldHead# x v) = case x .&. 1 of
   _ -> (# | MkMetaVar (unsafeShiftR x 1) #)
 {-# inline unpackUH# #-}
 
+-- | A top-level variable.
 pattern UHTopVar :: Lvl -> Val -> UnfoldHead
 pattern UHTopVar x v <- (unpackUH# -> (# (# x, v #) | #)) where
   UHTopVar (Lvl x) ~v = UnfoldHead# (unsafeShiftL x 1) v
 
+-- | A solved metavariable.
 pattern UHSolved :: MetaVar -> UnfoldHead
 pattern UHSolved x <- (unpackUH# -> (# | x #)) where
   UHSolved (MkMetaVar x) = UnfoldHead# (unsafeShiftL x 1 + 1) undefined
@@ -127,7 +135,7 @@ instance Show UnfoldHead where
 --------------------------------------------------------------------------------
 
 data TopEntry
-  -- name, type, definition, metacxt size in scope of definition
+  -- ^ Name, type, definition, bound for frozen metas.
   = TopEntry {-# unpack #-} Span Tm Tm MetaVar
 
 CAN_IO(TopEntry, LiftedRep, TopEntry, x, CoeTopEntry)
@@ -164,7 +172,7 @@ letp  = 0  :: Int -- let, lambda
 par :: Int -> Int -> ShowS -> ShowS
 par p p' = showParen (p' < p)
 
-prettyTm :: MetaCxt -> Int -> B.ByteString -> Names -> Tm -> ShowS
+prettyTm :: MetaCxt -> Int -> Src -> Names -> Tm -> ShowS
 prettyTm ms prec src ns t = go prec ns t where
 
   topInfo :: TopInfo
@@ -270,5 +278,5 @@ prettyTm ms prec src ns t = go prec ns t where
     TopVar x _          -> goTop x
     Irrelevant          -> ("Irrelevant"++)
 
-showTm0 :: MetaCxt -> B.ByteString -> TopInfo -> Tm -> String
+showTm0 :: MetaCxt -> Src -> TopInfo -> Tm -> String
 showTm0 ms src topinfo t = prettyTm ms 0 src (NNil topinfo) t []

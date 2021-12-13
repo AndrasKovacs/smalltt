@@ -3,7 +3,6 @@
 
 module Elaboration (elab) where
 
-import qualified Data.ByteString as B
 import GHC.Exts
 
 import qualified LvlSet as LS
@@ -29,8 +28,8 @@ unify :: Cxt -> P.Tm -> G -> G -> U.IO ()
 unify cxt pt l r = U.do
   debug ["unify", showValOpt cxt (g1 l) UnfoldMetas, showValOpt cxt (g1 r) UnfoldMetas]
   let ecxt = ErrorCxt (mcxt cxt) (tbl cxt) (names cxt) (lvl cxt); {-# inline ecxt #-}
-  Unif.unify (mcxt cxt) (lvl cxt) (frz cxt) CSRigid l r `catch` \case
-     UnifyEx e -> throw $ UnifyError ecxt pt (g1 l) (g1 r) e
+  Unif.unify (mcxt cxt) (lvl cxt) (frz cxt) Rigid l r `catch` \case
+     UnifyEx e -> throw $ UnifyExInCxt ecxt pt (g1 l) (g1 r) e
      _         -> impossible
 
 -- Fresh metas and meta insertions
@@ -63,11 +62,11 @@ freshMeta cxt = U.do
 {-# inline freshMeta #-}
 
 -- | Create fresh meta as a term, under an extra binder.
-freshMetaUnder :: Cxt -> Icit -> U.IO Tm
-freshMetaUnder cxt i = U.do
+freshMetaUnderBinder :: Cxt -> Icit -> U.IO Tm
+freshMetaUnderBinder cxt i = U.do
   mvar <- MC.fresh (mcxt cxt) (LS.insert (lvl cxt) (mask cxt))
   U.pure (InsertedMeta (coerce mvar))
-{-# inline freshMetaUnder #-}
+{-# inline freshMetaUnderBinder #-}
 
 goInsert' :: Cxt -> Infer -> U.IO Infer
 goInsert' cxt (Infer t (G a fa)) = forceAll cxt fa U.>>= \case
@@ -162,7 +161,7 @@ infer cxt topT = U.do
                           | otherwise -> impossible
         ftty -> U.do
           a <- snd U.<$> freshMeta cxt
-          b <- Closure (env cxt) U.<$> freshMetaUnder cxt i
+          b <- Closure (env cxt) U.<$> freshMetaUnderBinder cxt i
           let expected = VPi (NI NX i) a b
           unify cxt topT (G tty ftty) (gjoin expected)
           pure a b)
@@ -177,7 +176,7 @@ infer cxt topT = U.do
       let ~va = eval cxt a
       binding cxt x i (gjoin va) \cxt _ -> U.do
         b <- checkType cxt b
-        U.pure (Infer (Pi (NI (bind x) i) a b) (gjoin VU))
+        U.pure (Infer (Pi (NI (P.bind x) i) a b) (gjoin VU))
 
     P.Lam _ x P.Named{} ma t ->
       throw InferNamedLam
@@ -192,8 +191,8 @@ infer cxt topT = U.do
       \ ~a ~va -> U.do
 
       Infer t vb <- binding cxt x i (gjoin va) \cxt _ -> insertApps cxt (infer cxt t)
-      let ty = VPi (NI (bind x) i) va (valToClosure cxt (g1 vb))
-      U.pure (Infer (Lam (NI (bind x) i) t) (gjoin ty))
+      let ty = VPi (NI (P.bind x) i) va (valToClosure cxt (g1 vb))
+      U.pure (Infer (Lam (NI (P.bind x) i) t) (gjoin ty))
 
     P.U _ ->
       U.pure (Infer U (gjoin VU))
@@ -246,7 +245,7 @@ check cxt topT (G topA ftopA) = U.do
           pure va')
       \a ->
       binding cxt x i (gjoin a) \cxt v -> U.do
-        Lam (NI (bind x) i) U.<$> (check cxt t $! (gjoin $! appCl' cxt b v))
+        Lam (NI (P.bind x) i) U.<$> (check cxt t $! (gjoin $! appCl' cxt b v))
 
     (t, VPi (NI x Impl) a b) ->
       inserting cxt x \cxt v -> U.do
@@ -322,7 +321,7 @@ elabTopLevel topCxt = \case
 {-# noinline elabTopLevel #-}
 
 
-elab :: B.ByteString -> P.TopLevel -> IO (Either Exception Top.Cxt)
+elab :: Src -> P.TopLevel -> IO (Either Exception Top.Cxt)
 elab src top = U.toIO U.do
   topCxt <- Top.new src (P.topLen top)
   try (elabTopLevel topCxt top)

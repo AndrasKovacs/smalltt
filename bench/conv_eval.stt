@@ -88,20 +88,20 @@ t22b = fullTree n22b
 t23  = fullTree n23
 t23b = fullTree n23b
 
--- -- Warmup
--- --------------------------------------------------------------------------------
+-- Warmup
+--------------------------------------------------------------------------------
 
--- warmup : Eq n10M n10Mb = refl
+warmup : Eq n10M n10Mb = refl
 
--- -- Nat conversion
--- --------------------------------------------------------------------------------
+-- Nat conversion
+--------------------------------------------------------------------------------
 
--- convn1M  [elabtime]: Eq n1M n1Mb   = refl
--- convn5M  [elabtime]: Eq n5M n5Mb   = refl
--- convn10M [elabtime]: Eq n10M n10Mb = refl
+convn1M  [elabtime]: Eq n1M n1Mb   = refl
+convn5M  [elabtime]: Eq n5M n5Mb   = refl
+convn10M [elabtime]: Eq n10M n10Mb = refl
 
--- -- Full tree conversion
--- --------------------------------------------------------------------------------
+-- Full tree conversion
+--------------------------------------------------------------------------------
 
 -- convt15  [elabtime] : Eq t15 t15b = refl
 -- convt18  [elabtime] : Eq t18 t18b = refl
@@ -119,16 +119,16 @@ convt21  [elabtime] : Eq t21 t21b = λ P x. x
 convt22  [elabtime] : Eq t22 t22b = λ P x. x
 convt23  [elabtime] : Eq t23 t23b = λ P x. x
 
--- -- Full meta-containing tree conversion
--- --------------------------------------------------------------------------------
+-- Full meta-containing tree conversion
+--------------------------------------------------------------------------------
 
--- convmt15 [elabtime] : Eq t15  (fullTreeWithLeaf _ n15 ) = refl
--- convmt18 [elabtime] : Eq t18  (fullTreeWithLeaf _ n18 ) = refl
--- convmt19 [elabtime] : Eq t19  (fullTreeWithLeaf _ n19 ) = refl
--- convmt20 [elabtime] : Eq t20  (fullTreeWithLeaf _ n20 ) = refl
--- convmt21 [elabtime] : Eq t21  (fullTreeWithLeaf _ n21 ) = refl
--- convmt22 [elabtime] : Eq t22  (fullTreeWithLeaf _ n22 ) = refl
--- convmt23 [elabtime] : Eq t23  (fullTreeWithLeaf _ n23 ) = refl
+convmt15 [elabtime] : Eq t15  (fullTreeWithLeaf _ n15 ) = refl
+convmt18 [elabtime] : Eq t18  (fullTreeWithLeaf _ n18 ) = refl
+convmt19 [elabtime] : Eq t19  (fullTreeWithLeaf _ n19 ) = refl
+convmt20 [elabtime] : Eq t20  (fullTreeWithLeaf _ n20 ) = refl
+convmt21 [elabtime] : Eq t21  (fullTreeWithLeaf _ n21 ) = refl
+convmt22 [elabtime] : Eq t22  (fullTreeWithLeaf _ n22 ) = refl
+convmt23 [elabtime] : Eq t23  (fullTreeWithLeaf _ n23 ) = refl
 
 -- Full tree forcing
 --------------------------------------------------------------------------------

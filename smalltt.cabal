@@ -106,7 +106,7 @@ library
     cpp-options: -DDEBUG
   default-language: Haskell2010
 
-executable smalltt-2
+executable smalltt
   main-is: Main.hs
   hs-source-dirs:
       smalltt
@@ -143,7 +143,7 @@ executable smalltt-2
       TypeFamilyDependencies
       UndecidableInstances
       ViewPatterns
-  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=20 -O2 -rtsopts -threaded
+  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=20 -O2 -rtsopts -threaded -with-rtsopts= "-A64M -s -N8"
   build-depends:
       base >=4.7 && <5
     , bytestring

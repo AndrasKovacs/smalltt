@@ -1,12 +1,14 @@
 
 module LvlSet where
 
+{-|
+Sets of De Bruijn levels. Currently this is just a 64 bit mask, and we limit
+local scopes to 64 entries. This is checked in `Cxt.Extension`.
+-}
+
 import Common
 import Data.Bits
 import Data.Foldable (foldl')
-
--- Lvl sets
---------------------------------------------------------------------------------
 
 newtype LvlSet = LvlSet Int deriving (Eq, Bits) via Int
 

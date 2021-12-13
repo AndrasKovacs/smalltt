@@ -1,5 +1,5 @@
 
-GHC bugs & mines that I've found
+GHC bugs & performance issues that I've found
 
 - Using primarray foldl' after unsafeFreezing a mutable boxed primarray (for the
   sake of debug printing) causes mysterious segfaults! I instead changed to safe
@@ -18,4 +18,4 @@ GHC bugs & mines that I've found
   The apparent workaround is to define the U.bindN functions in UIO.
 
 - Type family reduction routinely fails during type checking if we use type
-  families defined in a different module! See the
+  families defined in a different module! See UIO.hs and deriveCanIO.h for workarounds.

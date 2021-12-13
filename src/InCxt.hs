@@ -1,7 +1,10 @@
 
 module InCxt where
 
-import qualified Data.ByteString as B
+{-|
+Variants of function which take a local elaboration context as argument.
+-}
+
 import GHC.Exts
 import IO
 
@@ -23,7 +26,7 @@ quote :: Cxt -> QuoteOption -> Val -> Tm
 quote cxt opt t = E.quote (mcxt cxt) (lvl cxt) opt t
 {-# inline quote #-}
 
-src :: Cxt -> B.ByteString
+src :: Cxt -> Src
 src cxt = ST.src (tbl cxt)
 {-# inline src #-}
 

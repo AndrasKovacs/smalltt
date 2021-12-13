@@ -1,5 +1,13 @@
 {-# language UnboxedTuples, UnboxedSums #-}
 
+{-|
+Definitions of basic types and operations which don't depend on the types for
+core syntax and runtime values. A bit random.
+
+We use low-level bit-packed definitions for several types, and present a nicer
+API with pattern synonyms.
+-}
+
 module Common (
     module Common
   , Span(..)
@@ -36,14 +44,15 @@ import qualified UIO
 
 #include "deriveCanIO.h"
 
--- config
+-- Constants
 --------------------------------------------------------------------------------
 
 -- | Maximum number of allowed local binders.
 maxLocals :: Lvl
 maxLocals = 64; {-# inline maxLocals #-}
 
--- debug printing, toggled by "debug" cabal flag
+
+-- Debug printing, toggled by "debug" cabal flag
 --------------------------------------------------------------------------------
 
 -- define DEBUG
@@ -85,6 +94,7 @@ uf = undefined
 {-# noinline uf #-}
 
 infix 2 //
+-- | Strict pair construction.
 (//) :: a -> b -> (a, b)
 a // b = (a, b)
 {-# inline (//) #-}
@@ -93,6 +103,7 @@ impossible :: Dbg => a
 impossible = error "impossible"
 {-# noinline impossible #-}
 
+-- | Pointer equality.
 ptrEq :: a -> a -> Bool
 ptrEq !x !y = isTrue# (reallyUnsafePtrEquality# x y)
 {-# inline ptrEq #-}
@@ -102,6 +113,8 @@ ctzInt (I# n) = I# (word2Int# (ctz# (int2Word# n)))
 {-# inline ctzInt #-}
 
 infixl 0 $$!
+-- | Strict function application that associates to the left. A more convenient
+--   version of `($!)`.
 ($$!) :: (a -> b) -> a -> b
 ($$!) f x = f x
 {-# inline ($$!) #-}
@@ -119,6 +132,11 @@ infixr 3 &&#
 (&&#) :: UBool -> UBool -> UBool
 (&&#) (UBool# x) (UBool# y) = UBool# (x .&. y)
 {-# inline (&&#) #-}
+
+infixr 2 ||#
+(||#) :: UBool -> UBool -> UBool
+(||#) (UBool# x) (UBool# y) = UBool# (x .|. y)
+{-# inline (||#) #-}
 
 CAN_IO(UBool, IntRep, Int#, UBool# (I# x), CoeUBool)
 
@@ -167,28 +185,36 @@ instance Show a => Show (UMaybe a) where
 
 --------------------------------------------------------------------------------
 
--- | States for approximate scope/conversion checking.
+-- | States for approximate conversion checking. See the README for more
+--   details.
 newtype ConvState = ConvState# Int deriving Eq via Int
-pattern CSRigid :: ConvState
-pattern CSRigid = ConvState# 0
-pattern CSFlex :: ConvState
-pattern CSFlex = ConvState# 1
-pattern CSFull :: ConvState
-pattern CSFull = ConvState# 2
-{-# complete CSRigid, CSFlex, CSFull #-}
+pattern Rigid :: ConvState
+pattern Rigid = ConvState# 0
+pattern Flex :: ConvState
+pattern Flex = ConvState# 1
+pattern Full :: ConvState
+pattern Full = ConvState# 2
+{-# complete Rigid, Flex, Full #-}
 
 instance Show ConvState where
-  show CSRigid = "Rigid"
-  show CSFlex  = "Flex"
-  show CSFull  = "Full"
+  show Rigid = "Rigid"
+  show Flex  = "Flex"
+  show Full  = "Full"
 
 --------------------------------------------------------------------------------
 
+-- | Unfolding modes for quotation.
 newtype QuoteOption = QuoteOption# Int deriving Eq via Int
+
+-- | Unfold solved metas and top definitions.
 pattern UnfoldAll :: QuoteOption
 pattern UnfoldAll = QuoteOption# 0
+
+-- | Unfold solved metas only.
 pattern UnfoldMetas :: QuoteOption
 pattern UnfoldMetas = QuoteOption# 1
+
+-- | Don't unfold any top entry.
 pattern UnfoldNone :: QuoteOption
 pattern UnfoldNone = QuoteOption# 2
 {-# complete UnfoldAll, UnfoldMetas, UnfoldNone #-}
@@ -220,7 +246,7 @@ icit Expl x y = y
 {-# inline icit #-}
 
 
--- De Bruijn
+-- De Bruijn indices and levels
 --------------------------------------------------------------------------------
 
 newtype Ix = Ix {unIx :: Int}
@@ -256,14 +282,19 @@ unName# (Name# (-2) _) = (# | (# #) | #)
 unName# (Name# x y   ) = (# | | Span (Pos x) (Pos y) #)
 {-# inline unName# #-}
 
+-- | An unused (underscore) binder in source syntax becomes
+--   an `Empty` `Name`.
 pattern NEmpty :: Name
 pattern NEmpty <- (unName# -> (# (# #) | | #))  where
   NEmpty = Name# (-1) 0
 
+-- | `NX` is a generic fresh name. It will be printed as "x", usually
+--   un-shadowed as "xN" with "N" a number.
 pattern NX :: Name
 pattern NX <- (unName# -> (# | (# #) | #)) where
   NX = Name# (-2) 0
 
+-- | `NSpan` is a span pointing into the source `ByteString`.
 pattern NSpan :: Span -> Name
 pattern NSpan sp <- (unName# -> (# | | sp #)) where
   NSpan (Span (Pos x) (Pos y)) = Name# x y
@@ -274,47 +305,15 @@ instance Show Name where
   showsPrec d NX        = ('x':)
   showsPrec d (NSpan x) = showsPrec d x
 
-showSpan :: B.ByteString -> Span -> String
+showSpan :: Src -> Span -> String
 showSpan src s = unpackUTF8 $ unsafeSlice src s
 
-showName :: B.ByteString -> Name -> String
+showName :: Src -> Name -> String
 showName src = \case
   NEmpty  -> "_"
   NX      -> "x"
   NSpan s -> showSpan src s
 
-
--- Binders
---------------------------------------------------------------------------------
-
--- data Bind = BEmpty | BSpan Span
-data Bind = Bind# Int Int
-
-unBind# :: Bind -> (# (# #) | Span #)
-unBind# (Bind# (-1) _) = (# (# #) | #)
-unBind# (Bind# x y   ) = (# | Span (Pos x) (Pos y) #)
-{-# inline unBind# #-}
-
-pattern BEmpty :: Bind
-pattern BEmpty <- (unBind# -> (# (# #) | #))  where
-  BEmpty = Bind# (-1) 0
-
-pattern BSpan :: Span -> Bind
-pattern BSpan sp <- (unBind# -> (# | sp #)) where
-  BSpan (Span (Pos x) (Pos y)) = Bind# x y
-{-# complete BEmpty, BSpan #-}
-
-instance Show Bind where
-  showsPrec d BEmpty    = ('_':)
-  showsPrec d (BSpan x) = showsPrec d x
-
-bind :: Bind -> Name
-bind (Bind# x y) = Name# x y
-{-# inline bind #-}
-
-showBind :: B.ByteString -> Bind -> String
-showBind src BEmpty    = "_"
-showBind src (BSpan x) = showSpan src x
 
 -- A Name and an Icit packed to two words
 --------------------------------------------------------------------------------
@@ -416,11 +415,13 @@ eqBasedSpan# eob  (Span (Pos (I# x))  (Pos (I# y)))
             (plusAddr# eob' (negateInt# x')) len
     _  -> 0#
 
-eqSpan :: B.ByteString -> Span -> Span -> Bool
+eqSpan :: Src -> Span -> Span -> Bool
 eqSpan (B.BS (ForeignPtr base _) (I# len)) s s' =
   isTrue# (eqSpan# (plusAddr# base len) s s')
 {-# inline eqSpan #-}
 
+
+-- Timing
 --------------------------------------------------------------------------------
 
 -- | Time an IO computation. Result is forced to whnf.

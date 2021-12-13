@@ -28,14 +28,19 @@ import Data.Proxy
 
 --------------------------------------------------------------------------------
 
--- data TypeEq :: Type -> Type -> Type where
---   Refl :: TypeEq a a
-
 type RW = State# RealWorld
 
+-- | The runtime representation of the unboxed representing type of a type.
 type family RepRep a = (res :: RuntimeRep)
+
+-- | The unboxed representing type of a type.
 type family Rep a    = (res :: TYPE (RepRep a))
 
+
+-- | This class allows returning and binding unboxed values. It took me several
+--   hours of trial-and-error to arrive at the API below. It seems sufficient to
+--   implement all usual operations, without tripping up the levity limitations
+--   and the occasional type checker bugs in GHC.
 class CanIO a where
   bind  :: forall r (b :: TYPE r). (RW -> (# RW, Rep a #))
         -> (a -> RW -> (# RW, b #)) -> RW -> (# RW, b #)
@@ -106,8 +111,8 @@ fail :: String -> a
 fail = error
 {-# inline fail #-}
 
+-- Join-point-friendly combinators
 --------------------------------------------------------------------------------
-
 
 bind1 :: (CanIO a) => ((a -> IO b) -> IO b) -> (a -> IO b) -> IO b
 bind1 f g = IO \s -> let cont = oneShot g in unIO (f cont) s

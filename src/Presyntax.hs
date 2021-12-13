@@ -1,11 +1,47 @@
 {-# options_ghc -funbox-strict-fields #-}
 {-# language UnboxedSums, UnboxedTuples #-}
 
+{-|
+Presyntax as output by parsing. Like in `Common` and `CoreTypes`, we manually
+pack data.
+-}
+
 module Presyntax where
 
 import Data.Bits
 import GHC.Exts
 import Common
+
+--------------------------------------------------------------------------------
+
+-- data Bind = BEmpty | BSpan Span
+data Bind = Bind# Int Int
+
+unBind# :: Bind -> (# (# #) | Span #)
+unBind# (Bind# (-1) _) = (# (# #) | #)
+unBind# (Bind# x y   ) = (# | Span (Pos x) (Pos y) #)
+{-# inline unBind# #-}
+
+pattern BEmpty :: Bind
+pattern BEmpty <- (unBind# -> (# (# #) | #))  where
+  BEmpty = Bind# (-1) 0
+
+pattern BSpan :: Span -> Bind
+pattern BSpan sp <- (unBind# -> (# | sp #)) where
+  BSpan (Span (Pos x) (Pos y)) = Bind# x y
+{-# complete BEmpty, BSpan #-}
+
+instance Show Bind where
+  showsPrec d BEmpty    = ('_':)
+  showsPrec d (BSpan x) = showsPrec d x
+
+bind :: Bind -> Name
+bind (Bind# x y) = Name# x y
+{-# inline bind #-}
+
+showBind :: Src -> Bind -> String
+showBind src BEmpty    = "_"
+showBind src (BSpan x) = showSpan src x
 
 --------------------------------------------------------------------------------
 
@@ -73,7 +109,7 @@ data Tm
   | Hole Pos
   deriving Show
 
--- | Length of top scope, used to sanity check parsing output.
+-- | Length of top scope.
 topLen :: TopLevel -> Int
 topLen = go 0 where
   go acc Nil = acc

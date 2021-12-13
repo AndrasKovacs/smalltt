@@ -100,7 +100,7 @@ library:
     - ghc-prim
 
 executables:
-  smalltt-2:
+  smalltt:
     source-dirs:
       - smalltt
     main:
@@ -108,6 +108,7 @@ executables:
     ghc-options:
       - -rtsopts
       - -threaded
+      - -with-rtsopts= "-A64M -s -N8"
     dependencies:
       - bytestring
       - dynamic-array

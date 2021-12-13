@@ -4,7 +4,6 @@ module Lexer where
 
 import FlatParse.Stateful hiding (Parser, runParser, string, char, cut, err)
 
-import qualified Data.ByteString as B
 import qualified Data.Set as S
 import qualified FlatParse.Stateful as FP
 import Data.Char
@@ -61,7 +60,7 @@ uoptional :: FP.Parser e a -> FP.Parser e (UMaybe a)
 uoptional p = (UJust <$> p) <|> pure UNothing
 {-# inline uoptional #-}
 
-prettyError :: B.ByteString -> Error -> String
+prettyError :: Src -> Error -> String
 prettyError _ DontUnboxError = impossible
 prettyError b (Error pos e)  =
 
@@ -112,7 +111,7 @@ cut' p exp = do
   pos <- getPos
   FP.cutting p (Error pos (Precise exp)) merge
 
-runParser :: Parser a -> B.ByteString -> Result Error a
+runParser :: Parser a -> Src -> Result Error a
 runParser p = FP.runParser p 0 0
 
 -- | Run parser, print pretty error on failure.
