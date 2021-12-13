@@ -58,7 +58,7 @@ lift (PRen m dom cod ren) = PRen m (dom + 1) (cod + 1) ren
 {-# inline lift #-}
 
 
--- SOLUTION CHECKING
+-- SOLUTION QUOTATION
 --------------------------------------------------------------------------------
 
 CAN_IO2((Tm,UBool), LiftedRep, IntRep, Tm, Int#, (x, UBool# (I# y)), CoeTmUBool)

@@ -98,16 +98,16 @@ t23b = fullTree n23b
 -- Nat conversion
 --------------------------------------------------------------------------------
 
--- convn1M : Eq n1M n1Mb; convn1M = refl     -- 2 s
--- convn5M : Eq n5M n5Mb; convn5M = refl     -- 10.4s s
--- convn10M : Eq n10M n10Mb; convn10M = refl -- 19s
+-- convn1M : Eq n1M n1Mb; convn1M = refl
+-- convn5M : Eq n5M n5Mb; convn5M = refl
+-- convn10M : Eq n10M n10Mb; convn10M = refl
 
 -- Full tree conversion
 --------------------------------------------------------------------------------
 
--- convt15  : Eq t15  t15b; convt15  = refl -- 15 ms
+-- convt15  : Eq t15  t15b; convt15  = refl -- 16 ms
 -- convt18  : Eq t18  t18b; convt18  = refl -- 20 ms
--- convt19  : Eq t19  t19b; convt19  = refl -- 20 ms
+-- convt19  : Eq t19  t19b; convt19  = refl -- 30 ms
 -- convt20  : Eq t20  t20b; convt20  = refl -- 1.7 s
 -- convt21  : Eq t21  t21b; convt21  = refl -- 3.4 s
 -- convt22  : Eq t22  t22b; convt22  = refl -- 6.6 s
@@ -116,13 +116,13 @@ t23b = fullTree n23b
 -- Full meta-containing tree conversion
 --------------------------------------------------------------------------------
 
--- convmt15 : Eq t15  (fullTreeWithLeaf _ n15 ); convmt15 = refl -- 770 ms
--- convmt18 : Eq t18  (fullTreeWithLeaf _ n18 ); convmt18 = refl -- 6.3 s
--- convmt19 : Eq t19  (fullTreeWithLeaf _ n19 ); convmt19 = refl -- 12.5 s
--- convmt20 : Eq t20  (fullTreeWithLeaf _ n20 ); convmt20 = refl -- 24.8 s
--- convmt21 : Eq t21  (fullTreeWithLeaf _ n21 ); convmt21 = refl
--- convmt22 : Eq t22  (fullTreeWithLeaf _ n22 ); convmt22 = refl
--- convmt23 : Eq t23  (fullTreeWithLeaf _ n23 ); convmt23 = refl
+-- convmt15 : Eq t15b  (fullTreeWithLeaf _ n15 ); convmt15 = refl --
+-- convmt18 : Eq t18b  (fullTreeWithLeaf _ n18 ); convmt18 = refl --
+-- convmt19 : Eq t19b  (fullTreeWithLeaf _ n19 ); convmt19 = refl --
+-- convmt20 : Eq t20b  (fullTreeWithLeaf _ n20 ); convmt20 = refl --
+-- convmt21 : Eq t21b  (fullTreeWithLeaf _ n21 ); convmt21 = refl
+-- convmt22 : Eq t22b  (fullTreeWithLeaf _ n22 ); convmt22 = refl
+-- convmt23 : Eq t23b  (fullTreeWithLeaf _ n23 ); convmt23 = refl
 
 -- Full tree forcing
 --------------------------------------------------------------------------------

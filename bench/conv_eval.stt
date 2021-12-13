@@ -96,9 +96,9 @@ warmup : Eq n10M n10Mb = refl
 -- Nat conversion
 --------------------------------------------------------------------------------
 
-convn1M  [elabtime]: Eq n1M n1Mb   = refl
-convn5M  [elabtime]: Eq n5M n5Mb   = refl
-convn10M [elabtime]: Eq n10M n10Mb = refl
+-- convn1M  [elabtime]: Eq n1M n1Mb   = refl
+-- convn5M  [elabtime]: Eq n5M n5Mb   = refl
+-- convn10M [elabtime]: Eq n10M n10Mb = refl
 
 -- Full tree conversion
 --------------------------------------------------------------------------------
@@ -111,75 +111,37 @@ convn10M [elabtime]: Eq n10M n10Mb = refl
 -- convt22  [elabtime] : Eq t22 t22b = refl
 -- convt23  [elabtime] : Eq t23 t23b = refl
 
-convt15  [elabtime] : Eq t15 t15b = λ P x. x
-convt18  [elabtime] : Eq t18 t18b = λ P x. x
-convt19  [elabtime] : Eq t19 t19b = λ P x. x
-convt20  [elabtime] : Eq t20 t20b = λ P x. x
-convt21  [elabtime] : Eq t21 t21b = λ P x. x
-convt22  [elabtime] : Eq t22 t22b = λ P x. x
-convt23  [elabtime] : Eq t23 t23b = λ P x. x
-
 -- Full meta-containing tree conversion
 --------------------------------------------------------------------------------
 
-convmt15 [elabtime] : Eq t15  (fullTreeWithLeaf _ n15 ) = refl
-convmt18 [elabtime] : Eq t18  (fullTreeWithLeaf _ n18 ) = refl
-convmt19 [elabtime] : Eq t19  (fullTreeWithLeaf _ n19 ) = refl
-convmt20 [elabtime] : Eq t20  (fullTreeWithLeaf _ n20 ) = refl
-convmt21 [elabtime] : Eq t21  (fullTreeWithLeaf _ n21 ) = refl
-convmt22 [elabtime] : Eq t22  (fullTreeWithLeaf _ n22 ) = refl
-convmt23 [elabtime] : Eq t23  (fullTreeWithLeaf _ n23 ) = refl
+-- convmt15 [elabtime] : Eq t15b (fullTreeWithLeaf _ n15 ) = refl
+-- convmt18 [elabtime] : Eq t18b (fullTreeWithLeaf _ n18 ) = refl
+-- convmt19 [elabtime] : Eq t19b (fullTreeWithLeaf _ n19 ) = refl
+-- convmt20 [elabtime] : Eq t20b (fullTreeWithLeaf _ n20 ) = refl
+-- convmt21 [elabtime] : Eq t21b (fullTreeWithLeaf _ n21 ) = refl
+-- convmt22 [elabtime] : Eq t22b (fullTreeWithLeaf _ n22 ) = refl
+-- convmt23 [elabtime] : Eq t23b (fullTreeWithLeaf _ n23 ) = refl
 
 -- Full tree forcing
 --------------------------------------------------------------------------------
 
--- forcet15 [nftime] = forceTree t15
--- forcet18 [nftime] = forceTree t18
--- forcet19 [nftime] = forceTree t19
--- forcet20 [nftime] = forceTree t20
--- forcet21 [nftime] = forceTree t21
--- forcet22 [nftime] = forceTree t22
--- forcet23 [nftime] = forceTree t23
+forcet15 [nftime] = forceTree t15
+forcet18 [nftime] = forceTree t18
+forcet19 [nftime] = forceTree t19
+forcet20 [nftime] = forceTree t20
+forcet21 [nftime] = forceTree t21
+forcet22 [nftime] = forceTree t22
+forcet23 [nftime] = forceTree t23
 
--- forcet15 [nftime] = t15
--- forcet18 [nftime] = t18
--- forcet19 [nftime] = t19
--- forcet20 [nftime] = t20
--- forcet21 [nftime] = t21
--- forcet22 [nftime] = t22
--- forcet23 [nftime] = t23
+nft15 [nftime] = t15
+nft18 [nftime] = t18
+nft19 [nftime] = t19
+nft20 [nftime] = t20
+nft21 [nftime] = t21
+nft22 [nftime] = t22
+nft23 [nftime] = t23
 
 -- Approximate conversion
 --------------------------------------------------------------------------------
 
--- approxConvt22  [elabtime] : Eq t22 t22 = refl
-
-
--- results
-
-{-
-convn1M  0.057229014s
-convn5M  0.189643177s
-convn10M 0.617171561s
-convt15  0.012699452s
-convt18  0.135505414s
-convt19  0.162337523s
-convt20  0.416629099s
-convt21  0.875770132s
-convt22  1.758604337s
-convt23  3.474363834s
-convmt15 0.011706088s
-convmt18 0.089145546s
-convmt19 0.172717538s
-convmt20 0.383953088s
-convmt21 0.850606518s
-convmt22 1.667923107s
-convmt23 3.442872729s
-forcet15 0.014566484s
-forcet18 0.101911125s
-forcet19 0.235608424s
-forcet20 0.50310602s
-forcet21 1.084352871s
-forcet22 2.158011218s
-forcet23 4.433878401s
--}
+-- approxConvt22  [elabtime] : Eq t23 t23 = refl

@@ -4,6 +4,10 @@
 Demo project for several techniques for high-performance elaboration
 with dependent types.
 
+It is a complete rewrite of the [old smalltt
+version](https://github.com/AndrasKovacs/smalltt/tree/old-master) which I wrote
+mostly in 2018-2019.
+
 ## Table of Contents
 
 * [Overview](#overview)
@@ -26,6 +30,10 @@ with dependent types.
   * [Join-point friendly IO combinators](#join-point-friendly-io-combinators)
   * [Data structures and libraries](#data-structures-and-libraries)
 * [Benchmarks](#benchmarks)
+  * [Raw conversion checking](raw-conversion-checking)
+  * [Raw evaluation and normalization](raw-evaluation-and-normalization)
+  * [Elaboration asymptotics](elaboration-asymptotics)
+  * [Elaboration speed](elaboration-speed)
 
 ### Overview
 
@@ -33,8 +41,7 @@ This project serves as a demo for several techniques for high-performance
 elaboration with dependent types. I also include some benchmarks, which are
 intended to be as similar as possible across Agda, Lean, Coq and smalltt.
 
-Smalltt is fast. You may skip to [benchmarks](#benchmarks) if you're interested
-in that.
+You may skip to [benchmarks](#benchmarks) if you're interested in that.
 
 Work in progress. Code and documentation alike may be subject to change, cleanup
 or extension.
@@ -378,13 +385,14 @@ attempt a solution. However, this can fail if the sides are eta-convertible.
 For example, trying to solve `?0` with `λ x. ?0 x` fails because `?0` occurs
 rigidly in the solution. So in case of solution failure, we just retry with full
 eta expansion. Such failure seems to be very rare in practice, so we almost
-always get the eta-short solutions. TODO link
+always get the eta-short solutions. [This is the place](src/Unification.hs#L386)
+where we retry after a failed eta-short solution.
 
 Furthermore, we do additional eta-contraction in pattern unification. We try to
 contract meta spines, for example `?0 x y z = ?1 x y z` is contracted to `?0 =
 ?1`. This is also used in Coq. We have to be careful though not to change
 pattern conditions by contraction, e.g. not remove non-linear bound vars by
-contraction. TODO link.
+contraction.
 
 Eta-short solutions are also important for preserving top-level unfoldings.  For
 example, assume a function `f : Nat → Nat` defined as a lambda `λ x. t`, where
@@ -404,9 +412,9 @@ conditions on it.
 
 If both conditions hold, then it is possible to quote `rhs` to some `t` term
 which depends only on `xᵢ` bound variables, so that `λ x₁ x₂ ... xₙ. t` is a
-well-formed term. In the actual implementation we a variable renaming data
-structure (TODO link) to map De Bruijn levels in `rhs` to the correct De Bruijn
-indices in the output.
+well-formed term. In the actual implementation we use a variable [renaming
+structure](src/Unification.hs#L35) to map De Bruijn levels in `rhs` to the
+correct De Bruijn indices in the output.
 
 The naive implementation beta-normalizes `rhs` while quoting, which we want to
 avoid. In smalltt the `rhs` is quoted without unfolding any top-level
@@ -414,8 +422,9 @@ definitions or any previously solved meta. However, this is not entirely
 straightforward, because the `rhs` conditions should be still checked modulo
 full beta-reductions.
 
-We have three different quotation modes, somewhat similarly to what we have
-seen in unification. TODO links.
+We have three different quotation modes, somewhat similarly to what we have seen
+in unification, see `flexQuote`, `rigidQuote` and `fullCheck` in
+[src/Unification.hs](src/Unification.hs).
 - "rigid": the starting mode. We stay in rigid mode when going under
   canonical type/term formers. Illegal var occurrences cause an error to be
   thrown. When we hit an unfolding, we recurse into the spine in flex mode, if
@@ -612,8 +621,177 @@ several examples for their usage in [`src/Elaboration.hs`](src/Elaboration.hs).
 
 ### Data structures and libraries
 
-TODO
+#### Hash table
+
+[src/SymTable.hs](src/SymTable.hs) is a custom mutable hash table
+implementation, keyed by source position spans. The reason for writing this is
+that I have had performance problems with `hashtables`, the primary mutable
+hashtable package, where it was outperformed by the immutable `Data.HashMap`,
+which should not really happen. However, this was a few years ago, so I should
+benchmark my version against alternatives.
+
+I'm also using a custom hash function on bytestrings, which is mostly based on
+the non-AES "fallback" hasher in [ahash](https://github.com/tkaitchuck/aHash).
+
+I indent to release in the future a generic variant of my hashtable (which is
+not specialized to source span keys) along with my hash function.
+
+#### Libraries
+
+I use the following:
+- [`primdata`](https://github.com/AndrasKovacs/primdata): a low-level,
+  minimum-overhead array & mutable reference library. It can be viewed as a
+  replacement for [`primitive`](https://hackage.haskell.org/package/primitive)
+  with a significantly different API.
+- [`dynamic-array`](https://github.com/AndrasKovacs/dynamic-array) a small
+  dynamic array library, built on the top of `primdata`.
+- [`flatparse`](https://github.com/AndrasKovacs/flatparse) a high-performance
+  parser combinator library. It is ridiculously faster than all of the parsec
+  libraries. The old smalltt versions before the rewrite used `megaparsec`, which
+  was about 40 times slower. Parsing speed is now typically 2-3 million LOC/s
+  on my system.
+
 
 ## Benchmarks
 
+All files used in benchmarking are available in [bench](bench). The following
+programs were used besides smalltt:
+- `agda` 2.6.2 with options `-vprofile:7 +RTS -M10G`. Elaboration times are read
+  as total typechecking time from `-vprofile:7`.
+- `coq` 8.13.2, used as `time coqtop -l FILE -batch -type-in-type -time`, or
+  dropping the last `-time` options when benchmarking elaboration of large
+  files.
+- `Lean` 4.0.0 nightly 2021-11-20, commit babcd3563d28. Used as `time lean FILE
+  --profile`.
+
+System: Intel 1165G7 CPU, 16GB 3200 MT/s RAM, CPU set to run at 28 W power draw.
+
+**SO** means "stack overflow", and **TL** means "too long". Anything over a
+minute takes too long. All time figures are in **seconds**.
+
+Benchmark results are currently in rather crappy hand-pasted markdown tables, I
+plan to have nicer graphs here.
+
+There are many benchmark entries marked as N/A. In these cases I haven't yet
+been able to reproduce the exact benchmarks in a given system. I expect that
+many of these are doable, and I just don't know the right commands or options.
+
+### Raw conversion checking
+
+See the `conv_eval` files.
+- NatConv: conversion checking Church Peano numerals of given size
+- TreeConv: conversion checking complete Church binary trees of given depth
+- TreeConvM: same but sides contain unsolved metas.
+
+|               | smalltt | Agda    | Coq    | Lean    |
+|---------------|---------|---------|--------|---------|
+|NatConv1M      |0.045    | 1.8    | SO     | SO      |
+|NatConv5M      |0.188    | 9.6    | SO     | SO      |
+|NatConv10M     |0.712    | 19.7   | SO     | SO      |
+|TreeConv15     |0.055    | 0.016  | 0.006  | 0.020  |
+|TreeConv18     |0.088    | 0.02   | 0.008  | 0.020  |
+|TreeConv19     |0.161    | 0.03   | 0.007  | 0.020  |
+|TreeConv20     |0.408    | 1.7    | 0.612  | 20.7   |
+|TreeConv21     |0.834    | 3.4    | 1.168  | 29.3   |
+|TreeConv22     |1.722    | 6.4    | 2.347  | 29.8   |
+|TreeConv23     |3.325    | 13.7   | 4.731  | 28.8   |
+|TreeConvM15    |0.010    | 0.770  | 0.006  | N/A     |
+|TreeConvM18    |0.092    | 6.35   | 0.007  | N/A     |
+|TreeConvM19    |0.169    | 12.8   | 0.005  | N/A     |
+|TreeConvM20    |0.361    | 26.6   | 0.549  | N/A     |
+|TreeConvM21    |0.835    | 50.8   | 1.248  | N/A     |
+|TreeConvM22    |1.694    | TL     | 2.704  | N/A     |
+|TreeConvM23    |3.453    | TL     | 5.515  | N/A     |
+
+- The `TreeConvM` benchmarks fail to elaborate in Lean, for some reason we get
+  "can't synthesize placeholder" errors, although the metas should be solvable.
+- Note that Agda, Coq and Lean all have more aggressive approximate conversion
+  checking than smalltt, since they can shortcut the task up to TreeConv19. Coq
+  can even do this up for TreeConvM15-19; this requires *approximate meta
+  solutions*. It's apparent that Agda does not do such solutions.
+- Lean performance is puzzling, there seems to be a large constant overhead.
+- Agda performance degrades sharply when we throw metas in the mix.
+
+### Raw evaluation and normalization
+
+See the `conv_eval` files again.
+- ForceTree : fold over a binary tree with Boolean conjunction
+- NfTree    : normalize a tree
+
+|               | smalltt | Agda    | Coq vm_compute | Coq compute | Coq lazy    |Lean reduce | Lean eval |
+|---------------|---------|---------|----------------|-------------|-------------|------------|-----------|
+|ForceTree15    |0.011   | 0.070    | 0.002          | 0.023       | 0.053       | N/A        | 0.022     |
+|ForceTree18    |0.100   | 0.47     | 0.019          | 0.172       | 0.295       | N/A        | 0.172     |
+|ForceTree19    |0.240   | 0.92     | 0.041          | 0.308       | 0.74        | N/A        | 0.341     |
+|ForceTree20    |0.487   | 1.8      | 0.078          | 0.818       | 1.179       | N/A        | 0.681     |
+|ForceTree21    |1.070   | 3.58     | 0.152          | 1.237       | 2.293       | N/A        | 1.77      |
+|ForceTree22    |2.122   | 7.37     | 0.301          | 2.486       | 4.601       | N/A        | 2.72      |
+|ForceTree23    |4.372   | 15.93    | 0.747          | 5.544       | 9.658       | N/A        | 5.76      |
+|NfTree15       |0.005   | N/A      | 0.028          | 0.013       | 0.01        | N/A        | N/A       |
+|NfTree18       |0.064   | N/A      | 0.192          | 0.128       | 0.213       | N/A        | N/A       |
+|NfTree19       |0.111   | N/A      | 0.525          | 0.293       | 0.404       | N/A        | N/A       |
+|NfTree20       |0.259   | N/A      | 0.718          | 0.635       | 0.806       | N/A        | N/A       |
+|NfTree21       |0.552   | N/A      | 1.573          | 1.197       | 1.508       | N/A        | N/A       |
+|NfTree22       |1.286   | N/A      | 2.962          | 2.952       | 3.15        | N/A        | N/A       |
+|NfTree23       |3.023   | N/A      | 5.975          | 5.03        | 7.271       | N/A        | N/A       |
+
+- Agda NfTree is N/A because there is no way to force normal forms in Agda
+  without printing them.
+- Lean reduce is N/A because for ForceTree it throws a recursion depth error
+  which I can't get rid of, and for NfTree it's the same as in Agda.
+- Lean eval is N/A for the same reason, but it also asks for a missing "Eval
+  Tree" instance. Apparently only such types can be evaluted, but I don't know
+  how to write an instance for it.
+- On performance:
+  - Coq vm_compute is extremely strong in ForceTree, which is a fairly lightly
+    allocating workload. I note that smalltt with glued evaluation disabled
+    would be 2x faster here, but that would be still just the third of Coq VM
+    performance.
+  - On the other hand, smalltt is faster in normalization, a more
+    allocation-heavy task. I attribute this to superior RTS performance.
+  - Coq compute and lazy are always behind smalltt.
+  - Lean eval is behind smalltt, even though it's strict, closed, bytecode
+    interpreter, while smalltt is a partially lazy, open, AST interpreter.
+
+
+### Elaboration asymptotics
+
+See the `asymptotics` files.
+- idTest: `id id ... id`, 40 times iterated.
+- pairTest: 30 times nested pairs using local `let`.
+- vecTest: length-indexed vector with 960 elements.
+
+We separately consider elaboration time and total command time, because
+serialization often takes a quadratic hit on vecTest.
+
+|               | smalltt | Agda elab | Agda total | Coq elab | Coq total | Lean elab | Lean total
+|---------------|---------|-----------|--------|---------|-------|---------|-------|
+| idTest        | 0.000   | TL        | TL     | TL      | TL    | TL      | TL    |
+| pairTest      | 0.000   | TL        | TL     | TL      | TL    | TL      | TL    |
+| vecTest       | 0.078   | 1.128     | 4.098  | 0.769   | 0.935 | 0.244   | 3.65  |
+
+- smalltt is also quadratic on vecTest! But it's fast enough to be a
+  non-issue. The quadratics comes from the occurs checking, which visits a linear
+  number of active metas for each cons cell. Making it linear is possible, but it
+  would require smarter meta occurs caching.
+- Lean elaboration is actually linear on `pairTest`, but the task itself does not
+  finish, because "compilation" is exponential.
+
+
+### Elaboration speed
+
 TODO
+
+|                | smalltt | Agda    | Coq    | Lean elab |  Lean total |
+|----------------|---------|---------|--------|-----------|-------------|
+| stlc           | 0.014   | 0.573   | N/A    | 0.075     |  0.2        |
+| stlc5k         | 0.179   | 4.127   | N/A    | 2.97      |  6.049      |
+| stlc10k        | 0.306   | 16.160  | N/A    | 6.21      |  12.982     |
+| stlcNoimpl     | 0.008   | 0.358   | 0.151  | 0.052     |  0.166      |
+| stlcNoimpl5k   | 0.140   | 4.169   | 0.905  | 2.15      |  4.508      |
+| stlcNoimpl10k  | 0.275   | 17.426  | 1.703  | 4.24      |  8.861      |
+| stlcSmall      | 0.003   | 0.106   |        |           |             |
+
+- Remark: Agda has a parsing blowup issue on large files:
+  https://github.com/agda/agda/issues/5670 So only `stlc` and `stlcNoimpl` are
+  indicative of elaboration performance.

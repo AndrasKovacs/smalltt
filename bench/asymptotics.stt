@@ -66,200 +66,200 @@ pairTest [elabtime] =
   let x30 = dup x29  ;
   x30
 
--- vecTest [elabtime]
---  =
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
---    (cons U (cons U (cons U (cons U (cons U (cons U
+vecTest [elabtime]
+ =
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
+   (cons U (cons U (cons U (cons U (cons U (cons U
 
---    nil
+   nil
 
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
---    ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))
+   ))))))))))))))))))))))))))))))

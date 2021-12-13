@@ -38,89 +38,91 @@ snoc : Con → Ty → Con; snoc
 Var : Con → Ty → Set; Var
  = λ Γ A →
    (Var : Con → Ty → Set)
-   (vz  : ∀{Γ A} → Var (snoc Γ A) A)
-   (vs  : ∀{Γ B A} → Var Γ A → Var (snoc Γ B) A)
+   (vz  : ∀ Γ A → Var (snoc Γ A) A)
+   (vs  : ∀ Γ B A → Var Γ A → Var (snoc Γ B) A)
  → Var Γ A
 
 vz : ∀{Γ A} → Var (snoc Γ A) A; vz
- = λ Var vz vs → vz
+ = λ Var vz vs → vz _ _
 
 vs : ∀{Γ B A} → Var Γ A → Var (snoc Γ B) A; vs
- = λ x Var vz vs → vs (x Var vz vs)
+ = λ x Var vz vs → vs _ _ _ (x Var vz vs)
 
 Tm : Con → Ty → Set; Tm
  = λ Γ A →
    (Tm  : Con → Ty → Set)
-   (var   : ∀{Γ A} → Var Γ A → Tm Γ A)
-   (lam   : ∀{Γ A B} → Tm (snoc Γ A) B → Tm Γ (arr A B))
-   (app   : ∀{Γ A B} → Tm Γ (arr A B) → Tm Γ A → Tm Γ B)
-   (tt    : ∀{Γ} → Tm Γ top)
-   (pair  : ∀{Γ A B} → Tm Γ A → Tm Γ B → Tm Γ (prod A B))
-   (fst   : ∀{Γ A B} → Tm Γ (prod A B) → Tm Γ A)
-   (snd   : ∀{Γ A B} → Tm Γ (prod A B) → Tm Γ B)
-   (left  : ∀{Γ A B} → Tm Γ A → Tm Γ (sum A B))
-   (right : ∀{Γ A B} → Tm Γ B → Tm Γ (sum A B))
-   (case  : ∀{Γ A B C} → Tm Γ (sum A B) → Tm Γ (arr A C) → Tm Γ (arr B C) → Tm Γ C)
-   (zero  : ∀{Γ} → Tm Γ nat)
-   (suc   : ∀{Γ} → Tm Γ nat → Tm Γ nat)
-   (rec   : ∀{Γ A} → Tm Γ nat → Tm Γ (arr nat (arr A A)) → Tm Γ A → Tm Γ A)
+   (var   : ∀ Γ A      → Var Γ A → Tm Γ A)
+   (lam   : ∀ Γ A B    → Tm (snoc Γ A) B → Tm Γ (arr A B))
+   (app   : ∀ Γ A B    → Tm Γ (arr A B) → Tm Γ A → Tm Γ B)
+   (tt    : ∀ Γ        → Tm Γ top)
+   (pair  : ∀ Γ A B    → Tm Γ A → Tm Γ B → Tm Γ (prod A B))
+   (fst   : ∀ Γ A B    → Tm Γ (prod A B) → Tm Γ A)
+   (snd   : ∀ Γ A B    → Tm Γ (prod A B) → Tm Γ B)
+   (left  : ∀ Γ A B    → Tm Γ A → Tm Γ (sum A B))
+   (right : ∀ Γ A B    → Tm Γ B → Tm Γ (sum A B))
+   (case  : ∀ Γ A B C  → Tm Γ (sum A B) → Tm Γ (arr A C) → Tm Γ (arr B C) → Tm Γ C)
+   (zero  : ∀ Γ        → Tm Γ nat)
+   (suc   : ∀ Γ        → Tm Γ nat → Tm Γ nat)
+   (rec   : ∀ Γ A      → Tm Γ nat → Tm Γ (arr nat (arr A A)) → Tm Γ A → Tm Γ A)
  → Tm Γ A
 
 var : ∀{Γ A} → Var Γ A → Tm Γ A; var
  = λ x Tm var lam app tt pair fst snd left right case zero suc rec →
-     var x
+     var _ _ x
 
 lam : ∀{Γ A B} → Tm (snoc Γ A) B → Tm Γ (arr A B); lam
  = λ t Tm var lam app tt pair fst snd left right case zero suc rec →
-     lam (t Tm var lam app tt pair fst snd left right case zero suc rec)
+     lam _ _ _ (t Tm var lam app tt pair fst snd left right case zero suc rec)
 
 app : ∀{Γ A B} → Tm Γ (arr A B) → Tm Γ A → Tm Γ B; app
  = λ t u Tm var lam app tt pair fst snd left right case zero suc rec →
-     app (t Tm var lam app tt pair fst snd left right case zero suc rec)
+     app _ _ _ (t Tm var lam app tt pair fst snd left right case zero suc rec)
          (u Tm var lam app tt pair fst snd left right case zero suc rec)
 
 tt : ∀{Γ} → Tm Γ top; tt
- = λ Tm var lam app tt pair fst snd left right case zero suc rec → tt
+ = λ Tm var lam app tt pair fst snd left right case zero suc rec → tt _
 
 pair : ∀{Γ A B} → Tm Γ A → Tm Γ B → Tm Γ (prod A B); pair
  = λ t u Tm var lam app tt pair fst snd left right case zero suc rec →
-     pair (t Tm var lam app tt pair fst snd left right case zero suc rec)
+     pair _ _ _ (t Tm var lam app tt pair fst snd left right case zero suc rec)
           (u Tm var lam app tt pair fst snd left right case zero suc rec)
 
 fst : ∀{Γ A B} → Tm Γ (prod A B) → Tm Γ A; fst
  = λ t Tm var lam app tt pair fst snd left right case zero suc rec →
-     fst (t Tm var lam app tt pair fst snd left right case zero suc rec)
+     fst _ _ _ (t Tm var lam app tt pair fst snd left right case zero suc rec)
 
 snd : ∀{Γ A B} → Tm Γ (prod A B) → Tm Γ B; snd
  = λ t Tm var lam app tt pair fst snd left right case zero suc rec →
-     snd (t Tm var lam app tt pair fst snd left right case zero suc rec)
+     snd _ _ _ (t Tm var lam app tt pair fst snd left right case zero suc rec)
 
 left : ∀{Γ A B} → Tm Γ A → Tm Γ (sum A B); left
  = λ t Tm var lam app tt pair fst snd left right case zero suc rec →
-     left (t Tm var lam app tt pair fst snd left right case zero suc rec)
+     left _ _ _ (t Tm var lam app tt pair fst snd left right case zero suc rec)
 
 right : ∀{Γ A B} → Tm Γ B → Tm Γ (sum A B); right
  = λ t Tm var lam app tt pair fst snd left right case zero suc rec →
-     right (t Tm var lam app tt pair fst snd left right case zero suc rec)
+     right _ _ _ (t Tm var lam app tt pair fst snd left right case zero suc rec)
 
 case : ∀{Γ A B C} → Tm Γ (sum A B) → Tm Γ (arr A C) → Tm Γ (arr B C) → Tm Γ C; case
  = λ t u v Tm var lam app tt pair fst snd left right case zero suc rec →
-     case (t Tm var lam app tt pair fst snd left right case zero suc rec)
+     case _ _ _ _
+           (t Tm var lam app tt pair fst snd left right case zero suc rec)
            (u Tm var lam app tt pair fst snd left right case zero suc rec)
            (v Tm var lam app tt pair fst snd left right case zero suc rec)
 
 zero  : ∀{Γ} → Tm Γ nat; zero
- = λ Tm var lam app tt pair fst snd left right case zero suc rec → zero
+ = λ Tm var lam app tt pair fst snd left right case zero suc rec → zero _
 
 suc : ∀{Γ} → Tm Γ nat → Tm Γ nat; suc
  = λ t Tm var lam app tt pair fst snd left right case zero suc rec →
-   suc (t Tm var lam app tt pair fst snd left right case zero suc rec)
+   suc _ (t Tm var lam app tt pair fst snd left right case zero suc rec)
 
 rec : ∀{Γ A} → Tm Γ nat → Tm Γ (arr nat (arr A A)) → Tm Γ A → Tm Γ A; rec
  = λ t u v Tm var lam app tt pair fst snd left right case zero suc rec →
-     rec (t Tm var lam app tt pair fst snd left right case zero suc rec)
-         (u Tm var lam app tt pair fst snd left right case zero suc rec)
-         (v Tm var lam app tt pair fst snd left right case zero suc rec)
+     rec _ _
+          (t Tm var lam app tt pair fst snd left right case zero suc rec)
+          (u Tm var lam app tt pair fst snd left right case zero suc rec)
+          (v Tm var lam app tt pair fst snd left right case zero suc rec)
 
 v0 : ∀{Γ A} → Tm (snoc Γ A) A; v0
  = var vz
@@ -202,89 +204,91 @@ snoc1 : Con1 → Ty1 → Con1; snoc1
 Var1 : Con1 → Ty1 → Set; Var1
  = λ Γ A →
    (Var1 : Con1 → Ty1 → Set)
-   (vz  : ∀{Γ A} → Var1 (snoc1 Γ A) A)
-   (vs  : ∀{Γ B A} → Var1 Γ A → Var1 (snoc1 Γ B) A)
+   (vz  : ∀ Γ A → Var1 (snoc1 Γ A) A)
+   (vs  : ∀ Γ B A → Var1 Γ A → Var1 (snoc1 Γ B) A)
  → Var1 Γ A
 
 vz1 : ∀{Γ A} → Var1 (snoc1 Γ A) A; vz1
- = λ Var1 vz1 vs → vz1
+ = λ Var1 vz1 vs → vz1 _ _
 
 vs1 : ∀{Γ B A} → Var1 Γ A → Var1 (snoc1 Γ B) A; vs1
- = λ x Var1 vz1 vs1 → vs1 (x Var1 vz1 vs1)
+ = λ x Var1 vz1 vs1 → vs1 _ _ _ (x Var1 vz1 vs1)
 
 Tm1 : Con1 → Ty1 → Set; Tm1
  = λ Γ A →
    (Tm1  : Con1 → Ty1 → Set)
-   (var   : ∀{Γ A} → Var1 Γ A → Tm1 Γ A)
-   (lam   : ∀{Γ A B} → Tm1 (snoc1 Γ A) B → Tm1 Γ (arr1 A B))
-   (app   : ∀{Γ A B} → Tm1 Γ (arr1 A B) → Tm1 Γ A → Tm1 Γ B)
-   (tt    : ∀{Γ} → Tm1 Γ top1)
-   (pair  : ∀{Γ A B} → Tm1 Γ A → Tm1 Γ B → Tm1 Γ (prod1 A B))
-   (fst   : ∀{Γ A B} → Tm1 Γ (prod1 A B) → Tm1 Γ A)
-   (snd   : ∀{Γ A B} → Tm1 Γ (prod1 A B) → Tm1 Γ B)
-   (left  : ∀{Γ A B} → Tm1 Γ A → Tm1 Γ (sum1 A B))
-   (right : ∀{Γ A B} → Tm1 Γ B → Tm1 Γ (sum1 A B))
-   (case  : ∀{Γ A B C} → Tm1 Γ (sum1 A B) → Tm1 Γ (arr1 A C) → Tm1 Γ (arr1 B C) → Tm1 Γ C)
-   (zero  : ∀{Γ} → Tm1 Γ nat1)
-   (suc   : ∀{Γ} → Tm1 Γ nat1 → Tm1 Γ nat1)
-   (rec   : ∀{Γ A} → Tm1 Γ nat1 → Tm1 Γ (arr1 nat1 (arr1 A A)) → Tm1 Γ A → Tm1 Γ A)
+   (var   : ∀ Γ A      → Var1 Γ A → Tm1 Γ A)
+   (lam   : ∀ Γ A B    → Tm1 (snoc1 Γ A) B → Tm1 Γ (arr1 A B))
+   (app   : ∀ Γ A B    → Tm1 Γ (arr1 A B) → Tm1 Γ A → Tm1 Γ B)
+   (tt    : ∀ Γ        → Tm1 Γ top1)
+   (pair  : ∀ Γ A B    → Tm1 Γ A → Tm1 Γ B → Tm1 Γ (prod1 A B))
+   (fst   : ∀ Γ A B    → Tm1 Γ (prod1 A B) → Tm1 Γ A)
+   (snd   : ∀ Γ A B    → Tm1 Γ (prod1 A B) → Tm1 Γ B)
+   (left  : ∀ Γ A B    → Tm1 Γ A → Tm1 Γ (sum1 A B))
+   (right : ∀ Γ A B    → Tm1 Γ B → Tm1 Γ (sum1 A B))
+   (case  : ∀ Γ A B C  → Tm1 Γ (sum1 A B) → Tm1 Γ (arr1 A C) → Tm1 Γ (arr1 B C) → Tm1 Γ C)
+   (zero  : ∀ Γ        → Tm1 Γ nat1)
+   (suc   : ∀ Γ        → Tm1 Γ nat1 → Tm1 Γ nat1)
+   (rec   : ∀ Γ A      → Tm1 Γ nat1 → Tm1 Γ (arr1 nat1 (arr1 A A)) → Tm1 Γ A → Tm1 Γ A)
  → Tm1 Γ A
 
 var1 : ∀{Γ A} → Var1 Γ A → Tm1 Γ A; var1
  = λ x Tm1 var1 lam app tt pair fst snd left right case zero suc rec →
-     var1 x
+     var1 _ _ x
 
 lam1 : ∀{Γ A B} → Tm1 (snoc1 Γ A) B → Tm1 Γ (arr1 A B); lam1
  = λ t Tm1 var1 lam1 app tt pair fst snd left right case zero suc rec →
-     lam1 (t Tm1 var1 lam1 app tt pair fst snd left right case zero suc rec)
+     lam1 _ _ _ (t Tm1 var1 lam1 app tt pair fst snd left right case zero suc rec)
 
 app1 : ∀{Γ A B} → Tm1 Γ (arr1 A B) → Tm1 Γ A → Tm1 Γ B; app1
  = λ t u Tm1 var1 lam1 app1 tt pair fst snd left right case zero suc rec →
-     app1 (t Tm1 var1 lam1 app1 tt pair fst snd left right case zero suc rec)
+     app1 _ _ _ (t Tm1 var1 lam1 app1 tt pair fst snd left right case zero suc rec)
          (u Tm1 var1 lam1 app1 tt pair fst snd left right case zero suc rec)
 
 tt1 : ∀{Γ} → Tm1 Γ top1; tt1
- = λ Tm1 var1 lam1 app1 tt1 pair fst snd left right case zero suc rec → tt1
+ = λ Tm1 var1 lam1 app1 tt1 pair fst snd left right case zero suc rec → tt1 _
 
 pair1 : ∀{Γ A B} → Tm1 Γ A → Tm1 Γ B → Tm1 Γ (prod1 A B); pair1
  = λ t u Tm1 var1 lam1 app1 tt1 pair1 fst snd left right case zero suc rec →
-     pair1 (t Tm1 var1 lam1 app1 tt1 pair1 fst snd left right case zero suc rec)
+     pair1 _ _ _ (t Tm1 var1 lam1 app1 tt1 pair1 fst snd left right case zero suc rec)
           (u Tm1 var1 lam1 app1 tt1 pair1 fst snd left right case zero suc rec)
 
 fst1 : ∀{Γ A B} → Tm1 Γ (prod1 A B) → Tm1 Γ A; fst1
  = λ t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd left right case zero suc rec →
-     fst1 (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd left right case zero suc rec)
+     fst1 _ _ _ (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd left right case zero suc rec)
 
 snd1 : ∀{Γ A B} → Tm1 Γ (prod1 A B) → Tm1 Γ B; snd1
  = λ t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left right case zero suc rec →
-     snd1 (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left right case zero suc rec)
+     snd1 _ _ _ (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left right case zero suc rec)
 
 left1 : ∀{Γ A B} → Tm1 Γ A → Tm1 Γ (sum1 A B); left1
  = λ t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right case zero suc rec →
-     left1 (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right case zero suc rec)
+     left1 _ _ _ (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right case zero suc rec)
 
 right1 : ∀{Γ A B} → Tm1 Γ B → Tm1 Γ (sum1 A B); right1
  = λ t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case zero suc rec →
-     right1 (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case zero suc rec)
+     right1 _ _ _ (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case zero suc rec)
 
 case1 : ∀{Γ A B C} → Tm1 Γ (sum1 A B) → Tm1 Γ (arr1 A C) → Tm1 Γ (arr1 B C) → Tm1 Γ C; case1
  = λ t u v Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero suc rec →
-     case1 (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero suc rec)
+     case1 _ _ _ _
+           (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero suc rec)
            (u Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero suc rec)
            (v Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero suc rec)
 
 zero1  : ∀{Γ} → Tm1 Γ nat1; zero1
- = λ Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc rec → zero1
+ = λ Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc rec → zero1 _
 
 suc1 : ∀{Γ} → Tm1 Γ nat1 → Tm1 Γ nat1; suc1
  = λ t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc1 rec →
-   suc1 (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc1 rec)
+   suc1 _ (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc1 rec)
 
 rec1 : ∀{Γ A} → Tm1 Γ nat1 → Tm1 Γ (arr1 nat1 (arr1 A A)) → Tm1 Γ A → Tm1 Γ A; rec1
  = λ t u v Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc1 rec1 →
-     rec1 (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc1 rec1)
-         (u Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc1 rec1)
-         (v Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc1 rec1)
+     rec1 _ _
+          (t Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc1 rec1)
+          (u Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc1 rec1)
+          (v Tm1 var1 lam1 app1 tt1 pair1 fst1 snd1 left1 right1 case1 zero1 suc1 rec1)
 
 v01 : ∀{Γ A} → Tm1 (snoc1 Γ A) A; v01
  = var1 vz1
@@ -366,89 +370,91 @@ snoc2 : Con2 → Ty2 → Con2; snoc2
 Var2 : Con2 → Ty2 → Set; Var2
  = λ Γ A →
    (Var2 : Con2 → Ty2 → Set)
-   (vz  : ∀{Γ A} → Var2 (snoc2 Γ A) A)
-   (vs  : ∀{Γ B A} → Var2 Γ A → Var2 (snoc2 Γ B) A)
+   (vz  : ∀ Γ A → Var2 (snoc2 Γ A) A)
+   (vs  : ∀ Γ B A → Var2 Γ A → Var2 (snoc2 Γ B) A)
  → Var2 Γ A
 
 vz2 : ∀{Γ A} → Var2 (snoc2 Γ A) A; vz2
- = λ Var2 vz2 vs → vz2
+ = λ Var2 vz2 vs → vz2 _ _
 
 vs2 : ∀{Γ B A} → Var2 Γ A → Var2 (snoc2 Γ B) A; vs2
- = λ x Var2 vz2 vs2 → vs2 (x Var2 vz2 vs2)
+ = λ x Var2 vz2 vs2 → vs2 _ _ _ (x Var2 vz2 vs2)
 
 Tm2 : Con2 → Ty2 → Set; Tm2
  = λ Γ A →
    (Tm2  : Con2 → Ty2 → Set)
-   (var   : ∀{Γ A} → Var2 Γ A → Tm2 Γ A)
-   (lam   : ∀{Γ A B} → Tm2 (snoc2 Γ A) B → Tm2 Γ (arr2 A B))
-   (app   : ∀{Γ A B} → Tm2 Γ (arr2 A B) → Tm2 Γ A → Tm2 Γ B)
-   (tt    : ∀{Γ} → Tm2 Γ top2)
-   (pair  : ∀{Γ A B} → Tm2 Γ A → Tm2 Γ B → Tm2 Γ (prod2 A B))
-   (fst   : ∀{Γ A B} → Tm2 Γ (prod2 A B) → Tm2 Γ A)
-   (snd   : ∀{Γ A B} → Tm2 Γ (prod2 A B) → Tm2 Γ B)
-   (left  : ∀{Γ A B} → Tm2 Γ A → Tm2 Γ (sum2 A B))
-   (right : ∀{Γ A B} → Tm2 Γ B → Tm2 Γ (sum2 A B))
-   (case  : ∀{Γ A B C} → Tm2 Γ (sum2 A B) → Tm2 Γ (arr2 A C) → Tm2 Γ (arr2 B C) → Tm2 Γ C)
-   (zero  : ∀{Γ} → Tm2 Γ nat2)
-   (suc   : ∀{Γ} → Tm2 Γ nat2 → Tm2 Γ nat2)
-   (rec   : ∀{Γ A} → Tm2 Γ nat2 → Tm2 Γ (arr2 nat2 (arr2 A A)) → Tm2 Γ A → Tm2 Γ A)
+   (var   : ∀ Γ A      → Var2 Γ A → Tm2 Γ A)
+   (lam   : ∀ Γ A B    → Tm2 (snoc2 Γ A) B → Tm2 Γ (arr2 A B))
+   (app   : ∀ Γ A B    → Tm2 Γ (arr2 A B) → Tm2 Γ A → Tm2 Γ B)
+   (tt    : ∀ Γ        → Tm2 Γ top2)
+   (pair  : ∀ Γ A B    → Tm2 Γ A → Tm2 Γ B → Tm2 Γ (prod2 A B))
+   (fst   : ∀ Γ A B    → Tm2 Γ (prod2 A B) → Tm2 Γ A)
+   (snd   : ∀ Γ A B    → Tm2 Γ (prod2 A B) → Tm2 Γ B)
+   (left  : ∀ Γ A B    → Tm2 Γ A → Tm2 Γ (sum2 A B))
+   (right : ∀ Γ A B    → Tm2 Γ B → Tm2 Γ (sum2 A B))
+   (case  : ∀ Γ A B C  → Tm2 Γ (sum2 A B) → Tm2 Γ (arr2 A C) → Tm2 Γ (arr2 B C) → Tm2 Γ C)
+   (zero  : ∀ Γ        → Tm2 Γ nat2)
+   (suc   : ∀ Γ        → Tm2 Γ nat2 → Tm2 Γ nat2)
+   (rec   : ∀ Γ A      → Tm2 Γ nat2 → Tm2 Γ (arr2 nat2 (arr2 A A)) → Tm2 Γ A → Tm2 Γ A)
  → Tm2 Γ A
 
 var2 : ∀{Γ A} → Var2 Γ A → Tm2 Γ A; var2
  = λ x Tm2 var2 lam app tt pair fst snd left right case zero suc rec →
-     var2 x
+     var2 _ _ x
 
 lam2 : ∀{Γ A B} → Tm2 (snoc2 Γ A) B → Tm2 Γ (arr2 A B); lam2
  = λ t Tm2 var2 lam2 app tt pair fst snd left right case zero suc rec →
-     lam2 (t Tm2 var2 lam2 app tt pair fst snd left right case zero suc rec)
+     lam2 _ _ _ (t Tm2 var2 lam2 app tt pair fst snd left right case zero suc rec)
 
 app2 : ∀{Γ A B} → Tm2 Γ (arr2 A B) → Tm2 Γ A → Tm2 Γ B; app2
  = λ t u Tm2 var2 lam2 app2 tt pair fst snd left right case zero suc rec →
-     app2 (t Tm2 var2 lam2 app2 tt pair fst snd left right case zero suc rec)
+     app2 _ _ _ (t Tm2 var2 lam2 app2 tt pair fst snd left right case zero suc rec)
          (u Tm2 var2 lam2 app2 tt pair fst snd left right case zero suc rec)
 
 tt2 : ∀{Γ} → Tm2 Γ top2; tt2
- = λ Tm2 var2 lam2 app2 tt2 pair fst snd left right case zero suc rec → tt2
+ = λ Tm2 var2 lam2 app2 tt2 pair fst snd left right case zero suc rec → tt2 _
 
 pair2 : ∀{Γ A B} → Tm2 Γ A → Tm2 Γ B → Tm2 Γ (prod2 A B); pair2
  = λ t u Tm2 var2 lam2 app2 tt2 pair2 fst snd left right case zero suc rec →
-     pair2 (t Tm2 var2 lam2 app2 tt2 pair2 fst snd left right case zero suc rec)
+     pair2 _ _ _ (t Tm2 var2 lam2 app2 tt2 pair2 fst snd left right case zero suc rec)
           (u Tm2 var2 lam2 app2 tt2 pair2 fst snd left right case zero suc rec)
 
 fst2 : ∀{Γ A B} → Tm2 Γ (prod2 A B) → Tm2 Γ A; fst2
  = λ t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd left right case zero suc rec →
-     fst2 (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd left right case zero suc rec)
+     fst2 _ _ _ (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd left right case zero suc rec)
 
 snd2 : ∀{Γ A B} → Tm2 Γ (prod2 A B) → Tm2 Γ B; snd2
  = λ t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left right case zero suc rec →
-     snd2 (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left right case zero suc rec)
+     snd2 _ _ _ (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left right case zero suc rec)
 
 left2 : ∀{Γ A B} → Tm2 Γ A → Tm2 Γ (sum2 A B); left2
  = λ t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right case zero suc rec →
-     left2 (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right case zero suc rec)
+     left2 _ _ _ (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right case zero suc rec)
 
 right2 : ∀{Γ A B} → Tm2 Γ B → Tm2 Γ (sum2 A B); right2
  = λ t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case zero suc rec →
-     right2 (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case zero suc rec)
+     right2 _ _ _ (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case zero suc rec)
 
 case2 : ∀{Γ A B C} → Tm2 Γ (sum2 A B) → Tm2 Γ (arr2 A C) → Tm2 Γ (arr2 B C) → Tm2 Γ C; case2
  = λ t u v Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero suc rec →
-     case2 (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero suc rec)
+     case2 _ _ _ _
+           (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero suc rec)
            (u Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero suc rec)
            (v Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero suc rec)
 
 zero2  : ∀{Γ} → Tm2 Γ nat2; zero2
- = λ Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc rec → zero2
+ = λ Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc rec → zero2 _
 
 suc2 : ∀{Γ} → Tm2 Γ nat2 → Tm2 Γ nat2; suc2
  = λ t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc2 rec →
-   suc2 (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc2 rec)
+   suc2 _ (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc2 rec)
 
 rec2 : ∀{Γ A} → Tm2 Γ nat2 → Tm2 Γ (arr2 nat2 (arr2 A A)) → Tm2 Γ A → Tm2 Γ A; rec2
  = λ t u v Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc2 rec2 →
-     rec2 (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc2 rec2)
-         (u Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc2 rec2)
-         (v Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc2 rec2)
+     rec2 _ _
+          (t Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc2 rec2)
+          (u Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc2 rec2)
+          (v Tm2 var2 lam2 app2 tt2 pair2 fst2 snd2 left2 right2 case2 zero2 suc2 rec2)
 
 v02 : ∀{Γ A} → Tm2 (snoc2 Γ A) A; v02
  = var2 vz2
@@ -530,89 +536,91 @@ snoc3 : Con3 → Ty3 → Con3; snoc3
 Var3 : Con3 → Ty3 → Set; Var3
  = λ Γ A →
    (Var3 : Con3 → Ty3 → Set)
-   (vz  : ∀{Γ A} → Var3 (snoc3 Γ A) A)
-   (vs  : ∀{Γ B A} → Var3 Γ A → Var3 (snoc3 Γ B) A)
+   (vz  : ∀ Γ A → Var3 (snoc3 Γ A) A)
+   (vs  : ∀ Γ B A → Var3 Γ A → Var3 (snoc3 Γ B) A)
  → Var3 Γ A
 
 vz3 : ∀{Γ A} → Var3 (snoc3 Γ A) A; vz3
- = λ Var3 vz3 vs → vz3
+ = λ Var3 vz3 vs → vz3 _ _
 
 vs3 : ∀{Γ B A} → Var3 Γ A → Var3 (snoc3 Γ B) A; vs3
- = λ x Var3 vz3 vs3 → vs3 (x Var3 vz3 vs3)
+ = λ x Var3 vz3 vs3 → vs3 _ _ _ (x Var3 vz3 vs3)
 
 Tm3 : Con3 → Ty3 → Set; Tm3
  = λ Γ A →
    (Tm3  : Con3 → Ty3 → Set)
-   (var   : ∀{Γ A} → Var3 Γ A → Tm3 Γ A)
-   (lam   : ∀{Γ A B} → Tm3 (snoc3 Γ A) B → Tm3 Γ (arr3 A B))
-   (app   : ∀{Γ A B} → Tm3 Γ (arr3 A B) → Tm3 Γ A → Tm3 Γ B)
-   (tt    : ∀{Γ} → Tm3 Γ top3)
-   (pair  : ∀{Γ A B} → Tm3 Γ A → Tm3 Γ B → Tm3 Γ (prod3 A B))
-   (fst   : ∀{Γ A B} → Tm3 Γ (prod3 A B) → Tm3 Γ A)
-   (snd   : ∀{Γ A B} → Tm3 Γ (prod3 A B) → Tm3 Γ B)
-   (left  : ∀{Γ A B} → Tm3 Γ A → Tm3 Γ (sum3 A B))
-   (right : ∀{Γ A B} → Tm3 Γ B → Tm3 Γ (sum3 A B))
-   (case  : ∀{Γ A B C} → Tm3 Γ (sum3 A B) → Tm3 Γ (arr3 A C) → Tm3 Γ (arr3 B C) → Tm3 Γ C)
-   (zero  : ∀{Γ} → Tm3 Γ nat3)
-   (suc   : ∀{Γ} → Tm3 Γ nat3 → Tm3 Γ nat3)
-   (rec   : ∀{Γ A} → Tm3 Γ nat3 → Tm3 Γ (arr3 nat3 (arr3 A A)) → Tm3 Γ A → Tm3 Γ A)
+   (var   : ∀ Γ A      → Var3 Γ A → Tm3 Γ A)
+   (lam   : ∀ Γ A B    → Tm3 (snoc3 Γ A) B → Tm3 Γ (arr3 A B))
+   (app   : ∀ Γ A B    → Tm3 Γ (arr3 A B) → Tm3 Γ A → Tm3 Γ B)
+   (tt    : ∀ Γ        → Tm3 Γ top3)
+   (pair  : ∀ Γ A B    → Tm3 Γ A → Tm3 Γ B → Tm3 Γ (prod3 A B))
+   (fst   : ∀ Γ A B    → Tm3 Γ (prod3 A B) → Tm3 Γ A)
+   (snd   : ∀ Γ A B    → Tm3 Γ (prod3 A B) → Tm3 Γ B)
+   (left  : ∀ Γ A B    → Tm3 Γ A → Tm3 Γ (sum3 A B))
+   (right : ∀ Γ A B    → Tm3 Γ B → Tm3 Γ (sum3 A B))
+   (case  : ∀ Γ A B C  → Tm3 Γ (sum3 A B) → Tm3 Γ (arr3 A C) → Tm3 Γ (arr3 B C) → Tm3 Γ C)
+   (zero  : ∀ Γ        → Tm3 Γ nat3)
+   (suc   : ∀ Γ        → Tm3 Γ nat3 → Tm3 Γ nat3)
+   (rec   : ∀ Γ A      → Tm3 Γ nat3 → Tm3 Γ (arr3 nat3 (arr3 A A)) → Tm3 Γ A → Tm3 Γ A)
  → Tm3 Γ A
 
 var3 : ∀{Γ A} → Var3 Γ A → Tm3 Γ A; var3
  = λ x Tm3 var3 lam app tt pair fst snd left right case zero suc rec →
-     var3 x
+     var3 _ _ x
 
 lam3 : ∀{Γ A B} → Tm3 (snoc3 Γ A) B → Tm3 Γ (arr3 A B); lam3
  = λ t Tm3 var3 lam3 app tt pair fst snd left right case zero suc rec →
-     lam3 (t Tm3 var3 lam3 app tt pair fst snd left right case zero suc rec)
+     lam3 _ _ _ (t Tm3 var3 lam3 app tt pair fst snd left right case zero suc rec)
 
 app3 : ∀{Γ A B} → Tm3 Γ (arr3 A B) → Tm3 Γ A → Tm3 Γ B; app3
  = λ t u Tm3 var3 lam3 app3 tt pair fst snd left right case zero suc rec →
-     app3 (t Tm3 var3 lam3 app3 tt pair fst snd left right case zero suc rec)
+     app3 _ _ _ (t Tm3 var3 lam3 app3 tt pair fst snd left right case zero suc rec)
          (u Tm3 var3 lam3 app3 tt pair fst snd left right case zero suc rec)
 
 tt3 : ∀{Γ} → Tm3 Γ top3; tt3
- = λ Tm3 var3 lam3 app3 tt3 pair fst snd left right case zero suc rec → tt3
+ = λ Tm3 var3 lam3 app3 tt3 pair fst snd left right case zero suc rec → tt3 _
 
 pair3 : ∀{Γ A B} → Tm3 Γ A → Tm3 Γ B → Tm3 Γ (prod3 A B); pair3
  = λ t u Tm3 var3 lam3 app3 tt3 pair3 fst snd left right case zero suc rec →
-     pair3 (t Tm3 var3 lam3 app3 tt3 pair3 fst snd left right case zero suc rec)
+     pair3 _ _ _ (t Tm3 var3 lam3 app3 tt3 pair3 fst snd left right case zero suc rec)
           (u Tm3 var3 lam3 app3 tt3 pair3 fst snd left right case zero suc rec)
 
 fst3 : ∀{Γ A B} → Tm3 Γ (prod3 A B) → Tm3 Γ A; fst3
  = λ t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd left right case zero suc rec →
-     fst3 (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd left right case zero suc rec)
+     fst3 _ _ _ (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd left right case zero suc rec)
 
 snd3 : ∀{Γ A B} → Tm3 Γ (prod3 A B) → Tm3 Γ B; snd3
  = λ t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left right case zero suc rec →
-     snd3 (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left right case zero suc rec)
+     snd3 _ _ _ (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left right case zero suc rec)
 
 left3 : ∀{Γ A B} → Tm3 Γ A → Tm3 Γ (sum3 A B); left3
  = λ t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right case zero suc rec →
-     left3 (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right case zero suc rec)
+     left3 _ _ _ (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right case zero suc rec)
 
 right3 : ∀{Γ A B} → Tm3 Γ B → Tm3 Γ (sum3 A B); right3
  = λ t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case zero suc rec →
-     right3 (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case zero suc rec)
+     right3 _ _ _ (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case zero suc rec)
 
 case3 : ∀{Γ A B C} → Tm3 Γ (sum3 A B) → Tm3 Γ (arr3 A C) → Tm3 Γ (arr3 B C) → Tm3 Γ C; case3
  = λ t u v Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero suc rec →
-     case3 (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero suc rec)
+     case3 _ _ _ _
+           (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero suc rec)
            (u Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero suc rec)
            (v Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero suc rec)
 
 zero3  : ∀{Γ} → Tm3 Γ nat3; zero3
- = λ Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc rec → zero3
+ = λ Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc rec → zero3 _
 
 suc3 : ∀{Γ} → Tm3 Γ nat3 → Tm3 Γ nat3; suc3
  = λ t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc3 rec →
-   suc3 (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc3 rec)
+   suc3 _ (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc3 rec)
 
 rec3 : ∀{Γ A} → Tm3 Γ nat3 → Tm3 Γ (arr3 nat3 (arr3 A A)) → Tm3 Γ A → Tm3 Γ A; rec3
  = λ t u v Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc3 rec3 →
-     rec3 (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc3 rec3)
-         (u Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc3 rec3)
-         (v Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc3 rec3)
+     rec3 _ _
+          (t Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc3 rec3)
+          (u Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc3 rec3)
+          (v Tm3 var3 lam3 app3 tt3 pair3 fst3 snd3 left3 right3 case3 zero3 suc3 rec3)
 
 v03 : ∀{Γ A} → Tm3 (snoc3 Γ A) A; v03
  = var3 vz3
@@ -694,89 +702,91 @@ snoc4 : Con4 → Ty4 → Con4; snoc4
 Var4 : Con4 → Ty4 → Set; Var4
  = λ Γ A →
    (Var4 : Con4 → Ty4 → Set)
-   (vz  : ∀{Γ A} → Var4 (snoc4 Γ A) A)
-   (vs  : ∀{Γ B A} → Var4 Γ A → Var4 (snoc4 Γ B) A)
+   (vz  : ∀ Γ A → Var4 (snoc4 Γ A) A)
+   (vs  : ∀ Γ B A → Var4 Γ A → Var4 (snoc4 Γ B) A)
  → Var4 Γ A
 
 vz4 : ∀{Γ A} → Var4 (snoc4 Γ A) A; vz4
- = λ Var4 vz4 vs → vz4
+ = λ Var4 vz4 vs → vz4 _ _
 
 vs4 : ∀{Γ B A} → Var4 Γ A → Var4 (snoc4 Γ B) A; vs4
- = λ x Var4 vz4 vs4 → vs4 (x Var4 vz4 vs4)
+ = λ x Var4 vz4 vs4 → vs4 _ _ _ (x Var4 vz4 vs4)
 
 Tm4 : Con4 → Ty4 → Set; Tm4
  = λ Γ A →
    (Tm4  : Con4 → Ty4 → Set)
-   (var   : ∀{Γ A} → Var4 Γ A → Tm4 Γ A)
-   (lam   : ∀{Γ A B} → Tm4 (snoc4 Γ A) B → Tm4 Γ (arr4 A B))
-   (app   : ∀{Γ A B} → Tm4 Γ (arr4 A B) → Tm4 Γ A → Tm4 Γ B)
-   (tt    : ∀{Γ} → Tm4 Γ top4)
-   (pair  : ∀{Γ A B} → Tm4 Γ A → Tm4 Γ B → Tm4 Γ (prod4 A B))
-   (fst   : ∀{Γ A B} → Tm4 Γ (prod4 A B) → Tm4 Γ A)
-   (snd   : ∀{Γ A B} → Tm4 Γ (prod4 A B) → Tm4 Γ B)
-   (left  : ∀{Γ A B} → Tm4 Γ A → Tm4 Γ (sum4 A B))
-   (right : ∀{Γ A B} → Tm4 Γ B → Tm4 Γ (sum4 A B))
-   (case  : ∀{Γ A B C} → Tm4 Γ (sum4 A B) → Tm4 Γ (arr4 A C) → Tm4 Γ (arr4 B C) → Tm4 Γ C)
-   (zero  : ∀{Γ} → Tm4 Γ nat4)
-   (suc   : ∀{Γ} → Tm4 Γ nat4 → Tm4 Γ nat4)
-   (rec   : ∀{Γ A} → Tm4 Γ nat4 → Tm4 Γ (arr4 nat4 (arr4 A A)) → Tm4 Γ A → Tm4 Γ A)
+   (var   : ∀ Γ A      → Var4 Γ A → Tm4 Γ A)
+   (lam   : ∀ Γ A B    → Tm4 (snoc4 Γ A) B → Tm4 Γ (arr4 A B))
+   (app   : ∀ Γ A B    → Tm4 Γ (arr4 A B) → Tm4 Γ A → Tm4 Γ B)
+   (tt    : ∀ Γ        → Tm4 Γ top4)
+   (pair  : ∀ Γ A B    → Tm4 Γ A → Tm4 Γ B → Tm4 Γ (prod4 A B))
+   (fst   : ∀ Γ A B    → Tm4 Γ (prod4 A B) → Tm4 Γ A)
+   (snd   : ∀ Γ A B    → Tm4 Γ (prod4 A B) → Tm4 Γ B)
+   (left  : ∀ Γ A B    → Tm4 Γ A → Tm4 Γ (sum4 A B))
+   (right : ∀ Γ A B    → Tm4 Γ B → Tm4 Γ (sum4 A B))
+   (case  : ∀ Γ A B C  → Tm4 Γ (sum4 A B) → Tm4 Γ (arr4 A C) → Tm4 Γ (arr4 B C) → Tm4 Γ C)
+   (zero  : ∀ Γ        → Tm4 Γ nat4)
+   (suc   : ∀ Γ        → Tm4 Γ nat4 → Tm4 Γ nat4)
+   (rec   : ∀ Γ A      → Tm4 Γ nat4 → Tm4 Γ (arr4 nat4 (arr4 A A)) → Tm4 Γ A → Tm4 Γ A)
  → Tm4 Γ A
 
 var4 : ∀{Γ A} → Var4 Γ A → Tm4 Γ A; var4
  = λ x Tm4 var4 lam app tt pair fst snd left right case zero suc rec →
-     var4 x
+     var4 _ _ x
 
 lam4 : ∀{Γ A B} → Tm4 (snoc4 Γ A) B → Tm4 Γ (arr4 A B); lam4
  = λ t Tm4 var4 lam4 app tt pair fst snd left right case zero suc rec →
-     lam4 (t Tm4 var4 lam4 app tt pair fst snd left right case zero suc rec)
+     lam4 _ _ _ (t Tm4 var4 lam4 app tt pair fst snd left right case zero suc rec)
 
 app4 : ∀{Γ A B} → Tm4 Γ (arr4 A B) → Tm4 Γ A → Tm4 Γ B; app4
  = λ t u Tm4 var4 lam4 app4 tt pair fst snd left right case zero suc rec →
-     app4 (t Tm4 var4 lam4 app4 tt pair fst snd left right case zero suc rec)
+     app4 _ _ _ (t Tm4 var4 lam4 app4 tt pair fst snd left right case zero suc rec)
          (u Tm4 var4 lam4 app4 tt pair fst snd left right case zero suc rec)
 
 tt4 : ∀{Γ} → Tm4 Γ top4; tt4
- = λ Tm4 var4 lam4 app4 tt4 pair fst snd left right case zero suc rec → tt4
+ = λ Tm4 var4 lam4 app4 tt4 pair fst snd left right case zero suc rec → tt4 _
 
 pair4 : ∀{Γ A B} → Tm4 Γ A → Tm4 Γ B → Tm4 Γ (prod4 A B); pair4
  = λ t u Tm4 var4 lam4 app4 tt4 pair4 fst snd left right case zero suc rec →
-     pair4 (t Tm4 var4 lam4 app4 tt4 pair4 fst snd left right case zero suc rec)
+     pair4 _ _ _ (t Tm4 var4 lam4 app4 tt4 pair4 fst snd left right case zero suc rec)
           (u Tm4 var4 lam4 app4 tt4 pair4 fst snd left right case zero suc rec)
 
 fst4 : ∀{Γ A B} → Tm4 Γ (prod4 A B) → Tm4 Γ A; fst4
  = λ t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd left right case zero suc rec →
-     fst4 (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd left right case zero suc rec)
+     fst4 _ _ _ (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd left right case zero suc rec)
 
 snd4 : ∀{Γ A B} → Tm4 Γ (prod4 A B) → Tm4 Γ B; snd4
  = λ t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left right case zero suc rec →
-     snd4 (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left right case zero suc rec)
+     snd4 _ _ _ (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left right case zero suc rec)
 
 left4 : ∀{Γ A B} → Tm4 Γ A → Tm4 Γ (sum4 A B); left4
  = λ t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right case zero suc rec →
-     left4 (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right case zero suc rec)
+     left4 _ _ _ (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right case zero suc rec)
 
 right4 : ∀{Γ A B} → Tm4 Γ B → Tm4 Γ (sum4 A B); right4
  = λ t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case zero suc rec →
-     right4 (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case zero suc rec)
+     right4 _ _ _ (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case zero suc rec)
 
 case4 : ∀{Γ A B C} → Tm4 Γ (sum4 A B) → Tm4 Γ (arr4 A C) → Tm4 Γ (arr4 B C) → Tm4 Γ C; case4
  = λ t u v Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero suc rec →
-     case4 (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero suc rec)
+     case4 _ _ _ _
+           (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero suc rec)
            (u Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero suc rec)
            (v Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero suc rec)
 
 zero4  : ∀{Γ} → Tm4 Γ nat4; zero4
- = λ Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc rec → zero4
+ = λ Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc rec → zero4 _
 
 suc4 : ∀{Γ} → Tm4 Γ nat4 → Tm4 Γ nat4; suc4
  = λ t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc4 rec →
-   suc4 (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc4 rec)
+   suc4 _ (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc4 rec)
 
 rec4 : ∀{Γ A} → Tm4 Γ nat4 → Tm4 Γ (arr4 nat4 (arr4 A A)) → Tm4 Γ A → Tm4 Γ A; rec4
  = λ t u v Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc4 rec4 →
-     rec4 (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc4 rec4)
-         (u Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc4 rec4)
-         (v Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc4 rec4)
+     rec4 _ _
+          (t Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc4 rec4)
+          (u Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc4 rec4)
+          (v Tm4 var4 lam4 app4 tt4 pair4 fst4 snd4 left4 right4 case4 zero4 suc4 rec4)
 
 v04 : ∀{Γ A} → Tm4 (snoc4 Γ A) A; v04
  = var4 vz4
@@ -858,89 +868,91 @@ snoc5 : Con5 → Ty5 → Con5; snoc5
 Var5 : Con5 → Ty5 → Set; Var5
  = λ Γ A →
    (Var5 : Con5 → Ty5 → Set)
-   (vz  : ∀{Γ A} → Var5 (snoc5 Γ A) A)
-   (vs  : ∀{Γ B A} → Var5 Γ A → Var5 (snoc5 Γ B) A)
+   (vz  : ∀ Γ A → Var5 (snoc5 Γ A) A)
+   (vs  : ∀ Γ B A → Var5 Γ A → Var5 (snoc5 Γ B) A)
  → Var5 Γ A
 
 vz5 : ∀{Γ A} → Var5 (snoc5 Γ A) A; vz5
- = λ Var5 vz5 vs → vz5
+ = λ Var5 vz5 vs → vz5 _ _
 
 vs5 : ∀{Γ B A} → Var5 Γ A → Var5 (snoc5 Γ B) A; vs5
- = λ x Var5 vz5 vs5 → vs5 (x Var5 vz5 vs5)
+ = λ x Var5 vz5 vs5 → vs5 _ _ _ (x Var5 vz5 vs5)
 
 Tm5 : Con5 → Ty5 → Set; Tm5
  = λ Γ A →
    (Tm5  : Con5 → Ty5 → Set)
-   (var   : ∀{Γ A} → Var5 Γ A → Tm5 Γ A)
-   (lam   : ∀{Γ A B} → Tm5 (snoc5 Γ A) B → Tm5 Γ (arr5 A B))
-   (app   : ∀{Γ A B} → Tm5 Γ (arr5 A B) → Tm5 Γ A → Tm5 Γ B)
-   (tt    : ∀{Γ} → Tm5 Γ top5)
-   (pair  : ∀{Γ A B} → Tm5 Γ A → Tm5 Γ B → Tm5 Γ (prod5 A B))
-   (fst   : ∀{Γ A B} → Tm5 Γ (prod5 A B) → Tm5 Γ A)
-   (snd   : ∀{Γ A B} → Tm5 Γ (prod5 A B) → Tm5 Γ B)
-   (left  : ∀{Γ A B} → Tm5 Γ A → Tm5 Γ (sum5 A B))
-   (right : ∀{Γ A B} → Tm5 Γ B → Tm5 Γ (sum5 A B))
-   (case  : ∀{Γ A B C} → Tm5 Γ (sum5 A B) → Tm5 Γ (arr5 A C) → Tm5 Γ (arr5 B C) → Tm5 Γ C)
-   (zero  : ∀{Γ} → Tm5 Γ nat5)
-   (suc   : ∀{Γ} → Tm5 Γ nat5 → Tm5 Γ nat5)
-   (rec   : ∀{Γ A} → Tm5 Γ nat5 → Tm5 Γ (arr5 nat5 (arr5 A A)) → Tm5 Γ A → Tm5 Γ A)
+   (var   : ∀ Γ A      → Var5 Γ A → Tm5 Γ A)
+   (lam   : ∀ Γ A B    → Tm5 (snoc5 Γ A) B → Tm5 Γ (arr5 A B))
+   (app   : ∀ Γ A B    → Tm5 Γ (arr5 A B) → Tm5 Γ A → Tm5 Γ B)
+   (tt    : ∀ Γ        → Tm5 Γ top5)
+   (pair  : ∀ Γ A B    → Tm5 Γ A → Tm5 Γ B → Tm5 Γ (prod5 A B))
+   (fst   : ∀ Γ A B    → Tm5 Γ (prod5 A B) → Tm5 Γ A)
+   (snd   : ∀ Γ A B    → Tm5 Γ (prod5 A B) → Tm5 Γ B)
+   (left  : ∀ Γ A B    → Tm5 Γ A → Tm5 Γ (sum5 A B))
+   (right : ∀ Γ A B    → Tm5 Γ B → Tm5 Γ (sum5 A B))
+   (case  : ∀ Γ A B C  → Tm5 Γ (sum5 A B) → Tm5 Γ (arr5 A C) → Tm5 Γ (arr5 B C) → Tm5 Γ C)
+   (zero  : ∀ Γ        → Tm5 Γ nat5)
+   (suc   : ∀ Γ        → Tm5 Γ nat5 → Tm5 Γ nat5)
+   (rec   : ∀ Γ A      → Tm5 Γ nat5 → Tm5 Γ (arr5 nat5 (arr5 A A)) → Tm5 Γ A → Tm5 Γ A)
  → Tm5 Γ A
 
 var5 : ∀{Γ A} → Var5 Γ A → Tm5 Γ A; var5
  = λ x Tm5 var5 lam app tt pair fst snd left right case zero suc rec →
-     var5 x
+     var5 _ _ x
 
 lam5 : ∀{Γ A B} → Tm5 (snoc5 Γ A) B → Tm5 Γ (arr5 A B); lam5
  = λ t Tm5 var5 lam5 app tt pair fst snd left right case zero suc rec →
-     lam5 (t Tm5 var5 lam5 app tt pair fst snd left right case zero suc rec)
+     lam5 _ _ _ (t Tm5 var5 lam5 app tt pair fst snd left right case zero suc rec)
 
 app5 : ∀{Γ A B} → Tm5 Γ (arr5 A B) → Tm5 Γ A → Tm5 Γ B; app5
  = λ t u Tm5 var5 lam5 app5 tt pair fst snd left right case zero suc rec →
-     app5 (t Tm5 var5 lam5 app5 tt pair fst snd left right case zero suc rec)
+     app5 _ _ _ (t Tm5 var5 lam5 app5 tt pair fst snd left right case zero suc rec)
          (u Tm5 var5 lam5 app5 tt pair fst snd left right case zero suc rec)
 
 tt5 : ∀{Γ} → Tm5 Γ top5; tt5
- = λ Tm5 var5 lam5 app5 tt5 pair fst snd left right case zero suc rec → tt5
+ = λ Tm5 var5 lam5 app5 tt5 pair fst snd left right case zero suc rec → tt5 _
 
 pair5 : ∀{Γ A B} → Tm5 Γ A → Tm5 Γ B → Tm5 Γ (prod5 A B); pair5
  = λ t u Tm5 var5 lam5 app5 tt5 pair5 fst snd left right case zero suc rec →
-     pair5 (t Tm5 var5 lam5 app5 tt5 pair5 fst snd left right case zero suc rec)
+     pair5 _ _ _ (t Tm5 var5 lam5 app5 tt5 pair5 fst snd left right case zero suc rec)
           (u Tm5 var5 lam5 app5 tt5 pair5 fst snd left right case zero suc rec)
 
 fst5 : ∀{Γ A B} → Tm5 Γ (prod5 A B) → Tm5 Γ A; fst5
  = λ t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd left right case zero suc rec →
-     fst5 (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd left right case zero suc rec)
+     fst5 _ _ _ (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd left right case zero suc rec)
 
 snd5 : ∀{Γ A B} → Tm5 Γ (prod5 A B) → Tm5 Γ B; snd5
  = λ t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left right case zero suc rec →
-     snd5 (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left right case zero suc rec)
+     snd5 _ _ _ (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left right case zero suc rec)
 
 left5 : ∀{Γ A B} → Tm5 Γ A → Tm5 Γ (sum5 A B); left5
  = λ t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right case zero suc rec →
-     left5 (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right case zero suc rec)
+     left5 _ _ _ (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right case zero suc rec)
 
 right5 : ∀{Γ A B} → Tm5 Γ B → Tm5 Γ (sum5 A B); right5
  = λ t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case zero suc rec →
-     right5 (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case zero suc rec)
+     right5 _ _ _ (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case zero suc rec)
 
 case5 : ∀{Γ A B C} → Tm5 Γ (sum5 A B) → Tm5 Γ (arr5 A C) → Tm5 Γ (arr5 B C) → Tm5 Γ C; case5
  = λ t u v Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero suc rec →
-     case5 (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero suc rec)
+     case5 _ _ _ _
+           (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero suc rec)
            (u Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero suc rec)
            (v Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero suc rec)
 
 zero5  : ∀{Γ} → Tm5 Γ nat5; zero5
- = λ Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc rec → zero5
+ = λ Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc rec → zero5 _
 
 suc5 : ∀{Γ} → Tm5 Γ nat5 → Tm5 Γ nat5; suc5
  = λ t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc5 rec →
-   suc5 (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc5 rec)
+   suc5 _ (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc5 rec)
 
 rec5 : ∀{Γ A} → Tm5 Γ nat5 → Tm5 Γ (arr5 nat5 (arr5 A A)) → Tm5 Γ A → Tm5 Γ A; rec5
  = λ t u v Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc5 rec5 →
-     rec5 (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc5 rec5)
-         (u Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc5 rec5)
-         (v Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc5 rec5)
+     rec5 _ _
+          (t Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc5 rec5)
+          (u Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc5 rec5)
+          (v Tm5 var5 lam5 app5 tt5 pair5 fst5 snd5 left5 right5 case5 zero5 suc5 rec5)
 
 v05 : ∀{Γ A} → Tm5 (snoc5 Γ A) A; v05
  = var5 vz5
@@ -1022,89 +1034,91 @@ snoc6 : Con6 → Ty6 → Con6; snoc6
 Var6 : Con6 → Ty6 → Set; Var6
  = λ Γ A →
    (Var6 : Con6 → Ty6 → Set)
-   (vz  : ∀{Γ A} → Var6 (snoc6 Γ A) A)
-   (vs  : ∀{Γ B A} → Var6 Γ A → Var6 (snoc6 Γ B) A)
+   (vz  : ∀ Γ A → Var6 (snoc6 Γ A) A)
+   (vs  : ∀ Γ B A → Var6 Γ A → Var6 (snoc6 Γ B) A)
  → Var6 Γ A
 
 vz6 : ∀{Γ A} → Var6 (snoc6 Γ A) A; vz6
- = λ Var6 vz6 vs → vz6
+ = λ Var6 vz6 vs → vz6 _ _
 
 vs6 : ∀{Γ B A} → Var6 Γ A → Var6 (snoc6 Γ B) A; vs6
- = λ x Var6 vz6 vs6 → vs6 (x Var6 vz6 vs6)
+ = λ x Var6 vz6 vs6 → vs6 _ _ _ (x Var6 vz6 vs6)
 
 Tm6 : Con6 → Ty6 → Set; Tm6
  = λ Γ A →
    (Tm6  : Con6 → Ty6 → Set)
-   (var   : ∀{Γ A} → Var6 Γ A → Tm6 Γ A)
-   (lam   : ∀{Γ A B} → Tm6 (snoc6 Γ A) B → Tm6 Γ (arr6 A B))
-   (app   : ∀{Γ A B} → Tm6 Γ (arr6 A B) → Tm6 Γ A → Tm6 Γ B)
-   (tt    : ∀{Γ} → Tm6 Γ top6)
-   (pair  : ∀{Γ A B} → Tm6 Γ A → Tm6 Γ B → Tm6 Γ (prod6 A B))
-   (fst   : ∀{Γ A B} → Tm6 Γ (prod6 A B) → Tm6 Γ A)
-   (snd   : ∀{Γ A B} → Tm6 Γ (prod6 A B) → Tm6 Γ B)
-   (left  : ∀{Γ A B} → Tm6 Γ A → Tm6 Γ (sum6 A B))
-   (right : ∀{Γ A B} → Tm6 Γ B → Tm6 Γ (sum6 A B))
-   (case  : ∀{Γ A B C} → Tm6 Γ (sum6 A B) → Tm6 Γ (arr6 A C) → Tm6 Γ (arr6 B C) → Tm6 Γ C)
-   (zero  : ∀{Γ} → Tm6 Γ nat6)
-   (suc   : ∀{Γ} → Tm6 Γ nat6 → Tm6 Γ nat6)
-   (rec   : ∀{Γ A} → Tm6 Γ nat6 → Tm6 Γ (arr6 nat6 (arr6 A A)) → Tm6 Γ A → Tm6 Γ A)
+   (var   : ∀ Γ A      → Var6 Γ A → Tm6 Γ A)
+   (lam   : ∀ Γ A B    → Tm6 (snoc6 Γ A) B → Tm6 Γ (arr6 A B))
+   (app   : ∀ Γ A B    → Tm6 Γ (arr6 A B) → Tm6 Γ A → Tm6 Γ B)
+   (tt    : ∀ Γ        → Tm6 Γ top6)
+   (pair  : ∀ Γ A B    → Tm6 Γ A → Tm6 Γ B → Tm6 Γ (prod6 A B))
+   (fst   : ∀ Γ A B    → Tm6 Γ (prod6 A B) → Tm6 Γ A)
+   (snd   : ∀ Γ A B    → Tm6 Γ (prod6 A B) → Tm6 Γ B)
+   (left  : ∀ Γ A B    → Tm6 Γ A → Tm6 Γ (sum6 A B))
+   (right : ∀ Γ A B    → Tm6 Γ B → Tm6 Γ (sum6 A B))
+   (case  : ∀ Γ A B C  → Tm6 Γ (sum6 A B) → Tm6 Γ (arr6 A C) → Tm6 Γ (arr6 B C) → Tm6 Γ C)
+   (zero  : ∀ Γ        → Tm6 Γ nat6)
+   (suc   : ∀ Γ        → Tm6 Γ nat6 → Tm6 Γ nat6)
+   (rec   : ∀ Γ A      → Tm6 Γ nat6 → Tm6 Γ (arr6 nat6 (arr6 A A)) → Tm6 Γ A → Tm6 Γ A)
  → Tm6 Γ A
 
 var6 : ∀{Γ A} → Var6 Γ A → Tm6 Γ A; var6
  = λ x Tm6 var6 lam app tt pair fst snd left right case zero suc rec →
-     var6 x
+     var6 _ _ x
 
 lam6 : ∀{Γ A B} → Tm6 (snoc6 Γ A) B → Tm6 Γ (arr6 A B); lam6
  = λ t Tm6 var6 lam6 app tt pair fst snd left right case zero suc rec →
-     lam6 (t Tm6 var6 lam6 app tt pair fst snd left right case zero suc rec)
+     lam6 _ _ _ (t Tm6 var6 lam6 app tt pair fst snd left right case zero suc rec)
 
 app6 : ∀{Γ A B} → Tm6 Γ (arr6 A B) → Tm6 Γ A → Tm6 Γ B; app6
  = λ t u Tm6 var6 lam6 app6 tt pair fst snd left right case zero suc rec →
-     app6 (t Tm6 var6 lam6 app6 tt pair fst snd left right case zero suc rec)
+     app6 _ _ _ (t Tm6 var6 lam6 app6 tt pair fst snd left right case zero suc rec)
          (u Tm6 var6 lam6 app6 tt pair fst snd left right case zero suc rec)
 
 tt6 : ∀{Γ} → Tm6 Γ top6; tt6
- = λ Tm6 var6 lam6 app6 tt6 pair fst snd left right case zero suc rec → tt6
+ = λ Tm6 var6 lam6 app6 tt6 pair fst snd left right case zero suc rec → tt6 _
 
 pair6 : ∀{Γ A B} → Tm6 Γ A → Tm6 Γ B → Tm6 Γ (prod6 A B); pair6
  = λ t u Tm6 var6 lam6 app6 tt6 pair6 fst snd left right case zero suc rec →
-     pair6 (t Tm6 var6 lam6 app6 tt6 pair6 fst snd left right case zero suc rec)
+     pair6 _ _ _ (t Tm6 var6 lam6 app6 tt6 pair6 fst snd left right case zero suc rec)
           (u Tm6 var6 lam6 app6 tt6 pair6 fst snd left right case zero suc rec)
 
 fst6 : ∀{Γ A B} → Tm6 Γ (prod6 A B) → Tm6 Γ A; fst6
  = λ t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd left right case zero suc rec →
-     fst6 (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd left right case zero suc rec)
+     fst6 _ _ _ (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd left right case zero suc rec)
 
 snd6 : ∀{Γ A B} → Tm6 Γ (prod6 A B) → Tm6 Γ B; snd6
  = λ t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left right case zero suc rec →
-     snd6 (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left right case zero suc rec)
+     snd6 _ _ _ (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left right case zero suc rec)
 
 left6 : ∀{Γ A B} → Tm6 Γ A → Tm6 Γ (sum6 A B); left6
  = λ t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right case zero suc rec →
-     left6 (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right case zero suc rec)
+     left6 _ _ _ (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right case zero suc rec)
 
 right6 : ∀{Γ A B} → Tm6 Γ B → Tm6 Γ (sum6 A B); right6
  = λ t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case zero suc rec →
-     right6 (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case zero suc rec)
+     right6 _ _ _ (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case zero suc rec)
 
 case6 : ∀{Γ A B C} → Tm6 Γ (sum6 A B) → Tm6 Γ (arr6 A C) → Tm6 Γ (arr6 B C) → Tm6 Γ C; case6
  = λ t u v Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero suc rec →
-     case6 (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero suc rec)
+     case6 _ _ _ _
+           (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero suc rec)
            (u Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero suc rec)
            (v Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero suc rec)
 
 zero6  : ∀{Γ} → Tm6 Γ nat6; zero6
- = λ Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc rec → zero6
+ = λ Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc rec → zero6 _
 
 suc6 : ∀{Γ} → Tm6 Γ nat6 → Tm6 Γ nat6; suc6
  = λ t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec →
-   suc6 (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec)
+   suc6 _ (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec)
 
 rec6 : ∀{Γ A} → Tm6 Γ nat6 → Tm6 Γ (arr6 nat6 (arr6 A A)) → Tm6 Γ A → Tm6 Γ A; rec6
  = λ t u v Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec6 →
-     rec6 (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec6)
-         (u Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec6)
-         (v Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec6)
+     rec6 _ _
+          (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec6)
+          (u Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec6)
+          (v Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec6)
 
 v06 : ∀{Γ A} → Tm6 (snoc6 Γ A) A; v06
  = var6 vz6
@@ -1186,89 +1200,91 @@ snoc7 : Con7 → Ty7 → Con7; snoc7
 Var7 : Con7 → Ty7 → Set; Var7
  = λ Γ A →
    (Var7 : Con7 → Ty7 → Set)
-   (vz  : ∀{Γ A} → Var7 (snoc7 Γ A) A)
-   (vs  : ∀{Γ B A} → Var7 Γ A → Var7 (snoc7 Γ B) A)
+   (vz  : ∀ Γ A → Var7 (snoc7 Γ A) A)
+   (vs  : ∀ Γ B A → Var7 Γ A → Var7 (snoc7 Γ B) A)
  → Var7 Γ A
 
 vz7 : ∀{Γ A} → Var7 (snoc7 Γ A) A; vz7
- = λ Var7 vz7 vs → vz7
+ = λ Var7 vz7 vs → vz7 _ _
 
 vs7 : ∀{Γ B A} → Var7 Γ A → Var7 (snoc7 Γ B) A; vs7
- = λ x Var7 vz7 vs7 → vs7 (x Var7 vz7 vs7)
+ = λ x Var7 vz7 vs7 → vs7 _ _ _ (x Var7 vz7 vs7)
 
 Tm7 : Con7 → Ty7 → Set; Tm7
  = λ Γ A →
    (Tm7  : Con7 → Ty7 → Set)
-   (var   : ∀{Γ A} → Var7 Γ A → Tm7 Γ A)
-   (lam   : ∀{Γ A B} → Tm7 (snoc7 Γ A) B → Tm7 Γ (arr7 A B))
-   (app   : ∀{Γ A B} → Tm7 Γ (arr7 A B) → Tm7 Γ A → Tm7 Γ B)
-   (tt    : ∀{Γ} → Tm7 Γ top7)
-   (pair  : ∀{Γ A B} → Tm7 Γ A → Tm7 Γ B → Tm7 Γ (prod7 A B))
-   (fst   : ∀{Γ A B} → Tm7 Γ (prod7 A B) → Tm7 Γ A)
-   (snd   : ∀{Γ A B} → Tm7 Γ (prod7 A B) → Tm7 Γ B)
-   (left  : ∀{Γ A B} → Tm7 Γ A → Tm7 Γ (sum7 A B))
-   (right : ∀{Γ A B} → Tm7 Γ B → Tm7 Γ (sum7 A B))
-   (case  : ∀{Γ A B C} → Tm7 Γ (sum7 A B) → Tm7 Γ (arr7 A C) → Tm7 Γ (arr7 B C) → Tm7 Γ C)
-   (zero  : ∀{Γ} → Tm7 Γ nat7)
-   (suc   : ∀{Γ} → Tm7 Γ nat7 → Tm7 Γ nat7)
-   (rec   : ∀{Γ A} → Tm7 Γ nat7 → Tm7 Γ (arr7 nat7 (arr7 A A)) → Tm7 Γ A → Tm7 Γ A)
+   (var   : ∀ Γ A      → Var7 Γ A → Tm7 Γ A)
+   (lam   : ∀ Γ A B    → Tm7 (snoc7 Γ A) B → Tm7 Γ (arr7 A B))
+   (app   : ∀ Γ A B    → Tm7 Γ (arr7 A B) → Tm7 Γ A → Tm7 Γ B)
+   (tt    : ∀ Γ        → Tm7 Γ top7)
+   (pair  : ∀ Γ A B    → Tm7 Γ A → Tm7 Γ B → Tm7 Γ (prod7 A B))
+   (fst   : ∀ Γ A B    → Tm7 Γ (prod7 A B) → Tm7 Γ A)
+   (snd   : ∀ Γ A B    → Tm7 Γ (prod7 A B) → Tm7 Γ B)
+   (left  : ∀ Γ A B    → Tm7 Γ A → Tm7 Γ (sum7 A B))
+   (right : ∀ Γ A B    → Tm7 Γ B → Tm7 Γ (sum7 A B))
+   (case  : ∀ Γ A B C  → Tm7 Γ (sum7 A B) → Tm7 Γ (arr7 A C) → Tm7 Γ (arr7 B C) → Tm7 Γ C)
+   (zero  : ∀ Γ        → Tm7 Γ nat7)
+   (suc   : ∀ Γ        → Tm7 Γ nat7 → Tm7 Γ nat7)
+   (rec   : ∀ Γ A      → Tm7 Γ nat7 → Tm7 Γ (arr7 nat7 (arr7 A A)) → Tm7 Γ A → Tm7 Γ A)
  → Tm7 Γ A
 
 var7 : ∀{Γ A} → Var7 Γ A → Tm7 Γ A; var7
  = λ x Tm7 var7 lam app tt pair fst snd left right case zero suc rec →
-     var7 x
+     var7 _ _ x
 
 lam7 : ∀{Γ A B} → Tm7 (snoc7 Γ A) B → Tm7 Γ (arr7 A B); lam7
  = λ t Tm7 var7 lam7 app tt pair fst snd left right case zero suc rec →
-     lam7 (t Tm7 var7 lam7 app tt pair fst snd left right case zero suc rec)
+     lam7 _ _ _ (t Tm7 var7 lam7 app tt pair fst snd left right case zero suc rec)
 
 app7 : ∀{Γ A B} → Tm7 Γ (arr7 A B) → Tm7 Γ A → Tm7 Γ B; app7
  = λ t u Tm7 var7 lam7 app7 tt pair fst snd left right case zero suc rec →
-     app7 (t Tm7 var7 lam7 app7 tt pair fst snd left right case zero suc rec)
+     app7 _ _ _ (t Tm7 var7 lam7 app7 tt pair fst snd left right case zero suc rec)
          (u Tm7 var7 lam7 app7 tt pair fst snd left right case zero suc rec)
 
 tt7 : ∀{Γ} → Tm7 Γ top7; tt7
- = λ Tm7 var7 lam7 app7 tt7 pair fst snd left right case zero suc rec → tt7
+ = λ Tm7 var7 lam7 app7 tt7 pair fst snd left right case zero suc rec → tt7 _
 
 pair7 : ∀{Γ A B} → Tm7 Γ A → Tm7 Γ B → Tm7 Γ (prod7 A B); pair7
  = λ t u Tm7 var7 lam7 app7 tt7 pair7 fst snd left right case zero suc rec →
-     pair7 (t Tm7 var7 lam7 app7 tt7 pair7 fst snd left right case zero suc rec)
+     pair7 _ _ _ (t Tm7 var7 lam7 app7 tt7 pair7 fst snd left right case zero suc rec)
           (u Tm7 var7 lam7 app7 tt7 pair7 fst snd left right case zero suc rec)
 
 fst7 : ∀{Γ A B} → Tm7 Γ (prod7 A B) → Tm7 Γ A; fst7
  = λ t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd left right case zero suc rec →
-     fst7 (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd left right case zero suc rec)
+     fst7 _ _ _ (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd left right case zero suc rec)
 
 snd7 : ∀{Γ A B} → Tm7 Γ (prod7 A B) → Tm7 Γ B; snd7
  = λ t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left right case zero suc rec →
-     snd7 (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left right case zero suc rec)
+     snd7 _ _ _ (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left right case zero suc rec)
 
 left7 : ∀{Γ A B} → Tm7 Γ A → Tm7 Γ (sum7 A B); left7
  = λ t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right case zero suc rec →
-     left7 (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right case zero suc rec)
+     left7 _ _ _ (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right case zero suc rec)
 
 right7 : ∀{Γ A B} → Tm7 Γ B → Tm7 Γ (sum7 A B); right7
  = λ t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case zero suc rec →
-     right7 (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case zero suc rec)
+     right7 _ _ _ (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case zero suc rec)
 
 case7 : ∀{Γ A B C} → Tm7 Γ (sum7 A B) → Tm7 Γ (arr7 A C) → Tm7 Γ (arr7 B C) → Tm7 Γ C; case7
  = λ t u v Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero suc rec →
-     case7 (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero suc rec)
+     case7 _ _ _ _
+           (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero suc rec)
            (u Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero suc rec)
            (v Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero suc rec)
 
 zero7  : ∀{Γ} → Tm7 Γ nat7; zero7
- = λ Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc rec → zero7
+ = λ Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc rec → zero7 _
 
 suc7 : ∀{Γ} → Tm7 Γ nat7 → Tm7 Γ nat7; suc7
  = λ t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc7 rec →
-   suc7 (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc7 rec)
+   suc7 _ (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc7 rec)
 
 rec7 : ∀{Γ A} → Tm7 Γ nat7 → Tm7 Γ (arr7 nat7 (arr7 A A)) → Tm7 Γ A → Tm7 Γ A; rec7
  = λ t u v Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc7 rec7 →
-     rec7 (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc7 rec7)
-         (u Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc7 rec7)
-         (v Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc7 rec7)
+     rec7 _ _
+          (t Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc7 rec7)
+          (u Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc7 rec7)
+          (v Tm7 var7 lam7 app7 tt7 pair7 fst7 snd7 left7 right7 case7 zero7 suc7 rec7)
 
 v07 : ∀{Γ A} → Tm7 (snoc7 Γ A) A; v07
  = var7 vz7
@@ -1350,89 +1366,91 @@ snoc8 : Con8 → Ty8 → Con8; snoc8
 Var8 : Con8 → Ty8 → Set; Var8
  = λ Γ A →
    (Var8 : Con8 → Ty8 → Set)
-   (vz  : ∀{Γ A} → Var8 (snoc8 Γ A) A)
-   (vs  : ∀{Γ B A} → Var8 Γ A → Var8 (snoc8 Γ B) A)
+   (vz  : ∀ Γ A → Var8 (snoc8 Γ A) A)
+   (vs  : ∀ Γ B A → Var8 Γ A → Var8 (snoc8 Γ B) A)
  → Var8 Γ A
 
 vz8 : ∀{Γ A} → Var8 (snoc8 Γ A) A; vz8
- = λ Var8 vz8 vs → vz8
+ = λ Var8 vz8 vs → vz8 _ _
 
 vs8 : ∀{Γ B A} → Var8 Γ A → Var8 (snoc8 Γ B) A; vs8
- = λ x Var8 vz8 vs8 → vs8 (x Var8 vz8 vs8)
+ = λ x Var8 vz8 vs8 → vs8 _ _ _ (x Var8 vz8 vs8)
 
 Tm8 : Con8 → Ty8 → Set; Tm8
  = λ Γ A →
    (Tm8  : Con8 → Ty8 → Set)
-   (var   : ∀{Γ A} → Var8 Γ A → Tm8 Γ A)
-   (lam   : ∀{Γ A B} → Tm8 (snoc8 Γ A) B → Tm8 Γ (arr8 A B))
-   (app   : ∀{Γ A B} → Tm8 Γ (arr8 A B) → Tm8 Γ A → Tm8 Γ B)
-   (tt    : ∀{Γ} → Tm8 Γ top8)
-   (pair  : ∀{Γ A B} → Tm8 Γ A → Tm8 Γ B → Tm8 Γ (prod8 A B))
-   (fst   : ∀{Γ A B} → Tm8 Γ (prod8 A B) → Tm8 Γ A)
-   (snd   : ∀{Γ A B} → Tm8 Γ (prod8 A B) → Tm8 Γ B)
-   (left  : ∀{Γ A B} → Tm8 Γ A → Tm8 Γ (sum8 A B))
-   (right : ∀{Γ A B} → Tm8 Γ B → Tm8 Γ (sum8 A B))
-   (case  : ∀{Γ A B C} → Tm8 Γ (sum8 A B) → Tm8 Γ (arr8 A C) → Tm8 Γ (arr8 B C) → Tm8 Γ C)
-   (zero  : ∀{Γ} → Tm8 Γ nat8)
-   (suc   : ∀{Γ} → Tm8 Γ nat8 → Tm8 Γ nat8)
-   (rec   : ∀{Γ A} → Tm8 Γ nat8 → Tm8 Γ (arr8 nat8 (arr8 A A)) → Tm8 Γ A → Tm8 Γ A)
+   (var   : ∀ Γ A      → Var8 Γ A → Tm8 Γ A)
+   (lam   : ∀ Γ A B    → Tm8 (snoc8 Γ A) B → Tm8 Γ (arr8 A B))
+   (app   : ∀ Γ A B    → Tm8 Γ (arr8 A B) → Tm8 Γ A → Tm8 Γ B)
+   (tt    : ∀ Γ        → Tm8 Γ top8)
+   (pair  : ∀ Γ A B    → Tm8 Γ A → Tm8 Γ B → Tm8 Γ (prod8 A B))
+   (fst   : ∀ Γ A B    → Tm8 Γ (prod8 A B) → Tm8 Γ A)
+   (snd   : ∀ Γ A B    → Tm8 Γ (prod8 A B) → Tm8 Γ B)
+   (left  : ∀ Γ A B    → Tm8 Γ A → Tm8 Γ (sum8 A B))
+   (right : ∀ Γ A B    → Tm8 Γ B → Tm8 Γ (sum8 A B))
+   (case  : ∀ Γ A B C  → Tm8 Γ (sum8 A B) → Tm8 Γ (arr8 A C) → Tm8 Γ (arr8 B C) → Tm8 Γ C)
+   (zero  : ∀ Γ        → Tm8 Γ nat8)
+   (suc   : ∀ Γ        → Tm8 Γ nat8 → Tm8 Γ nat8)
+   (rec   : ∀ Γ A      → Tm8 Γ nat8 → Tm8 Γ (arr8 nat8 (arr8 A A)) → Tm8 Γ A → Tm8 Γ A)
  → Tm8 Γ A
 
 var8 : ∀{Γ A} → Var8 Γ A → Tm8 Γ A; var8
  = λ x Tm8 var8 lam app tt pair fst snd left right case zero suc rec →
-     var8 x
+     var8 _ _ x
 
 lam8 : ∀{Γ A B} → Tm8 (snoc8 Γ A) B → Tm8 Γ (arr8 A B); lam8
  = λ t Tm8 var8 lam8 app tt pair fst snd left right case zero suc rec →
-     lam8 (t Tm8 var8 lam8 app tt pair fst snd left right case zero suc rec)
+     lam8 _ _ _ (t Tm8 var8 lam8 app tt pair fst snd left right case zero suc rec)
 
 app8 : ∀{Γ A B} → Tm8 Γ (arr8 A B) → Tm8 Γ A → Tm8 Γ B; app8
  = λ t u Tm8 var8 lam8 app8 tt pair fst snd left right case zero suc rec →
-     app8 (t Tm8 var8 lam8 app8 tt pair fst snd left right case zero suc rec)
+     app8 _ _ _ (t Tm8 var8 lam8 app8 tt pair fst snd left right case zero suc rec)
          (u Tm8 var8 lam8 app8 tt pair fst snd left right case zero suc rec)
 
 tt8 : ∀{Γ} → Tm8 Γ top8; tt8
- = λ Tm8 var8 lam8 app8 tt8 pair fst snd left right case zero suc rec → tt8
+ = λ Tm8 var8 lam8 app8 tt8 pair fst snd left right case zero suc rec → tt8 _
 
 pair8 : ∀{Γ A B} → Tm8 Γ A → Tm8 Γ B → Tm8 Γ (prod8 A B); pair8
  = λ t u Tm8 var8 lam8 app8 tt8 pair8 fst snd left right case zero suc rec →
-     pair8 (t Tm8 var8 lam8 app8 tt8 pair8 fst snd left right case zero suc rec)
+     pair8 _ _ _ (t Tm8 var8 lam8 app8 tt8 pair8 fst snd left right case zero suc rec)
           (u Tm8 var8 lam8 app8 tt8 pair8 fst snd left right case zero suc rec)
 
 fst8 : ∀{Γ A B} → Tm8 Γ (prod8 A B) → Tm8 Γ A; fst8
  = λ t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd left right case zero suc rec →
-     fst8 (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd left right case zero suc rec)
+     fst8 _ _ _ (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd left right case zero suc rec)
 
 snd8 : ∀{Γ A B} → Tm8 Γ (prod8 A B) → Tm8 Γ B; snd8
  = λ t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left right case zero suc rec →
-     snd8 (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left right case zero suc rec)
+     snd8 _ _ _ (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left right case zero suc rec)
 
 left8 : ∀{Γ A B} → Tm8 Γ A → Tm8 Γ (sum8 A B); left8
  = λ t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right case zero suc rec →
-     left8 (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right case zero suc rec)
+     left8 _ _ _ (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right case zero suc rec)
 
 right8 : ∀{Γ A B} → Tm8 Γ B → Tm8 Γ (sum8 A B); right8
  = λ t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case zero suc rec →
-     right8 (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case zero suc rec)
+     right8 _ _ _ (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case zero suc rec)
 
 case8 : ∀{Γ A B C} → Tm8 Γ (sum8 A B) → Tm8 Γ (arr8 A C) → Tm8 Γ (arr8 B C) → Tm8 Γ C; case8
  = λ t u v Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero suc rec →
-     case8 (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero suc rec)
+     case8 _ _ _ _
+           (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero suc rec)
            (u Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero suc rec)
            (v Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero suc rec)
 
 zero8  : ∀{Γ} → Tm8 Γ nat8; zero8
- = λ Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc rec → zero8
+ = λ Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc rec → zero8 _
 
 suc8 : ∀{Γ} → Tm8 Γ nat8 → Tm8 Γ nat8; suc8
  = λ t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc8 rec →
-   suc8 (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc8 rec)
+   suc8 _ (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc8 rec)
 
 rec8 : ∀{Γ A} → Tm8 Γ nat8 → Tm8 Γ (arr8 nat8 (arr8 A A)) → Tm8 Γ A → Tm8 Γ A; rec8
  = λ t u v Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc8 rec8 →
-     rec8 (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc8 rec8)
-         (u Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc8 rec8)
-         (v Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc8 rec8)
+     rec8 _ _
+          (t Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc8 rec8)
+          (u Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc8 rec8)
+          (v Tm8 var8 lam8 app8 tt8 pair8 fst8 snd8 left8 right8 case8 zero8 suc8 rec8)
 
 v08 : ∀{Γ A} → Tm8 (snoc8 Γ A) A; v08
  = var8 vz8
@@ -1514,89 +1532,91 @@ snoc9 : Con9 → Ty9 → Con9; snoc9
 Var9 : Con9 → Ty9 → Set; Var9
  = λ Γ A →
    (Var9 : Con9 → Ty9 → Set)
-   (vz  : ∀{Γ A} → Var9 (snoc9 Γ A) A)
-   (vs  : ∀{Γ B A} → Var9 Γ A → Var9 (snoc9 Γ B) A)
+   (vz  : ∀ Γ A → Var9 (snoc9 Γ A) A)
+   (vs  : ∀ Γ B A → Var9 Γ A → Var9 (snoc9 Γ B) A)
  → Var9 Γ A
 
 vz9 : ∀{Γ A} → Var9 (snoc9 Γ A) A; vz9
- = λ Var9 vz9 vs → vz9
+ = λ Var9 vz9 vs → vz9 _ _
 
 vs9 : ∀{Γ B A} → Var9 Γ A → Var9 (snoc9 Γ B) A; vs9
- = λ x Var9 vz9 vs9 → vs9 (x Var9 vz9 vs9)
+ = λ x Var9 vz9 vs9 → vs9 _ _ _ (x Var9 vz9 vs9)
 
 Tm9 : Con9 → Ty9 → Set; Tm9
  = λ Γ A →
    (Tm9  : Con9 → Ty9 → Set)
-   (var   : ∀{Γ A} → Var9 Γ A → Tm9 Γ A)
-   (lam   : ∀{Γ A B} → Tm9 (snoc9 Γ A) B → Tm9 Γ (arr9 A B))
-   (app   : ∀{Γ A B} → Tm9 Γ (arr9 A B) → Tm9 Γ A → Tm9 Γ B)
-   (tt    : ∀{Γ} → Tm9 Γ top9)
-   (pair  : ∀{Γ A B} → Tm9 Γ A → Tm9 Γ B → Tm9 Γ (prod9 A B))
-   (fst   : ∀{Γ A B} → Tm9 Γ (prod9 A B) → Tm9 Γ A)
-   (snd   : ∀{Γ A B} → Tm9 Γ (prod9 A B) → Tm9 Γ B)
-   (left  : ∀{Γ A B} → Tm9 Γ A → Tm9 Γ (sum9 A B))
-   (right : ∀{Γ A B} → Tm9 Γ B → Tm9 Γ (sum9 A B))
-   (case  : ∀{Γ A B C} → Tm9 Γ (sum9 A B) → Tm9 Γ (arr9 A C) → Tm9 Γ (arr9 B C) → Tm9 Γ C)
-   (zero  : ∀{Γ} → Tm9 Γ nat9)
-   (suc   : ∀{Γ} → Tm9 Γ nat9 → Tm9 Γ nat9)
-   (rec   : ∀{Γ A} → Tm9 Γ nat9 → Tm9 Γ (arr9 nat9 (arr9 A A)) → Tm9 Γ A → Tm9 Γ A)
+   (var   : ∀ Γ A      → Var9 Γ A → Tm9 Γ A)
+   (lam   : ∀ Γ A B    → Tm9 (snoc9 Γ A) B → Tm9 Γ (arr9 A B))
+   (app   : ∀ Γ A B    → Tm9 Γ (arr9 A B) → Tm9 Γ A → Tm9 Γ B)
+   (tt    : ∀ Γ        → Tm9 Γ top9)
+   (pair  : ∀ Γ A B    → Tm9 Γ A → Tm9 Γ B → Tm9 Γ (prod9 A B))
+   (fst   : ∀ Γ A B    → Tm9 Γ (prod9 A B) → Tm9 Γ A)
+   (snd   : ∀ Γ A B    → Tm9 Γ (prod9 A B) → Tm9 Γ B)
+   (left  : ∀ Γ A B    → Tm9 Γ A → Tm9 Γ (sum9 A B))
+   (right : ∀ Γ A B    → Tm9 Γ B → Tm9 Γ (sum9 A B))
+   (case  : ∀ Γ A B C  → Tm9 Γ (sum9 A B) → Tm9 Γ (arr9 A C) → Tm9 Γ (arr9 B C) → Tm9 Γ C)
+   (zero  : ∀ Γ        → Tm9 Γ nat9)
+   (suc   : ∀ Γ        → Tm9 Γ nat9 → Tm9 Γ nat9)
+   (rec   : ∀ Γ A      → Tm9 Γ nat9 → Tm9 Γ (arr9 nat9 (arr9 A A)) → Tm9 Γ A → Tm9 Γ A)
  → Tm9 Γ A
 
 var9 : ∀{Γ A} → Var9 Γ A → Tm9 Γ A; var9
  = λ x Tm9 var9 lam app tt pair fst snd left right case zero suc rec →
-     var9 x
+     var9 _ _ x
 
 lam9 : ∀{Γ A B} → Tm9 (snoc9 Γ A) B → Tm9 Γ (arr9 A B); lam9
  = λ t Tm9 var9 lam9 app tt pair fst snd left right case zero suc rec →
-     lam9 (t Tm9 var9 lam9 app tt pair fst snd left right case zero suc rec)
+     lam9 _ _ _ (t Tm9 var9 lam9 app tt pair fst snd left right case zero suc rec)
 
 app9 : ∀{Γ A B} → Tm9 Γ (arr9 A B) → Tm9 Γ A → Tm9 Γ B; app9
  = λ t u Tm9 var9 lam9 app9 tt pair fst snd left right case zero suc rec →
-     app9 (t Tm9 var9 lam9 app9 tt pair fst snd left right case zero suc rec)
+     app9 _ _ _ (t Tm9 var9 lam9 app9 tt pair fst snd left right case zero suc rec)
          (u Tm9 var9 lam9 app9 tt pair fst snd left right case zero suc rec)
 
 tt9 : ∀{Γ} → Tm9 Γ top9; tt9
- = λ Tm9 var9 lam9 app9 tt9 pair fst snd left right case zero suc rec → tt9
+ = λ Tm9 var9 lam9 app9 tt9 pair fst snd left right case zero suc rec → tt9 _
 
 pair9 : ∀{Γ A B} → Tm9 Γ A → Tm9 Γ B → Tm9 Γ (prod9 A B); pair9
  = λ t u Tm9 var9 lam9 app9 tt9 pair9 fst snd left right case zero suc rec →
-     pair9 (t Tm9 var9 lam9 app9 tt9 pair9 fst snd left right case zero suc rec)
+     pair9 _ _ _ (t Tm9 var9 lam9 app9 tt9 pair9 fst snd left right case zero suc rec)
           (u Tm9 var9 lam9 app9 tt9 pair9 fst snd left right case zero suc rec)
 
 fst9 : ∀{Γ A B} → Tm9 Γ (prod9 A B) → Tm9 Γ A; fst9
  = λ t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd left right case zero suc rec →
-     fst9 (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd left right case zero suc rec)
+     fst9 _ _ _ (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd left right case zero suc rec)
 
 snd9 : ∀{Γ A B} → Tm9 Γ (prod9 A B) → Tm9 Γ B; snd9
  = λ t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left right case zero suc rec →
-     snd9 (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left right case zero suc rec)
+     snd9 _ _ _ (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left right case zero suc rec)
 
 left9 : ∀{Γ A B} → Tm9 Γ A → Tm9 Γ (sum9 A B); left9
  = λ t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right case zero suc rec →
-     left9 (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right case zero suc rec)
+     left9 _ _ _ (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right case zero suc rec)
 
 right9 : ∀{Γ A B} → Tm9 Γ B → Tm9 Γ (sum9 A B); right9
  = λ t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case zero suc rec →
-     right9 (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case zero suc rec)
+     right9 _ _ _ (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case zero suc rec)
 
 case9 : ∀{Γ A B C} → Tm9 Γ (sum9 A B) → Tm9 Γ (arr9 A C) → Tm9 Γ (arr9 B C) → Tm9 Γ C; case9
  = λ t u v Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero suc rec →
-     case9 (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero suc rec)
+     case9 _ _ _ _
+           (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero suc rec)
            (u Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero suc rec)
            (v Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero suc rec)
 
 zero9  : ∀{Γ} → Tm9 Γ nat9; zero9
- = λ Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc rec → zero9
+ = λ Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc rec → zero9 _
 
 suc9 : ∀{Γ} → Tm9 Γ nat9 → Tm9 Γ nat9; suc9
  = λ t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc9 rec →
-   suc9 (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc9 rec)
+   suc9 _ (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc9 rec)
 
 rec9 : ∀{Γ A} → Tm9 Γ nat9 → Tm9 Γ (arr9 nat9 (arr9 A A)) → Tm9 Γ A → Tm9 Γ A; rec9
  = λ t u v Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc9 rec9 →
-     rec9 (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc9 rec9)
-         (u Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc9 rec9)
-         (v Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc9 rec9)
+     rec9 _ _
+          (t Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc9 rec9)
+          (u Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc9 rec9)
+          (v Tm9 var9 lam9 app9 tt9 pair9 fst9 snd9 left9 right9 case9 zero9 suc9 rec9)
 
 v09 : ∀{Γ A} → Tm9 (snoc9 Γ A) A; v09
  = var9 vz9
@@ -1678,89 +1698,91 @@ snoc10 : Con10 → Ty10 → Con10; snoc10
 Var10 : Con10 → Ty10 → Set; Var10
  = λ Γ A →
    (Var10 : Con10 → Ty10 → Set)
-   (vz  : ∀{Γ A} → Var10 (snoc10 Γ A) A)
-   (vs  : ∀{Γ B A} → Var10 Γ A → Var10 (snoc10 Γ B) A)
+   (vz  : ∀ Γ A → Var10 (snoc10 Γ A) A)
+   (vs  : ∀ Γ B A → Var10 Γ A → Var10 (snoc10 Γ B) A)
  → Var10 Γ A
 
 vz10 : ∀{Γ A} → Var10 (snoc10 Γ A) A; vz10
- = λ Var10 vz10 vs → vz10
+ = λ Var10 vz10 vs → vz10 _ _
 
 vs10 : ∀{Γ B A} → Var10 Γ A → Var10 (snoc10 Γ B) A; vs10
- = λ x Var10 vz10 vs10 → vs10 (x Var10 vz10 vs10)
+ = λ x Var10 vz10 vs10 → vs10 _ _ _ (x Var10 vz10 vs10)
 
 Tm10 : Con10 → Ty10 → Set; Tm10
  = λ Γ A →
    (Tm10  : Con10 → Ty10 → Set)
-   (var   : ∀{Γ A} → Var10 Γ A → Tm10 Γ A)
-   (lam   : ∀{Γ A B} → Tm10 (snoc10 Γ A) B → Tm10 Γ (arr10 A B))
-   (app   : ∀{Γ A B} → Tm10 Γ (arr10 A B) → Tm10 Γ A → Tm10 Γ B)
-   (tt    : ∀{Γ} → Tm10 Γ top10)
-   (pair  : ∀{Γ A B} → Tm10 Γ A → Tm10 Γ B → Tm10 Γ (prod10 A B))
-   (fst   : ∀{Γ A B} → Tm10 Γ (prod10 A B) → Tm10 Γ A)
-   (snd   : ∀{Γ A B} → Tm10 Γ (prod10 A B) → Tm10 Γ B)
-   (left  : ∀{Γ A B} → Tm10 Γ A → Tm10 Γ (sum10 A B))
-   (right : ∀{Γ A B} → Tm10 Γ B → Tm10 Γ (sum10 A B))
-   (case  : ∀{Γ A B C} → Tm10 Γ (sum10 A B) → Tm10 Γ (arr10 A C) → Tm10 Γ (arr10 B C) → Tm10 Γ C)
-   (zero  : ∀{Γ} → Tm10 Γ nat10)
-   (suc   : ∀{Γ} → Tm10 Γ nat10 → Tm10 Γ nat10)
-   (rec   : ∀{Γ A} → Tm10 Γ nat10 → Tm10 Γ (arr10 nat10 (arr10 A A)) → Tm10 Γ A → Tm10 Γ A)
+   (var   : ∀ Γ A      → Var10 Γ A → Tm10 Γ A)
+   (lam   : ∀ Γ A B    → Tm10 (snoc10 Γ A) B → Tm10 Γ (arr10 A B))
+   (app   : ∀ Γ A B    → Tm10 Γ (arr10 A B) → Tm10 Γ A → Tm10 Γ B)
+   (tt    : ∀ Γ        → Tm10 Γ top10)
+   (pair  : ∀ Γ A B    → Tm10 Γ A → Tm10 Γ B → Tm10 Γ (prod10 A B))
+   (fst   : ∀ Γ A B    → Tm10 Γ (prod10 A B) → Tm10 Γ A)
+   (snd   : ∀ Γ A B    → Tm10 Γ (prod10 A B) → Tm10 Γ B)
+   (left  : ∀ Γ A B    → Tm10 Γ A → Tm10 Γ (sum10 A B))
+   (right : ∀ Γ A B    → Tm10 Γ B → Tm10 Γ (sum10 A B))
+   (case  : ∀ Γ A B C  → Tm10 Γ (sum10 A B) → Tm10 Γ (arr10 A C) → Tm10 Γ (arr10 B C) → Tm10 Γ C)
+   (zero  : ∀ Γ        → Tm10 Γ nat10)
+   (suc   : ∀ Γ        → Tm10 Γ nat10 → Tm10 Γ nat10)
+   (rec   : ∀ Γ A      → Tm10 Γ nat10 → Tm10 Γ (arr10 nat10 (arr10 A A)) → Tm10 Γ A → Tm10 Γ A)
  → Tm10 Γ A
 
 var10 : ∀{Γ A} → Var10 Γ A → Tm10 Γ A; var10
  = λ x Tm10 var10 lam app tt pair fst snd left right case zero suc rec →
-     var10 x
+     var10 _ _ x
 
 lam10 : ∀{Γ A B} → Tm10 (snoc10 Γ A) B → Tm10 Γ (arr10 A B); lam10
  = λ t Tm10 var10 lam10 app tt pair fst snd left right case zero suc rec →
-     lam10 (t Tm10 var10 lam10 app tt pair fst snd left right case zero suc rec)
+     lam10 _ _ _ (t Tm10 var10 lam10 app tt pair fst snd left right case zero suc rec)
 
 app10 : ∀{Γ A B} → Tm10 Γ (arr10 A B) → Tm10 Γ A → Tm10 Γ B; app10
  = λ t u Tm10 var10 lam10 app10 tt pair fst snd left right case zero suc rec →
-     app10 (t Tm10 var10 lam10 app10 tt pair fst snd left right case zero suc rec)
+     app10 _ _ _ (t Tm10 var10 lam10 app10 tt pair fst snd left right case zero suc rec)
          (u Tm10 var10 lam10 app10 tt pair fst snd left right case zero suc rec)
 
 tt10 : ∀{Γ} → Tm10 Γ top10; tt10
- = λ Tm10 var10 lam10 app10 tt10 pair fst snd left right case zero suc rec → tt10
+ = λ Tm10 var10 lam10 app10 tt10 pair fst snd left right case zero suc rec → tt10 _
 
 pair10 : ∀{Γ A B} → Tm10 Γ A → Tm10 Γ B → Tm10 Γ (prod10 A B); pair10
  = λ t u Tm10 var10 lam10 app10 tt10 pair10 fst snd left right case zero suc rec →
-     pair10 (t Tm10 var10 lam10 app10 tt10 pair10 fst snd left right case zero suc rec)
+     pair10 _ _ _ (t Tm10 var10 lam10 app10 tt10 pair10 fst snd left right case zero suc rec)
           (u Tm10 var10 lam10 app10 tt10 pair10 fst snd left right case zero suc rec)
 
 fst10 : ∀{Γ A B} → Tm10 Γ (prod10 A B) → Tm10 Γ A; fst10
  = λ t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd left right case zero suc rec →
-     fst10 (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd left right case zero suc rec)
+     fst10 _ _ _ (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd left right case zero suc rec)
 
 snd10 : ∀{Γ A B} → Tm10 Γ (prod10 A B) → Tm10 Γ B; snd10
  = λ t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left right case zero suc rec →
-     snd10 (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left right case zero suc rec)
+     snd10 _ _ _ (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left right case zero suc rec)
 
 left10 : ∀{Γ A B} → Tm10 Γ A → Tm10 Γ (sum10 A B); left10
  = λ t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right case zero suc rec →
-     left10 (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right case zero suc rec)
+     left10 _ _ _ (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right case zero suc rec)
 
 right10 : ∀{Γ A B} → Tm10 Γ B → Tm10 Γ (sum10 A B); right10
  = λ t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case zero suc rec →
-     right10 (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case zero suc rec)
+     right10 _ _ _ (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case zero suc rec)
 
 case10 : ∀{Γ A B C} → Tm10 Γ (sum10 A B) → Tm10 Γ (arr10 A C) → Tm10 Γ (arr10 B C) → Tm10 Γ C; case10
  = λ t u v Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero suc rec →
-     case10 (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero suc rec)
+     case10 _ _ _ _
+           (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero suc rec)
            (u Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero suc rec)
            (v Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero suc rec)
 
 zero10  : ∀{Γ} → Tm10 Γ nat10; zero10
- = λ Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc rec → zero10
+ = λ Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc rec → zero10 _
 
 suc10 : ∀{Γ} → Tm10 Γ nat10 → Tm10 Γ nat10; suc10
  = λ t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc10 rec →
-   suc10 (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc10 rec)
+   suc10 _ (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc10 rec)
 
 rec10 : ∀{Γ A} → Tm10 Γ nat10 → Tm10 Γ (arr10 nat10 (arr10 A A)) → Tm10 Γ A → Tm10 Γ A; rec10
  = λ t u v Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc10 rec10 →
-     rec10 (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc10 rec10)
-         (u Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc10 rec10)
-         (v Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc10 rec10)
+     rec10 _ _
+          (t Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc10 rec10)
+          (u Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc10 rec10)
+          (v Tm10 var10 lam10 app10 tt10 pair10 fst10 snd10 left10 right10 case10 zero10 suc10 rec10)
 
 v010 : ∀{Γ A} → Tm10 (snoc10 Γ A) A; v010
  = var10 vz10
@@ -1842,89 +1864,91 @@ snoc11 : Con11 → Ty11 → Con11; snoc11
 Var11 : Con11 → Ty11 → Set; Var11
  = λ Γ A →
    (Var11 : Con11 → Ty11 → Set)
-   (vz  : ∀{Γ A} → Var11 (snoc11 Γ A) A)
-   (vs  : ∀{Γ B A} → Var11 Γ A → Var11 (snoc11 Γ B) A)
+   (vz  : ∀ Γ A → Var11 (snoc11 Γ A) A)
+   (vs  : ∀ Γ B A → Var11 Γ A → Var11 (snoc11 Γ B) A)
  → Var11 Γ A
 
 vz11 : ∀{Γ A} → Var11 (snoc11 Γ A) A; vz11
- = λ Var11 vz11 vs → vz11
+ = λ Var11 vz11 vs → vz11 _ _
 
 vs11 : ∀{Γ B A} → Var11 Γ A → Var11 (snoc11 Γ B) A; vs11
- = λ x Var11 vz11 vs11 → vs11 (x Var11 vz11 vs11)
+ = λ x Var11 vz11 vs11 → vs11 _ _ _ (x Var11 vz11 vs11)
 
 Tm11 : Con11 → Ty11 → Set; Tm11
  = λ Γ A →
    (Tm11  : Con11 → Ty11 → Set)
-   (var   : ∀{Γ A} → Var11 Γ A → Tm11 Γ A)
-   (lam   : ∀{Γ A B} → Tm11 (snoc11 Γ A) B → Tm11 Γ (arr11 A B))
-   (app   : ∀{Γ A B} → Tm11 Γ (arr11 A B) → Tm11 Γ A → Tm11 Γ B)
-   (tt    : ∀{Γ} → Tm11 Γ top11)
-   (pair  : ∀{Γ A B} → Tm11 Γ A → Tm11 Γ B → Tm11 Γ (prod11 A B))
-   (fst   : ∀{Γ A B} → Tm11 Γ (prod11 A B) → Tm11 Γ A)
-   (snd   : ∀{Γ A B} → Tm11 Γ (prod11 A B) → Tm11 Γ B)
-   (left  : ∀{Γ A B} → Tm11 Γ A → Tm11 Γ (sum11 A B))
-   (right : ∀{Γ A B} → Tm11 Γ B → Tm11 Γ (sum11 A B))
-   (case  : ∀{Γ A B C} → Tm11 Γ (sum11 A B) → Tm11 Γ (arr11 A C) → Tm11 Γ (arr11 B C) → Tm11 Γ C)
-   (zero  : ∀{Γ} → Tm11 Γ nat11)
-   (suc   : ∀{Γ} → Tm11 Γ nat11 → Tm11 Γ nat11)
-   (rec   : ∀{Γ A} → Tm11 Γ nat11 → Tm11 Γ (arr11 nat11 (arr11 A A)) → Tm11 Γ A → Tm11 Γ A)
+   (var   : ∀ Γ A      → Var11 Γ A → Tm11 Γ A)
+   (lam   : ∀ Γ A B    → Tm11 (snoc11 Γ A) B → Tm11 Γ (arr11 A B))
+   (app   : ∀ Γ A B    → Tm11 Γ (arr11 A B) → Tm11 Γ A → Tm11 Γ B)
+   (tt    : ∀ Γ        → Tm11 Γ top11)
+   (pair  : ∀ Γ A B    → Tm11 Γ A → Tm11 Γ B → Tm11 Γ (prod11 A B))
+   (fst   : ∀ Γ A B    → Tm11 Γ (prod11 A B) → Tm11 Γ A)
+   (snd   : ∀ Γ A B    → Tm11 Γ (prod11 A B) → Tm11 Γ B)
+   (left  : ∀ Γ A B    → Tm11 Γ A → Tm11 Γ (sum11 A B))
+   (right : ∀ Γ A B    → Tm11 Γ B → Tm11 Γ (sum11 A B))
+   (case  : ∀ Γ A B C  → Tm11 Γ (sum11 A B) → Tm11 Γ (arr11 A C) → Tm11 Γ (arr11 B C) → Tm11 Γ C)
+   (zero  : ∀ Γ        → Tm11 Γ nat11)
+   (suc   : ∀ Γ        → Tm11 Γ nat11 → Tm11 Γ nat11)
+   (rec   : ∀ Γ A      → Tm11 Γ nat11 → Tm11 Γ (arr11 nat11 (arr11 A A)) → Tm11 Γ A → Tm11 Γ A)
  → Tm11 Γ A
 
 var11 : ∀{Γ A} → Var11 Γ A → Tm11 Γ A; var11
  = λ x Tm11 var11 lam app tt pair fst snd left right case zero suc rec →
-     var11 x
+     var11 _ _ x
 
 lam11 : ∀{Γ A B} → Tm11 (snoc11 Γ A) B → Tm11 Γ (arr11 A B); lam11
  = λ t Tm11 var11 lam11 app tt pair fst snd left right case zero suc rec →
-     lam11 (t Tm11 var11 lam11 app tt pair fst snd left right case zero suc rec)
+     lam11 _ _ _ (t Tm11 var11 lam11 app tt pair fst snd left right case zero suc rec)
 
 app11 : ∀{Γ A B} → Tm11 Γ (arr11 A B) → Tm11 Γ A → Tm11 Γ B; app11
  = λ t u Tm11 var11 lam11 app11 tt pair fst snd left right case zero suc rec →
-     app11 (t Tm11 var11 lam11 app11 tt pair fst snd left right case zero suc rec)
+     app11 _ _ _ (t Tm11 var11 lam11 app11 tt pair fst snd left right case zero suc rec)
          (u Tm11 var11 lam11 app11 tt pair fst snd left right case zero suc rec)
 
 tt11 : ∀{Γ} → Tm11 Γ top11; tt11
- = λ Tm11 var11 lam11 app11 tt11 pair fst snd left right case zero suc rec → tt11
+ = λ Tm11 var11 lam11 app11 tt11 pair fst snd left right case zero suc rec → tt11 _
 
 pair11 : ∀{Γ A B} → Tm11 Γ A → Tm11 Γ B → Tm11 Γ (prod11 A B); pair11
  = λ t u Tm11 var11 lam11 app11 tt11 pair11 fst snd left right case zero suc rec →
-     pair11 (t Tm11 var11 lam11 app11 tt11 pair11 fst snd left right case zero suc rec)
+     pair11 _ _ _ (t Tm11 var11 lam11 app11 tt11 pair11 fst snd left right case zero suc rec)
           (u Tm11 var11 lam11 app11 tt11 pair11 fst snd left right case zero suc rec)
 
 fst11 : ∀{Γ A B} → Tm11 Γ (prod11 A B) → Tm11 Γ A; fst11
  = λ t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd left right case zero suc rec →
-     fst11 (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd left right case zero suc rec)
+     fst11 _ _ _ (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd left right case zero suc rec)
 
 snd11 : ∀{Γ A B} → Tm11 Γ (prod11 A B) → Tm11 Γ B; snd11
  = λ t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left right case zero suc rec →
-     snd11 (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left right case zero suc rec)
+     snd11 _ _ _ (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left right case zero suc rec)
 
 left11 : ∀{Γ A B} → Tm11 Γ A → Tm11 Γ (sum11 A B); left11
  = λ t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right case zero suc rec →
-     left11 (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right case zero suc rec)
+     left11 _ _ _ (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right case zero suc rec)
 
 right11 : ∀{Γ A B} → Tm11 Γ B → Tm11 Γ (sum11 A B); right11
  = λ t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case zero suc rec →
-     right11 (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case zero suc rec)
+     right11 _ _ _ (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case zero suc rec)
 
 case11 : ∀{Γ A B C} → Tm11 Γ (sum11 A B) → Tm11 Γ (arr11 A C) → Tm11 Γ (arr11 B C) → Tm11 Γ C; case11
  = λ t u v Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero suc rec →
-     case11 (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero suc rec)
+     case11 _ _ _ _
+           (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero suc rec)
            (u Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero suc rec)
            (v Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero suc rec)
 
 zero11  : ∀{Γ} → Tm11 Γ nat11; zero11
- = λ Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc rec → zero11
+ = λ Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc rec → zero11 _
 
 suc11 : ∀{Γ} → Tm11 Γ nat11 → Tm11 Γ nat11; suc11
  = λ t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc11 rec →
-   suc11 (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc11 rec)
+   suc11 _ (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc11 rec)
 
 rec11 : ∀{Γ A} → Tm11 Γ nat11 → Tm11 Γ (arr11 nat11 (arr11 A A)) → Tm11 Γ A → Tm11 Γ A; rec11
  = λ t u v Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc11 rec11 →
-     rec11 (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc11 rec11)
-         (u Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc11 rec11)
-         (v Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc11 rec11)
+     rec11 _ _
+          (t Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc11 rec11)
+          (u Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc11 rec11)
+          (v Tm11 var11 lam11 app11 tt11 pair11 fst11 snd11 left11 right11 case11 zero11 suc11 rec11)
 
 v011 : ∀{Γ A} → Tm11 (snoc11 Γ A) A; v011
  = var11 vz11
@@ -2006,89 +2030,91 @@ snoc12 : Con12 → Ty12 → Con12; snoc12
 Var12 : Con12 → Ty12 → Set; Var12
  = λ Γ A →
    (Var12 : Con12 → Ty12 → Set)
-   (vz  : ∀{Γ A} → Var12 (snoc12 Γ A) A)
-   (vs  : ∀{Γ B A} → Var12 Γ A → Var12 (snoc12 Γ B) A)
+   (vz  : ∀ Γ A → Var12 (snoc12 Γ A) A)
+   (vs  : ∀ Γ B A → Var12 Γ A → Var12 (snoc12 Γ B) A)
  → Var12 Γ A
 
 vz12 : ∀{Γ A} → Var12 (snoc12 Γ A) A; vz12
- = λ Var12 vz12 vs → vz12
+ = λ Var12 vz12 vs → vz12 _ _
 
 vs12 : ∀{Γ B A} → Var12 Γ A → Var12 (snoc12 Γ B) A; vs12
- = λ x Var12 vz12 vs12 → vs12 (x Var12 vz12 vs12)
+ = λ x Var12 vz12 vs12 → vs12 _ _ _ (x Var12 vz12 vs12)
 
 Tm12 : Con12 → Ty12 → Set; Tm12
  = λ Γ A →
    (Tm12  : Con12 → Ty12 → Set)
-   (var   : ∀{Γ A} → Var12 Γ A → Tm12 Γ A)
-   (lam   : ∀{Γ A B} → Tm12 (snoc12 Γ A) B → Tm12 Γ (arr12 A B))
-   (app   : ∀{Γ A B} → Tm12 Γ (arr12 A B) → Tm12 Γ A → Tm12 Γ B)
-   (tt    : ∀{Γ} → Tm12 Γ top12)
-   (pair  : ∀{Γ A B} → Tm12 Γ A → Tm12 Γ B → Tm12 Γ (prod12 A B))
-   (fst   : ∀{Γ A B} → Tm12 Γ (prod12 A B) → Tm12 Γ A)
-   (snd   : ∀{Γ A B} → Tm12 Γ (prod12 A B) → Tm12 Γ B)
-   (left  : ∀{Γ A B} → Tm12 Γ A → Tm12 Γ (sum12 A B))
-   (right : ∀{Γ A B} → Tm12 Γ B → Tm12 Γ (sum12 A B))
-   (case  : ∀{Γ A B C} → Tm12 Γ (sum12 A B) → Tm12 Γ (arr12 A C) → Tm12 Γ (arr12 B C) → Tm12 Γ C)
-   (zero  : ∀{Γ} → Tm12 Γ nat12)
-   (suc   : ∀{Γ} → Tm12 Γ nat12 → Tm12 Γ nat12)
-   (rec   : ∀{Γ A} → Tm12 Γ nat12 → Tm12 Γ (arr12 nat12 (arr12 A A)) → Tm12 Γ A → Tm12 Γ A)
+   (var   : ∀ Γ A      → Var12 Γ A → Tm12 Γ A)
+   (lam   : ∀ Γ A B    → Tm12 (snoc12 Γ A) B → Tm12 Γ (arr12 A B))
+   (app   : ∀ Γ A B    → Tm12 Γ (arr12 A B) → Tm12 Γ A → Tm12 Γ B)
+   (tt    : ∀ Γ        → Tm12 Γ top12)
+   (pair  : ∀ Γ A B    → Tm12 Γ A → Tm12 Γ B → Tm12 Γ (prod12 A B))
+   (fst   : ∀ Γ A B    → Tm12 Γ (prod12 A B) → Tm12 Γ A)
+   (snd   : ∀ Γ A B    → Tm12 Γ (prod12 A B) → Tm12 Γ B)
+   (left  : ∀ Γ A B    → Tm12 Γ A → Tm12 Γ (sum12 A B))
+   (right : ∀ Γ A B    → Tm12 Γ B → Tm12 Γ (sum12 A B))
+   (case  : ∀ Γ A B C  → Tm12 Γ (sum12 A B) → Tm12 Γ (arr12 A C) → Tm12 Γ (arr12 B C) → Tm12 Γ C)
+   (zero  : ∀ Γ        → Tm12 Γ nat12)
+   (suc   : ∀ Γ        → Tm12 Γ nat12 → Tm12 Γ nat12)
+   (rec   : ∀ Γ A      → Tm12 Γ nat12 → Tm12 Γ (arr12 nat12 (arr12 A A)) → Tm12 Γ A → Tm12 Γ A)
  → Tm12 Γ A
 
 var12 : ∀{Γ A} → Var12 Γ A → Tm12 Γ A; var12
  = λ x Tm12 var12 lam app tt pair fst snd left right case zero suc rec →
-     var12 x
+     var12 _ _ x
 
 lam12 : ∀{Γ A B} → Tm12 (snoc12 Γ A) B → Tm12 Γ (arr12 A B); lam12
  = λ t Tm12 var12 lam12 app tt pair fst snd left right case zero suc rec →
-     lam12 (t Tm12 var12 lam12 app tt pair fst snd left right case zero suc rec)
+     lam12 _ _ _ (t Tm12 var12 lam12 app tt pair fst snd left right case zero suc rec)
 
 app12 : ∀{Γ A B} → Tm12 Γ (arr12 A B) → Tm12 Γ A → Tm12 Γ B; app12
  = λ t u Tm12 var12 lam12 app12 tt pair fst snd left right case zero suc rec →
-     app12 (t Tm12 var12 lam12 app12 tt pair fst snd left right case zero suc rec)
+     app12 _ _ _ (t Tm12 var12 lam12 app12 tt pair fst snd left right case zero suc rec)
          (u Tm12 var12 lam12 app12 tt pair fst snd left right case zero suc rec)
 
 tt12 : ∀{Γ} → Tm12 Γ top12; tt12
- = λ Tm12 var12 lam12 app12 tt12 pair fst snd left right case zero suc rec → tt12
+ = λ Tm12 var12 lam12 app12 tt12 pair fst snd left right case zero suc rec → tt12 _
 
 pair12 : ∀{Γ A B} → Tm12 Γ A → Tm12 Γ B → Tm12 Γ (prod12 A B); pair12
  = λ t u Tm12 var12 lam12 app12 tt12 pair12 fst snd left right case zero suc rec →
-     pair12 (t Tm12 var12 lam12 app12 tt12 pair12 fst snd left right case zero suc rec)
+     pair12 _ _ _ (t Tm12 var12 lam12 app12 tt12 pair12 fst snd left right case zero suc rec)
           (u Tm12 var12 lam12 app12 tt12 pair12 fst snd left right case zero suc rec)
 
 fst12 : ∀{Γ A B} → Tm12 Γ (prod12 A B) → Tm12 Γ A; fst12
  = λ t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd left right case zero suc rec →
-     fst12 (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd left right case zero suc rec)
+     fst12 _ _ _ (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd left right case zero suc rec)
 
 snd12 : ∀{Γ A B} → Tm12 Γ (prod12 A B) → Tm12 Γ B; snd12
  = λ t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left right case zero suc rec →
-     snd12 (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left right case zero suc rec)
+     snd12 _ _ _ (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left right case zero suc rec)
 
 left12 : ∀{Γ A B} → Tm12 Γ A → Tm12 Γ (sum12 A B); left12
  = λ t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right case zero suc rec →
-     left12 (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right case zero suc rec)
+     left12 _ _ _ (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right case zero suc rec)
 
 right12 : ∀{Γ A B} → Tm12 Γ B → Tm12 Γ (sum12 A B); right12
  = λ t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case zero suc rec →
-     right12 (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case zero suc rec)
+     right12 _ _ _ (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case zero suc rec)
 
 case12 : ∀{Γ A B C} → Tm12 Γ (sum12 A B) → Tm12 Γ (arr12 A C) → Tm12 Γ (arr12 B C) → Tm12 Γ C; case12
  = λ t u v Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero suc rec →
-     case12 (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero suc rec)
+     case12 _ _ _ _
+           (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero suc rec)
            (u Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero suc rec)
            (v Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero suc rec)
 
 zero12  : ∀{Γ} → Tm12 Γ nat12; zero12
- = λ Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc rec → zero12
+ = λ Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc rec → zero12 _
 
 suc12 : ∀{Γ} → Tm12 Γ nat12 → Tm12 Γ nat12; suc12
  = λ t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc12 rec →
-   suc12 (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc12 rec)
+   suc12 _ (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc12 rec)
 
 rec12 : ∀{Γ A} → Tm12 Γ nat12 → Tm12 Γ (arr12 nat12 (arr12 A A)) → Tm12 Γ A → Tm12 Γ A; rec12
  = λ t u v Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc12 rec12 →
-     rec12 (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc12 rec12)
-         (u Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc12 rec12)
-         (v Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc12 rec12)
+     rec12 _ _
+          (t Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc12 rec12)
+          (u Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc12 rec12)
+          (v Tm12 var12 lam12 app12 tt12 pair12 fst12 snd12 left12 right12 case12 zero12 suc12 rec12)
 
 v012 : ∀{Γ A} → Tm12 (snoc12 Γ A) A; v012
  = var12 vz12
@@ -2170,89 +2196,91 @@ snoc13 : Con13 → Ty13 → Con13; snoc13
 Var13 : Con13 → Ty13 → Set; Var13
  = λ Γ A →
    (Var13 : Con13 → Ty13 → Set)
-   (vz  : ∀{Γ A} → Var13 (snoc13 Γ A) A)
-   (vs  : ∀{Γ B A} → Var13 Γ A → Var13 (snoc13 Γ B) A)
+   (vz  : ∀ Γ A → Var13 (snoc13 Γ A) A)
+   (vs  : ∀ Γ B A → Var13 Γ A → Var13 (snoc13 Γ B) A)
  → Var13 Γ A
 
 vz13 : ∀{Γ A} → Var13 (snoc13 Γ A) A; vz13
- = λ Var13 vz13 vs → vz13
+ = λ Var13 vz13 vs → vz13 _ _
 
 vs13 : ∀{Γ B A} → Var13 Γ A → Var13 (snoc13 Γ B) A; vs13
- = λ x Var13 vz13 vs13 → vs13 (x Var13 vz13 vs13)
+ = λ x Var13 vz13 vs13 → vs13 _ _ _ (x Var13 vz13 vs13)
 
 Tm13 : Con13 → Ty13 → Set; Tm13
  = λ Γ A →
    (Tm13  : Con13 → Ty13 → Set)
-   (var   : ∀{Γ A} → Var13 Γ A → Tm13 Γ A)
-   (lam   : ∀{Γ A B} → Tm13 (snoc13 Γ A) B → Tm13 Γ (arr13 A B))
-   (app   : ∀{Γ A B} → Tm13 Γ (arr13 A B) → Tm13 Γ A → Tm13 Γ B)
-   (tt    : ∀{Γ} → Tm13 Γ top13)
-   (pair  : ∀{Γ A B} → Tm13 Γ A → Tm13 Γ B → Tm13 Γ (prod13 A B))
-   (fst   : ∀{Γ A B} → Tm13 Γ (prod13 A B) → Tm13 Γ A)
-   (snd   : ∀{Γ A B} → Tm13 Γ (prod13 A B) → Tm13 Γ B)
-   (left  : ∀{Γ A B} → Tm13 Γ A → Tm13 Γ (sum13 A B))
-   (right : ∀{Γ A B} → Tm13 Γ B → Tm13 Γ (sum13 A B))
-   (case  : ∀{Γ A B C} → Tm13 Γ (sum13 A B) → Tm13 Γ (arr13 A C) → Tm13 Γ (arr13 B C) → Tm13 Γ C)
-   (zero  : ∀{Γ} → Tm13 Γ nat13)
-   (suc   : ∀{Γ} → Tm13 Γ nat13 → Tm13 Γ nat13)
-   (rec   : ∀{Γ A} → Tm13 Γ nat13 → Tm13 Γ (arr13 nat13 (arr13 A A)) → Tm13 Γ A → Tm13 Γ A)
+   (var   : ∀ Γ A      → Var13 Γ A → Tm13 Γ A)
+   (lam   : ∀ Γ A B    → Tm13 (snoc13 Γ A) B → Tm13 Γ (arr13 A B))
+   (app   : ∀ Γ A B    → Tm13 Γ (arr13 A B) → Tm13 Γ A → Tm13 Γ B)
+   (tt    : ∀ Γ        → Tm13 Γ top13)
+   (pair  : ∀ Γ A B    → Tm13 Γ A → Tm13 Γ B → Tm13 Γ (prod13 A B))
+   (fst   : ∀ Γ A B    → Tm13 Γ (prod13 A B) → Tm13 Γ A)
+   (snd   : ∀ Γ A B    → Tm13 Γ (prod13 A B) → Tm13 Γ B)
+   (left  : ∀ Γ A B    → Tm13 Γ A → Tm13 Γ (sum13 A B))
+   (right : ∀ Γ A B    → Tm13 Γ B → Tm13 Γ (sum13 A B))
+   (case  : ∀ Γ A B C  → Tm13 Γ (sum13 A B) → Tm13 Γ (arr13 A C) → Tm13 Γ (arr13 B C) → Tm13 Γ C)
+   (zero  : ∀ Γ        → Tm13 Γ nat13)
+   (suc   : ∀ Γ        → Tm13 Γ nat13 → Tm13 Γ nat13)
+   (rec   : ∀ Γ A      → Tm13 Γ nat13 → Tm13 Γ (arr13 nat13 (arr13 A A)) → Tm13 Γ A → Tm13 Γ A)
  → Tm13 Γ A
 
 var13 : ∀{Γ A} → Var13 Γ A → Tm13 Γ A; var13
  = λ x Tm13 var13 lam app tt pair fst snd left right case zero suc rec →
-     var13 x
+     var13 _ _ x
 
 lam13 : ∀{Γ A B} → Tm13 (snoc13 Γ A) B → Tm13 Γ (arr13 A B); lam13
  = λ t Tm13 var13 lam13 app tt pair fst snd left right case zero suc rec →
-     lam13 (t Tm13 var13 lam13 app tt pair fst snd left right case zero suc rec)
+     lam13 _ _ _ (t Tm13 var13 lam13 app tt pair fst snd left right case zero suc rec)
 
 app13 : ∀{Γ A B} → Tm13 Γ (arr13 A B) → Tm13 Γ A → Tm13 Γ B; app13
  = λ t u Tm13 var13 lam13 app13 tt pair fst snd left right case zero suc rec →
-     app13 (t Tm13 var13 lam13 app13 tt pair fst snd left right case zero suc rec)
+     app13 _ _ _ (t Tm13 var13 lam13 app13 tt pair fst snd left right case zero suc rec)
          (u Tm13 var13 lam13 app13 tt pair fst snd left right case zero suc rec)
 
 tt13 : ∀{Γ} → Tm13 Γ top13; tt13
- = λ Tm13 var13 lam13 app13 tt13 pair fst snd left right case zero suc rec → tt13
+ = λ Tm13 var13 lam13 app13 tt13 pair fst snd left right case zero suc rec → tt13 _
 
 pair13 : ∀{Γ A B} → Tm13 Γ A → Tm13 Γ B → Tm13 Γ (prod13 A B); pair13
  = λ t u Tm13 var13 lam13 app13 tt13 pair13 fst snd left right case zero suc rec →
-     pair13 (t Tm13 var13 lam13 app13 tt13 pair13 fst snd left right case zero suc rec)
+     pair13 _ _ _ (t Tm13 var13 lam13 app13 tt13 pair13 fst snd left right case zero suc rec)
           (u Tm13 var13 lam13 app13 tt13 pair13 fst snd left right case zero suc rec)
 
 fst13 : ∀{Γ A B} → Tm13 Γ (prod13 A B) → Tm13 Γ A; fst13
  = λ t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd left right case zero suc rec →
-     fst13 (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd left right case zero suc rec)
+     fst13 _ _ _ (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd left right case zero suc rec)
 
 snd13 : ∀{Γ A B} → Tm13 Γ (prod13 A B) → Tm13 Γ B; snd13
  = λ t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left right case zero suc rec →
-     snd13 (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left right case zero suc rec)
+     snd13 _ _ _ (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left right case zero suc rec)
 
 left13 : ∀{Γ A B} → Tm13 Γ A → Tm13 Γ (sum13 A B); left13
  = λ t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right case zero suc rec →
-     left13 (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right case zero suc rec)
+     left13 _ _ _ (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right case zero suc rec)
 
 right13 : ∀{Γ A B} → Tm13 Γ B → Tm13 Γ (sum13 A B); right13
  = λ t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case zero suc rec →
-     right13 (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case zero suc rec)
+     right13 _ _ _ (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case zero suc rec)
 
 case13 : ∀{Γ A B C} → Tm13 Γ (sum13 A B) → Tm13 Γ (arr13 A C) → Tm13 Γ (arr13 B C) → Tm13 Γ C; case13
  = λ t u v Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero suc rec →
-     case13 (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero suc rec)
+     case13 _ _ _ _
+           (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero suc rec)
            (u Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero suc rec)
            (v Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero suc rec)
 
 zero13  : ∀{Γ} → Tm13 Γ nat13; zero13
- = λ Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc rec → zero13
+ = λ Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc rec → zero13 _
 
 suc13 : ∀{Γ} → Tm13 Γ nat13 → Tm13 Γ nat13; suc13
  = λ t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc13 rec →
-   suc13 (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc13 rec)
+   suc13 _ (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc13 rec)
 
 rec13 : ∀{Γ A} → Tm13 Γ nat13 → Tm13 Γ (arr13 nat13 (arr13 A A)) → Tm13 Γ A → Tm13 Γ A; rec13
  = λ t u v Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc13 rec13 →
-     rec13 (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc13 rec13)
-         (u Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc13 rec13)
-         (v Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc13 rec13)
+     rec13 _ _
+          (t Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc13 rec13)
+          (u Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc13 rec13)
+          (v Tm13 var13 lam13 app13 tt13 pair13 fst13 snd13 left13 right13 case13 zero13 suc13 rec13)
 
 v013 : ∀{Γ A} → Tm13 (snoc13 Γ A) A; v013
  = var13 vz13
@@ -2334,89 +2362,91 @@ snoc14 : Con14 → Ty14 → Con14; snoc14
 Var14 : Con14 → Ty14 → Set; Var14
  = λ Γ A →
    (Var14 : Con14 → Ty14 → Set)
-   (vz  : ∀{Γ A} → Var14 (snoc14 Γ A) A)
-   (vs  : ∀{Γ B A} → Var14 Γ A → Var14 (snoc14 Γ B) A)
+   (vz  : ∀ Γ A → Var14 (snoc14 Γ A) A)
+   (vs  : ∀ Γ B A → Var14 Γ A → Var14 (snoc14 Γ B) A)
  → Var14 Γ A
 
 vz14 : ∀{Γ A} → Var14 (snoc14 Γ A) A; vz14
- = λ Var14 vz14 vs → vz14
+ = λ Var14 vz14 vs → vz14 _ _
 
 vs14 : ∀{Γ B A} → Var14 Γ A → Var14 (snoc14 Γ B) A; vs14
- = λ x Var14 vz14 vs14 → vs14 (x Var14 vz14 vs14)
+ = λ x Var14 vz14 vs14 → vs14 _ _ _ (x Var14 vz14 vs14)
 
 Tm14 : Con14 → Ty14 → Set; Tm14
  = λ Γ A →
    (Tm14  : Con14 → Ty14 → Set)
-   (var   : ∀{Γ A} → Var14 Γ A → Tm14 Γ A)
-   (lam   : ∀{Γ A B} → Tm14 (snoc14 Γ A) B → Tm14 Γ (arr14 A B))
-   (app   : ∀{Γ A B} → Tm14 Γ (arr14 A B) → Tm14 Γ A → Tm14 Γ B)
-   (tt    : ∀{Γ} → Tm14 Γ top14)
-   (pair  : ∀{Γ A B} → Tm14 Γ A → Tm14 Γ B → Tm14 Γ (prod14 A B))
-   (fst   : ∀{Γ A B} → Tm14 Γ (prod14 A B) → Tm14 Γ A)
-   (snd   : ∀{Γ A B} → Tm14 Γ (prod14 A B) → Tm14 Γ B)
-   (left  : ∀{Γ A B} → Tm14 Γ A → Tm14 Γ (sum14 A B))
-   (right : ∀{Γ A B} → Tm14 Γ B → Tm14 Γ (sum14 A B))
-   (case  : ∀{Γ A B C} → Tm14 Γ (sum14 A B) → Tm14 Γ (arr14 A C) → Tm14 Γ (arr14 B C) → Tm14 Γ C)
-   (zero  : ∀{Γ} → Tm14 Γ nat14)
-   (suc   : ∀{Γ} → Tm14 Γ nat14 → Tm14 Γ nat14)
-   (rec   : ∀{Γ A} → Tm14 Γ nat14 → Tm14 Γ (arr14 nat14 (arr14 A A)) → Tm14 Γ A → Tm14 Γ A)
+   (var   : ∀ Γ A      → Var14 Γ A → Tm14 Γ A)
+   (lam   : ∀ Γ A B    → Tm14 (snoc14 Γ A) B → Tm14 Γ (arr14 A B))
+   (app   : ∀ Γ A B    → Tm14 Γ (arr14 A B) → Tm14 Γ A → Tm14 Γ B)
+   (tt    : ∀ Γ        → Tm14 Γ top14)
+   (pair  : ∀ Γ A B    → Tm14 Γ A → Tm14 Γ B → Tm14 Γ (prod14 A B))
+   (fst   : ∀ Γ A B    → Tm14 Γ (prod14 A B) → Tm14 Γ A)
+   (snd   : ∀ Γ A B    → Tm14 Γ (prod14 A B) → Tm14 Γ B)
+   (left  : ∀ Γ A B    → Tm14 Γ A → Tm14 Γ (sum14 A B))
+   (right : ∀ Γ A B    → Tm14 Γ B → Tm14 Γ (sum14 A B))
+   (case  : ∀ Γ A B C  → Tm14 Γ (sum14 A B) → Tm14 Γ (arr14 A C) → Tm14 Γ (arr14 B C) → Tm14 Γ C)
+   (zero  : ∀ Γ        → Tm14 Γ nat14)
+   (suc   : ∀ Γ        → Tm14 Γ nat14 → Tm14 Γ nat14)
+   (rec   : ∀ Γ A      → Tm14 Γ nat14 → Tm14 Γ (arr14 nat14 (arr14 A A)) → Tm14 Γ A → Tm14 Γ A)
  → Tm14 Γ A
 
 var14 : ∀{Γ A} → Var14 Γ A → Tm14 Γ A; var14
  = λ x Tm14 var14 lam app tt pair fst snd left right case zero suc rec →
-     var14 x
+     var14 _ _ x
 
 lam14 : ∀{Γ A B} → Tm14 (snoc14 Γ A) B → Tm14 Γ (arr14 A B); lam14
  = λ t Tm14 var14 lam14 app tt pair fst snd left right case zero suc rec →
-     lam14 (t Tm14 var14 lam14 app tt pair fst snd left right case zero suc rec)
+     lam14 _ _ _ (t Tm14 var14 lam14 app tt pair fst snd left right case zero suc rec)
 
 app14 : ∀{Γ A B} → Tm14 Γ (arr14 A B) → Tm14 Γ A → Tm14 Γ B; app14
  = λ t u Tm14 var14 lam14 app14 tt pair fst snd left right case zero suc rec →
-     app14 (t Tm14 var14 lam14 app14 tt pair fst snd left right case zero suc rec)
+     app14 _ _ _ (t Tm14 var14 lam14 app14 tt pair fst snd left right case zero suc rec)
          (u Tm14 var14 lam14 app14 tt pair fst snd left right case zero suc rec)
 
 tt14 : ∀{Γ} → Tm14 Γ top14; tt14
- = λ Tm14 var14 lam14 app14 tt14 pair fst snd left right case zero suc rec → tt14
+ = λ Tm14 var14 lam14 app14 tt14 pair fst snd left right case zero suc rec → tt14 _
 
 pair14 : ∀{Γ A B} → Tm14 Γ A → Tm14 Γ B → Tm14 Γ (prod14 A B); pair14
  = λ t u Tm14 var14 lam14 app14 tt14 pair14 fst snd left right case zero suc rec →
-     pair14 (t Tm14 var14 lam14 app14 tt14 pair14 fst snd left right case zero suc rec)
+     pair14 _ _ _ (t Tm14 var14 lam14 app14 tt14 pair14 fst snd left right case zero suc rec)
           (u Tm14 var14 lam14 app14 tt14 pair14 fst snd left right case zero suc rec)
 
 fst14 : ∀{Γ A B} → Tm14 Γ (prod14 A B) → Tm14 Γ A; fst14
  = λ t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd left right case zero suc rec →
-     fst14 (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd left right case zero suc rec)
+     fst14 _ _ _ (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd left right case zero suc rec)
 
 snd14 : ∀{Γ A B} → Tm14 Γ (prod14 A B) → Tm14 Γ B; snd14
  = λ t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left right case zero suc rec →
-     snd14 (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left right case zero suc rec)
+     snd14 _ _ _ (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left right case zero suc rec)
 
 left14 : ∀{Γ A B} → Tm14 Γ A → Tm14 Γ (sum14 A B); left14
  = λ t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right case zero suc rec →
-     left14 (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right case zero suc rec)
+     left14 _ _ _ (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right case zero suc rec)
 
 right14 : ∀{Γ A B} → Tm14 Γ B → Tm14 Γ (sum14 A B); right14
  = λ t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case zero suc rec →
-     right14 (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case zero suc rec)
+     right14 _ _ _ (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case zero suc rec)
 
 case14 : ∀{Γ A B C} → Tm14 Γ (sum14 A B) → Tm14 Γ (arr14 A C) → Tm14 Γ (arr14 B C) → Tm14 Γ C; case14
  = λ t u v Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero suc rec →
-     case14 (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero suc rec)
+     case14 _ _ _ _
+           (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero suc rec)
            (u Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero suc rec)
            (v Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero suc rec)
 
 zero14  : ∀{Γ} → Tm14 Γ nat14; zero14
- = λ Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc rec → zero14
+ = λ Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc rec → zero14 _
 
 suc14 : ∀{Γ} → Tm14 Γ nat14 → Tm14 Γ nat14; suc14
  = λ t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc14 rec →
-   suc14 (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc14 rec)
+   suc14 _ (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc14 rec)
 
 rec14 : ∀{Γ A} → Tm14 Γ nat14 → Tm14 Γ (arr14 nat14 (arr14 A A)) → Tm14 Γ A → Tm14 Γ A; rec14
  = λ t u v Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc14 rec14 →
-     rec14 (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc14 rec14)
-         (u Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc14 rec14)
-         (v Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc14 rec14)
+     rec14 _ _
+          (t Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc14 rec14)
+          (u Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc14 rec14)
+          (v Tm14 var14 lam14 app14 tt14 pair14 fst14 snd14 left14 right14 case14 zero14 suc14 rec14)
 
 v014 : ∀{Γ A} → Tm14 (snoc14 Γ A) A; v014
  = var14 vz14
@@ -2498,89 +2528,91 @@ snoc15 : Con15 → Ty15 → Con15; snoc15
 Var15 : Con15 → Ty15 → Set; Var15
  = λ Γ A →
    (Var15 : Con15 → Ty15 → Set)
-   (vz  : ∀{Γ A} → Var15 (snoc15 Γ A) A)
-   (vs  : ∀{Γ B A} → Var15 Γ A → Var15 (snoc15 Γ B) A)
+   (vz  : ∀ Γ A → Var15 (snoc15 Γ A) A)
+   (vs  : ∀ Γ B A → Var15 Γ A → Var15 (snoc15 Γ B) A)
  → Var15 Γ A
 
 vz15 : ∀{Γ A} → Var15 (snoc15 Γ A) A; vz15
- = λ Var15 vz15 vs → vz15
+ = λ Var15 vz15 vs → vz15 _ _
 
 vs15 : ∀{Γ B A} → Var15 Γ A → Var15 (snoc15 Γ B) A; vs15
- = λ x Var15 vz15 vs15 → vs15 (x Var15 vz15 vs15)
+ = λ x Var15 vz15 vs15 → vs15 _ _ _ (x Var15 vz15 vs15)
 
 Tm15 : Con15 → Ty15 → Set; Tm15
  = λ Γ A →
    (Tm15  : Con15 → Ty15 → Set)
-   (var   : ∀{Γ A} → Var15 Γ A → Tm15 Γ A)
-   (lam   : ∀{Γ A B} → Tm15 (snoc15 Γ A) B → Tm15 Γ (arr15 A B))
-   (app   : ∀{Γ A B} → Tm15 Γ (arr15 A B) → Tm15 Γ A → Tm15 Γ B)
-   (tt    : ∀{Γ} → Tm15 Γ top15)
-   (pair  : ∀{Γ A B} → Tm15 Γ A → Tm15 Γ B → Tm15 Γ (prod15 A B))
-   (fst   : ∀{Γ A B} → Tm15 Γ (prod15 A B) → Tm15 Γ A)
-   (snd   : ∀{Γ A B} → Tm15 Γ (prod15 A B) → Tm15 Γ B)
-   (left  : ∀{Γ A B} → Tm15 Γ A → Tm15 Γ (sum15 A B))
-   (right : ∀{Γ A B} → Tm15 Γ B → Tm15 Γ (sum15 A B))
-   (case  : ∀{Γ A B C} → Tm15 Γ (sum15 A B) → Tm15 Γ (arr15 A C) → Tm15 Γ (arr15 B C) → Tm15 Γ C)
-   (zero  : ∀{Γ} → Tm15 Γ nat15)
-   (suc   : ∀{Γ} → Tm15 Γ nat15 → Tm15 Γ nat15)
-   (rec   : ∀{Γ A} → Tm15 Γ nat15 → Tm15 Γ (arr15 nat15 (arr15 A A)) → Tm15 Γ A → Tm15 Γ A)
+   (var   : ∀ Γ A      → Var15 Γ A → Tm15 Γ A)
+   (lam   : ∀ Γ A B    → Tm15 (snoc15 Γ A) B → Tm15 Γ (arr15 A B))
+   (app   : ∀ Γ A B    → Tm15 Γ (arr15 A B) → Tm15 Γ A → Tm15 Γ B)
+   (tt    : ∀ Γ        → Tm15 Γ top15)
+   (pair  : ∀ Γ A B    → Tm15 Γ A → Tm15 Γ B → Tm15 Γ (prod15 A B))
+   (fst   : ∀ Γ A B    → Tm15 Γ (prod15 A B) → Tm15 Γ A)
+   (snd   : ∀ Γ A B    → Tm15 Γ (prod15 A B) → Tm15 Γ B)
+   (left  : ∀ Γ A B    → Tm15 Γ A → Tm15 Γ (sum15 A B))
+   (right : ∀ Γ A B    → Tm15 Γ B → Tm15 Γ (sum15 A B))
+   (case  : ∀ Γ A B C  → Tm15 Γ (sum15 A B) → Tm15 Γ (arr15 A C) → Tm15 Γ (arr15 B C) → Tm15 Γ C)
+   (zero  : ∀ Γ        → Tm15 Γ nat15)
+   (suc   : ∀ Γ        → Tm15 Γ nat15 → Tm15 Γ nat15)
+   (rec   : ∀ Γ A      → Tm15 Γ nat15 → Tm15 Γ (arr15 nat15 (arr15 A A)) → Tm15 Γ A → Tm15 Γ A)
  → Tm15 Γ A
 
 var15 : ∀{Γ A} → Var15 Γ A → Tm15 Γ A; var15
  = λ x Tm15 var15 lam app tt pair fst snd left right case zero suc rec →
-     var15 x
+     var15 _ _ x
 
 lam15 : ∀{Γ A B} → Tm15 (snoc15 Γ A) B → Tm15 Γ (arr15 A B); lam15
  = λ t Tm15 var15 lam15 app tt pair fst snd left right case zero suc rec →
-     lam15 (t Tm15 var15 lam15 app tt pair fst snd left right case zero suc rec)
+     lam15 _ _ _ (t Tm15 var15 lam15 app tt pair fst snd left right case zero suc rec)
 
 app15 : ∀{Γ A B} → Tm15 Γ (arr15 A B) → Tm15 Γ A → Tm15 Γ B; app15
  = λ t u Tm15 var15 lam15 app15 tt pair fst snd left right case zero suc rec →
-     app15 (t Tm15 var15 lam15 app15 tt pair fst snd left right case zero suc rec)
+     app15 _ _ _ (t Tm15 var15 lam15 app15 tt pair fst snd left right case zero suc rec)
          (u Tm15 var15 lam15 app15 tt pair fst snd left right case zero suc rec)
 
 tt15 : ∀{Γ} → Tm15 Γ top15; tt15
- = λ Tm15 var15 lam15 app15 tt15 pair fst snd left right case zero suc rec → tt15
+ = λ Tm15 var15 lam15 app15 tt15 pair fst snd left right case zero suc rec → tt15 _
 
 pair15 : ∀{Γ A B} → Tm15 Γ A → Tm15 Γ B → Tm15 Γ (prod15 A B); pair15
  = λ t u Tm15 var15 lam15 app15 tt15 pair15 fst snd left right case zero suc rec →
-     pair15 (t Tm15 var15 lam15 app15 tt15 pair15 fst snd left right case zero suc rec)
+     pair15 _ _ _ (t Tm15 var15 lam15 app15 tt15 pair15 fst snd left right case zero suc rec)
           (u Tm15 var15 lam15 app15 tt15 pair15 fst snd left right case zero suc rec)
 
 fst15 : ∀{Γ A B} → Tm15 Γ (prod15 A B) → Tm15 Γ A; fst15
  = λ t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd left right case zero suc rec →
-     fst15 (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd left right case zero suc rec)
+     fst15 _ _ _ (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd left right case zero suc rec)
 
 snd15 : ∀{Γ A B} → Tm15 Γ (prod15 A B) → Tm15 Γ B; snd15
  = λ t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left right case zero suc rec →
-     snd15 (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left right case zero suc rec)
+     snd15 _ _ _ (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left right case zero suc rec)
 
 left15 : ∀{Γ A B} → Tm15 Γ A → Tm15 Γ (sum15 A B); left15
  = λ t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right case zero suc rec →
-     left15 (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right case zero suc rec)
+     left15 _ _ _ (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right case zero suc rec)
 
 right15 : ∀{Γ A B} → Tm15 Γ B → Tm15 Γ (sum15 A B); right15
  = λ t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case zero suc rec →
-     right15 (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case zero suc rec)
+     right15 _ _ _ (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case zero suc rec)
 
 case15 : ∀{Γ A B C} → Tm15 Γ (sum15 A B) → Tm15 Γ (arr15 A C) → Tm15 Γ (arr15 B C) → Tm15 Γ C; case15
  = λ t u v Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero suc rec →
-     case15 (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero suc rec)
+     case15 _ _ _ _
+           (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero suc rec)
            (u Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero suc rec)
            (v Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero suc rec)
 
 zero15  : ∀{Γ} → Tm15 Γ nat15; zero15
- = λ Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc rec → zero15
+ = λ Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc rec → zero15 _
 
 suc15 : ∀{Γ} → Tm15 Γ nat15 → Tm15 Γ nat15; suc15
  = λ t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc15 rec →
-   suc15 (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc15 rec)
+   suc15 _ (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc15 rec)
 
 rec15 : ∀{Γ A} → Tm15 Γ nat15 → Tm15 Γ (arr15 nat15 (arr15 A A)) → Tm15 Γ A → Tm15 Γ A; rec15
  = λ t u v Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc15 rec15 →
-     rec15 (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc15 rec15)
-         (u Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc15 rec15)
-         (v Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc15 rec15)
+     rec15 _ _
+          (t Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc15 rec15)
+          (u Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc15 rec15)
+          (v Tm15 var15 lam15 app15 tt15 pair15 fst15 snd15 left15 right15 case15 zero15 suc15 rec15)
 
 v015 : ∀{Γ A} → Tm15 (snoc15 Γ A) A; v015
  = var15 vz15
@@ -2662,89 +2694,91 @@ snoc16 : Con16 → Ty16 → Con16; snoc16
 Var16 : Con16 → Ty16 → Set; Var16
  = λ Γ A →
    (Var16 : Con16 → Ty16 → Set)
-   (vz  : ∀{Γ A} → Var16 (snoc16 Γ A) A)
-   (vs  : ∀{Γ B A} → Var16 Γ A → Var16 (snoc16 Γ B) A)
+   (vz  : ∀ Γ A → Var16 (snoc16 Γ A) A)
+   (vs  : ∀ Γ B A → Var16 Γ A → Var16 (snoc16 Γ B) A)
  → Var16 Γ A
 
 vz16 : ∀{Γ A} → Var16 (snoc16 Γ A) A; vz16
- = λ Var16 vz16 vs → vz16
+ = λ Var16 vz16 vs → vz16 _ _
 
 vs16 : ∀{Γ B A} → Var16 Γ A → Var16 (snoc16 Γ B) A; vs16
- = λ x Var16 vz16 vs16 → vs16 (x Var16 vz16 vs16)
+ = λ x Var16 vz16 vs16 → vs16 _ _ _ (x Var16 vz16 vs16)
 
 Tm16 : Con16 → Ty16 → Set; Tm16
  = λ Γ A →
    (Tm16  : Con16 → Ty16 → Set)
-   (var   : ∀{Γ A} → Var16 Γ A → Tm16 Γ A)
-   (lam   : ∀{Γ A B} → Tm16 (snoc16 Γ A) B → Tm16 Γ (arr16 A B))
-   (app   : ∀{Γ A B} → Tm16 Γ (arr16 A B) → Tm16 Γ A → Tm16 Γ B)
-   (tt    : ∀{Γ} → Tm16 Γ top16)
-   (pair  : ∀{Γ A B} → Tm16 Γ A → Tm16 Γ B → Tm16 Γ (prod16 A B))
-   (fst   : ∀{Γ A B} → Tm16 Γ (prod16 A B) → Tm16 Γ A)
-   (snd   : ∀{Γ A B} → Tm16 Γ (prod16 A B) → Tm16 Γ B)
-   (left  : ∀{Γ A B} → Tm16 Γ A → Tm16 Γ (sum16 A B))
-   (right : ∀{Γ A B} → Tm16 Γ B → Tm16 Γ (sum16 A B))
-   (case  : ∀{Γ A B C} → Tm16 Γ (sum16 A B) → Tm16 Γ (arr16 A C) → Tm16 Γ (arr16 B C) → Tm16 Γ C)
-   (zero  : ∀{Γ} → Tm16 Γ nat16)
-   (suc   : ∀{Γ} → Tm16 Γ nat16 → Tm16 Γ nat16)
-   (rec   : ∀{Γ A} → Tm16 Γ nat16 → Tm16 Γ (arr16 nat16 (arr16 A A)) → Tm16 Γ A → Tm16 Γ A)
+   (var   : ∀ Γ A      → Var16 Γ A → Tm16 Γ A)
+   (lam   : ∀ Γ A B    → Tm16 (snoc16 Γ A) B → Tm16 Γ (arr16 A B))
+   (app   : ∀ Γ A B    → Tm16 Γ (arr16 A B) → Tm16 Γ A → Tm16 Γ B)
+   (tt    : ∀ Γ        → Tm16 Γ top16)
+   (pair  : ∀ Γ A B    → Tm16 Γ A → Tm16 Γ B → Tm16 Γ (prod16 A B))
+   (fst   : ∀ Γ A B    → Tm16 Γ (prod16 A B) → Tm16 Γ A)
+   (snd   : ∀ Γ A B    → Tm16 Γ (prod16 A B) → Tm16 Γ B)
+   (left  : ∀ Γ A B    → Tm16 Γ A → Tm16 Γ (sum16 A B))
+   (right : ∀ Γ A B    → Tm16 Γ B → Tm16 Γ (sum16 A B))
+   (case  : ∀ Γ A B C  → Tm16 Γ (sum16 A B) → Tm16 Γ (arr16 A C) → Tm16 Γ (arr16 B C) → Tm16 Γ C)
+   (zero  : ∀ Γ        → Tm16 Γ nat16)
+   (suc   : ∀ Γ        → Tm16 Γ nat16 → Tm16 Γ nat16)
+   (rec   : ∀ Γ A      → Tm16 Γ nat16 → Tm16 Γ (arr16 nat16 (arr16 A A)) → Tm16 Γ A → Tm16 Γ A)
  → Tm16 Γ A
 
 var16 : ∀{Γ A} → Var16 Γ A → Tm16 Γ A; var16
  = λ x Tm16 var16 lam app tt pair fst snd left right case zero suc rec →
-     var16 x
+     var16 _ _ x
 
 lam16 : ∀{Γ A B} → Tm16 (snoc16 Γ A) B → Tm16 Γ (arr16 A B); lam16
  = λ t Tm16 var16 lam16 app tt pair fst snd left right case zero suc rec →
-     lam16 (t Tm16 var16 lam16 app tt pair fst snd left right case zero suc rec)
+     lam16 _ _ _ (t Tm16 var16 lam16 app tt pair fst snd left right case zero suc rec)
 
 app16 : ∀{Γ A B} → Tm16 Γ (arr16 A B) → Tm16 Γ A → Tm16 Γ B; app16
  = λ t u Tm16 var16 lam16 app16 tt pair fst snd left right case zero suc rec →
-     app16 (t Tm16 var16 lam16 app16 tt pair fst snd left right case zero suc rec)
+     app16 _ _ _ (t Tm16 var16 lam16 app16 tt pair fst snd left right case zero suc rec)
          (u Tm16 var16 lam16 app16 tt pair fst snd left right case zero suc rec)
 
 tt16 : ∀{Γ} → Tm16 Γ top16; tt16
- = λ Tm16 var16 lam16 app16 tt16 pair fst snd left right case zero suc rec → tt16
+ = λ Tm16 var16 lam16 app16 tt16 pair fst snd left right case zero suc rec → tt16 _
 
 pair16 : ∀{Γ A B} → Tm16 Γ A → Tm16 Γ B → Tm16 Γ (prod16 A B); pair16
  = λ t u Tm16 var16 lam16 app16 tt16 pair16 fst snd left right case zero suc rec →
-     pair16 (t Tm16 var16 lam16 app16 tt16 pair16 fst snd left right case zero suc rec)
+     pair16 _ _ _ (t Tm16 var16 lam16 app16 tt16 pair16 fst snd left right case zero suc rec)
           (u Tm16 var16 lam16 app16 tt16 pair16 fst snd left right case zero suc rec)
 
 fst16 : ∀{Γ A B} → Tm16 Γ (prod16 A B) → Tm16 Γ A; fst16
  = λ t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd left right case zero suc rec →
-     fst16 (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd left right case zero suc rec)
+     fst16 _ _ _ (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd left right case zero suc rec)
 
 snd16 : ∀{Γ A B} → Tm16 Γ (prod16 A B) → Tm16 Γ B; snd16
  = λ t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left right case zero suc rec →
-     snd16 (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left right case zero suc rec)
+     snd16 _ _ _ (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left right case zero suc rec)
 
 left16 : ∀{Γ A B} → Tm16 Γ A → Tm16 Γ (sum16 A B); left16
  = λ t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right case zero suc rec →
-     left16 (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right case zero suc rec)
+     left16 _ _ _ (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right case zero suc rec)
 
 right16 : ∀{Γ A B} → Tm16 Γ B → Tm16 Γ (sum16 A B); right16
  = λ t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case zero suc rec →
-     right16 (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case zero suc rec)
+     right16 _ _ _ (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case zero suc rec)
 
 case16 : ∀{Γ A B C} → Tm16 Γ (sum16 A B) → Tm16 Γ (arr16 A C) → Tm16 Γ (arr16 B C) → Tm16 Γ C; case16
  = λ t u v Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero suc rec →
-     case16 (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero suc rec)
+     case16 _ _ _ _
+           (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero suc rec)
            (u Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero suc rec)
            (v Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero suc rec)
 
 zero16  : ∀{Γ} → Tm16 Γ nat16; zero16
- = λ Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc rec → zero16
+ = λ Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc rec → zero16 _
 
 suc16 : ∀{Γ} → Tm16 Γ nat16 → Tm16 Γ nat16; suc16
  = λ t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc16 rec →
-   suc16 (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc16 rec)
+   suc16 _ (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc16 rec)
 
 rec16 : ∀{Γ A} → Tm16 Γ nat16 → Tm16 Γ (arr16 nat16 (arr16 A A)) → Tm16 Γ A → Tm16 Γ A; rec16
  = λ t u v Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc16 rec16 →
-     rec16 (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc16 rec16)
-         (u Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc16 rec16)
-         (v Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc16 rec16)
+     rec16 _ _
+          (t Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc16 rec16)
+          (u Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc16 rec16)
+          (v Tm16 var16 lam16 app16 tt16 pair16 fst16 snd16 left16 right16 case16 zero16 suc16 rec16)
 
 v016 : ∀{Γ A} → Tm16 (snoc16 Γ A) A; v016
  = var16 vz16
@@ -2826,89 +2860,91 @@ snoc17 : Con17 → Ty17 → Con17; snoc17
 Var17 : Con17 → Ty17 → Set; Var17
  = λ Γ A →
    (Var17 : Con17 → Ty17 → Set)
-   (vz  : ∀{Γ A} → Var17 (snoc17 Γ A) A)
-   (vs  : ∀{Γ B A} → Var17 Γ A → Var17 (snoc17 Γ B) A)
+   (vz  : ∀ Γ A → Var17 (snoc17 Γ A) A)
+   (vs  : ∀ Γ B A → Var17 Γ A → Var17 (snoc17 Γ B) A)
  → Var17 Γ A
 
 vz17 : ∀{Γ A} → Var17 (snoc17 Γ A) A; vz17
- = λ Var17 vz17 vs → vz17
+ = λ Var17 vz17 vs → vz17 _ _
 
 vs17 : ∀{Γ B A} → Var17 Γ A → Var17 (snoc17 Γ B) A; vs17
- = λ x Var17 vz17 vs17 → vs17 (x Var17 vz17 vs17)
+ = λ x Var17 vz17 vs17 → vs17 _ _ _ (x Var17 vz17 vs17)
 
 Tm17 : Con17 → Ty17 → Set; Tm17
  = λ Γ A →
    (Tm17  : Con17 → Ty17 → Set)
-   (var   : ∀{Γ A} → Var17 Γ A → Tm17 Γ A)
-   (lam   : ∀{Γ A B} → Tm17 (snoc17 Γ A) B → Tm17 Γ (arr17 A B))
-   (app   : ∀{Γ A B} → Tm17 Γ (arr17 A B) → Tm17 Γ A → Tm17 Γ B)
-   (tt    : ∀{Γ} → Tm17 Γ top17)
-   (pair  : ∀{Γ A B} → Tm17 Γ A → Tm17 Γ B → Tm17 Γ (prod17 A B))
-   (fst   : ∀{Γ A B} → Tm17 Γ (prod17 A B) → Tm17 Γ A)
-   (snd   : ∀{Γ A B} → Tm17 Γ (prod17 A B) → Tm17 Γ B)
-   (left  : ∀{Γ A B} → Tm17 Γ A → Tm17 Γ (sum17 A B))
-   (right : ∀{Γ A B} → Tm17 Γ B → Tm17 Γ (sum17 A B))
-   (case  : ∀{Γ A B C} → Tm17 Γ (sum17 A B) → Tm17 Γ (arr17 A C) → Tm17 Γ (arr17 B C) → Tm17 Γ C)
-   (zero  : ∀{Γ} → Tm17 Γ nat17)
-   (suc   : ∀{Γ} → Tm17 Γ nat17 → Tm17 Γ nat17)
-   (rec   : ∀{Γ A} → Tm17 Γ nat17 → Tm17 Γ (arr17 nat17 (arr17 A A)) → Tm17 Γ A → Tm17 Γ A)
+   (var   : ∀ Γ A      → Var17 Γ A → Tm17 Γ A)
+   (lam   : ∀ Γ A B    → Tm17 (snoc17 Γ A) B → Tm17 Γ (arr17 A B))
+   (app   : ∀ Γ A B    → Tm17 Γ (arr17 A B) → Tm17 Γ A → Tm17 Γ B)
+   (tt    : ∀ Γ        → Tm17 Γ top17)
+   (pair  : ∀ Γ A B    → Tm17 Γ A → Tm17 Γ B → Tm17 Γ (prod17 A B))
+   (fst   : ∀ Γ A B    → Tm17 Γ (prod17 A B) → Tm17 Γ A)
+   (snd   : ∀ Γ A B    → Tm17 Γ (prod17 A B) → Tm17 Γ B)
+   (left  : ∀ Γ A B    → Tm17 Γ A → Tm17 Γ (sum17 A B))
+   (right : ∀ Γ A B    → Tm17 Γ B → Tm17 Γ (sum17 A B))
+   (case  : ∀ Γ A B C  → Tm17 Γ (sum17 A B) → Tm17 Γ (arr17 A C) → Tm17 Γ (arr17 B C) → Tm17 Γ C)
+   (zero  : ∀ Γ        → Tm17 Γ nat17)
+   (suc   : ∀ Γ        → Tm17 Γ nat17 → Tm17 Γ nat17)
+   (rec   : ∀ Γ A      → Tm17 Γ nat17 → Tm17 Γ (arr17 nat17 (arr17 A A)) → Tm17 Γ A → Tm17 Γ A)
  → Tm17 Γ A
 
 var17 : ∀{Γ A} → Var17 Γ A → Tm17 Γ A; var17
  = λ x Tm17 var17 lam app tt pair fst snd left right case zero suc rec →
-     var17 x
+     var17 _ _ x
 
 lam17 : ∀{Γ A B} → Tm17 (snoc17 Γ A) B → Tm17 Γ (arr17 A B); lam17
  = λ t Tm17 var17 lam17 app tt pair fst snd left right case zero suc rec →
-     lam17 (t Tm17 var17 lam17 app tt pair fst snd left right case zero suc rec)
+     lam17 _ _ _ (t Tm17 var17 lam17 app tt pair fst snd left right case zero suc rec)
 
 app17 : ∀{Γ A B} → Tm17 Γ (arr17 A B) → Tm17 Γ A → Tm17 Γ B; app17
  = λ t u Tm17 var17 lam17 app17 tt pair fst snd left right case zero suc rec →
-     app17 (t Tm17 var17 lam17 app17 tt pair fst snd left right case zero suc rec)
+     app17 _ _ _ (t Tm17 var17 lam17 app17 tt pair fst snd left right case zero suc rec)
          (u Tm17 var17 lam17 app17 tt pair fst snd left right case zero suc rec)
 
 tt17 : ∀{Γ} → Tm17 Γ top17; tt17
- = λ Tm17 var17 lam17 app17 tt17 pair fst snd left right case zero suc rec → tt17
+ = λ Tm17 var17 lam17 app17 tt17 pair fst snd left right case zero suc rec → tt17 _
 
 pair17 : ∀{Γ A B} → Tm17 Γ A → Tm17 Γ B → Tm17 Γ (prod17 A B); pair17
  = λ t u Tm17 var17 lam17 app17 tt17 pair17 fst snd left right case zero suc rec →
-     pair17 (t Tm17 var17 lam17 app17 tt17 pair17 fst snd left right case zero suc rec)
+     pair17 _ _ _ (t Tm17 var17 lam17 app17 tt17 pair17 fst snd left right case zero suc rec)
           (u Tm17 var17 lam17 app17 tt17 pair17 fst snd left right case zero suc rec)
 
 fst17 : ∀{Γ A B} → Tm17 Γ (prod17 A B) → Tm17 Γ A; fst17
  = λ t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd left right case zero suc rec →
-     fst17 (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd left right case zero suc rec)
+     fst17 _ _ _ (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd left right case zero suc rec)
 
 snd17 : ∀{Γ A B} → Tm17 Γ (prod17 A B) → Tm17 Γ B; snd17
  = λ t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left right case zero suc rec →
-     snd17 (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left right case zero suc rec)
+     snd17 _ _ _ (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left right case zero suc rec)
 
 left17 : ∀{Γ A B} → Tm17 Γ A → Tm17 Γ (sum17 A B); left17
  = λ t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right case zero suc rec →
-     left17 (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right case zero suc rec)
+     left17 _ _ _ (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right case zero suc rec)
 
 right17 : ∀{Γ A B} → Tm17 Γ B → Tm17 Γ (sum17 A B); right17
  = λ t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case zero suc rec →
-     right17 (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case zero suc rec)
+     right17 _ _ _ (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case zero suc rec)
 
 case17 : ∀{Γ A B C} → Tm17 Γ (sum17 A B) → Tm17 Γ (arr17 A C) → Tm17 Γ (arr17 B C) → Tm17 Γ C; case17
  = λ t u v Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero suc rec →
-     case17 (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero suc rec)
+     case17 _ _ _ _
+           (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero suc rec)
            (u Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero suc rec)
            (v Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero suc rec)
 
 zero17  : ∀{Γ} → Tm17 Γ nat17; zero17
- = λ Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc rec → zero17
+ = λ Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc rec → zero17 _
 
 suc17 : ∀{Γ} → Tm17 Γ nat17 → Tm17 Γ nat17; suc17
  = λ t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc17 rec →
-   suc17 (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc17 rec)
+   suc17 _ (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc17 rec)
 
 rec17 : ∀{Γ A} → Tm17 Γ nat17 → Tm17 Γ (arr17 nat17 (arr17 A A)) → Tm17 Γ A → Tm17 Γ A; rec17
  = λ t u v Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc17 rec17 →
-     rec17 (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc17 rec17)
-         (u Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc17 rec17)
-         (v Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc17 rec17)
+     rec17 _ _
+          (t Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc17 rec17)
+          (u Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc17 rec17)
+          (v Tm17 var17 lam17 app17 tt17 pair17 fst17 snd17 left17 right17 case17 zero17 suc17 rec17)
 
 v017 : ∀{Γ A} → Tm17 (snoc17 Γ A) A; v017
  = var17 vz17
@@ -2990,89 +3026,91 @@ snoc18 : Con18 → Ty18 → Con18; snoc18
 Var18 : Con18 → Ty18 → Set; Var18
  = λ Γ A →
    (Var18 : Con18 → Ty18 → Set)
-   (vz  : ∀{Γ A} → Var18 (snoc18 Γ A) A)
-   (vs  : ∀{Γ B A} → Var18 Γ A → Var18 (snoc18 Γ B) A)
+   (vz  : ∀ Γ A → Var18 (snoc18 Γ A) A)
+   (vs  : ∀ Γ B A → Var18 Γ A → Var18 (snoc18 Γ B) A)
  → Var18 Γ A
 
 vz18 : ∀{Γ A} → Var18 (snoc18 Γ A) A; vz18
- = λ Var18 vz18 vs → vz18
+ = λ Var18 vz18 vs → vz18 _ _
 
 vs18 : ∀{Γ B A} → Var18 Γ A → Var18 (snoc18 Γ B) A; vs18
- = λ x Var18 vz18 vs18 → vs18 (x Var18 vz18 vs18)
+ = λ x Var18 vz18 vs18 → vs18 _ _ _ (x Var18 vz18 vs18)
 
 Tm18 : Con18 → Ty18 → Set; Tm18
  = λ Γ A →
    (Tm18  : Con18 → Ty18 → Set)
-   (var   : ∀{Γ A} → Var18 Γ A → Tm18 Γ A)
-   (lam   : ∀{Γ A B} → Tm18 (snoc18 Γ A) B → Tm18 Γ (arr18 A B))
-   (app   : ∀{Γ A B} → Tm18 Γ (arr18 A B) → Tm18 Γ A → Tm18 Γ B)
-   (tt    : ∀{Γ} → Tm18 Γ top18)
-   (pair  : ∀{Γ A B} → Tm18 Γ A → Tm18 Γ B → Tm18 Γ (prod18 A B))
-   (fst   : ∀{Γ A B} → Tm18 Γ (prod18 A B) → Tm18 Γ A)
-   (snd   : ∀{Γ A B} → Tm18 Γ (prod18 A B) → Tm18 Γ B)
-   (left  : ∀{Γ A B} → Tm18 Γ A → Tm18 Γ (sum18 A B))
-   (right : ∀{Γ A B} → Tm18 Γ B → Tm18 Γ (sum18 A B))
-   (case  : ∀{Γ A B C} → Tm18 Γ (sum18 A B) → Tm18 Γ (arr18 A C) → Tm18 Γ (arr18 B C) → Tm18 Γ C)
-   (zero  : ∀{Γ} → Tm18 Γ nat18)
-   (suc   : ∀{Γ} → Tm18 Γ nat18 → Tm18 Γ nat18)
-   (rec   : ∀{Γ A} → Tm18 Γ nat18 → Tm18 Γ (arr18 nat18 (arr18 A A)) → Tm18 Γ A → Tm18 Γ A)
+   (var   : ∀ Γ A      → Var18 Γ A → Tm18 Γ A)
+   (lam   : ∀ Γ A B    → Tm18 (snoc18 Γ A) B → Tm18 Γ (arr18 A B))
+   (app   : ∀ Γ A B    → Tm18 Γ (arr18 A B) → Tm18 Γ A → Tm18 Γ B)
+   (tt    : ∀ Γ        → Tm18 Γ top18)
+   (pair  : ∀ Γ A B    → Tm18 Γ A → Tm18 Γ B → Tm18 Γ (prod18 A B))
+   (fst   : ∀ Γ A B    → Tm18 Γ (prod18 A B) → Tm18 Γ A)
+   (snd   : ∀ Γ A B    → Tm18 Γ (prod18 A B) → Tm18 Γ B)
+   (left  : ∀ Γ A B    → Tm18 Γ A → Tm18 Γ (sum18 A B))
+   (right : ∀ Γ A B    → Tm18 Γ B → Tm18 Γ (sum18 A B))
+   (case  : ∀ Γ A B C  → Tm18 Γ (sum18 A B) → Tm18 Γ (arr18 A C) → Tm18 Γ (arr18 B C) → Tm18 Γ C)
+   (zero  : ∀ Γ        → Tm18 Γ nat18)
+   (suc   : ∀ Γ        → Tm18 Γ nat18 → Tm18 Γ nat18)
+   (rec   : ∀ Γ A      → Tm18 Γ nat18 → Tm18 Γ (arr18 nat18 (arr18 A A)) → Tm18 Γ A → Tm18 Γ A)
  → Tm18 Γ A
 
 var18 : ∀{Γ A} → Var18 Γ A → Tm18 Γ A; var18
  = λ x Tm18 var18 lam app tt pair fst snd left right case zero suc rec →
-     var18 x
+     var18 _ _ x
 
 lam18 : ∀{Γ A B} → Tm18 (snoc18 Γ A) B → Tm18 Γ (arr18 A B); lam18
  = λ t Tm18 var18 lam18 app tt pair fst snd left right case zero suc rec →
-     lam18 (t Tm18 var18 lam18 app tt pair fst snd left right case zero suc rec)
+     lam18 _ _ _ (t Tm18 var18 lam18 app tt pair fst snd left right case zero suc rec)
 
 app18 : ∀{Γ A B} → Tm18 Γ (arr18 A B) → Tm18 Γ A → Tm18 Γ B; app18
  = λ t u Tm18 var18 lam18 app18 tt pair fst snd left right case zero suc rec →
-     app18 (t Tm18 var18 lam18 app18 tt pair fst snd left right case zero suc rec)
+     app18 _ _ _ (t Tm18 var18 lam18 app18 tt pair fst snd left right case zero suc rec)
          (u Tm18 var18 lam18 app18 tt pair fst snd left right case zero suc rec)
 
 tt18 : ∀{Γ} → Tm18 Γ top18; tt18
- = λ Tm18 var18 lam18 app18 tt18 pair fst snd left right case zero suc rec → tt18
+ = λ Tm18 var18 lam18 app18 tt18 pair fst snd left right case zero suc rec → tt18 _
 
 pair18 : ∀{Γ A B} → Tm18 Γ A → Tm18 Γ B → Tm18 Γ (prod18 A B); pair18
  = λ t u Tm18 var18 lam18 app18 tt18 pair18 fst snd left right case zero suc rec →
-     pair18 (t Tm18 var18 lam18 app18 tt18 pair18 fst snd left right case zero suc rec)
+     pair18 _ _ _ (t Tm18 var18 lam18 app18 tt18 pair18 fst snd left right case zero suc rec)
           (u Tm18 var18 lam18 app18 tt18 pair18 fst snd left right case zero suc rec)
 
 fst18 : ∀{Γ A B} → Tm18 Γ (prod18 A B) → Tm18 Γ A; fst18
  = λ t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd left right case zero suc rec →
-     fst18 (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd left right case zero suc rec)
+     fst18 _ _ _ (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd left right case zero suc rec)
 
 snd18 : ∀{Γ A B} → Tm18 Γ (prod18 A B) → Tm18 Γ B; snd18
  = λ t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left right case zero suc rec →
-     snd18 (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left right case zero suc rec)
+     snd18 _ _ _ (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left right case zero suc rec)
 
 left18 : ∀{Γ A B} → Tm18 Γ A → Tm18 Γ (sum18 A B); left18
  = λ t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right case zero suc rec →
-     left18 (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right case zero suc rec)
+     left18 _ _ _ (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right case zero suc rec)
 
 right18 : ∀{Γ A B} → Tm18 Γ B → Tm18 Γ (sum18 A B); right18
  = λ t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case zero suc rec →
-     right18 (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case zero suc rec)
+     right18 _ _ _ (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case zero suc rec)
 
 case18 : ∀{Γ A B C} → Tm18 Γ (sum18 A B) → Tm18 Γ (arr18 A C) → Tm18 Γ (arr18 B C) → Tm18 Γ C; case18
  = λ t u v Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero suc rec →
-     case18 (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero suc rec)
+     case18 _ _ _ _
+           (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero suc rec)
            (u Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero suc rec)
            (v Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero suc rec)
 
 zero18  : ∀{Γ} → Tm18 Γ nat18; zero18
- = λ Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc rec → zero18
+ = λ Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc rec → zero18 _
 
 suc18 : ∀{Γ} → Tm18 Γ nat18 → Tm18 Γ nat18; suc18
  = λ t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc18 rec →
-   suc18 (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc18 rec)
+   suc18 _ (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc18 rec)
 
 rec18 : ∀{Γ A} → Tm18 Γ nat18 → Tm18 Γ (arr18 nat18 (arr18 A A)) → Tm18 Γ A → Tm18 Γ A; rec18
  = λ t u v Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc18 rec18 →
-     rec18 (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc18 rec18)
-         (u Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc18 rec18)
-         (v Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc18 rec18)
+     rec18 _ _
+          (t Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc18 rec18)
+          (u Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc18 rec18)
+          (v Tm18 var18 lam18 app18 tt18 pair18 fst18 snd18 left18 right18 case18 zero18 suc18 rec18)
 
 v018 : ∀{Γ A} → Tm18 (snoc18 Γ A) A; v018
  = var18 vz18
@@ -3154,89 +3192,91 @@ snoc19 : Con19 → Ty19 → Con19; snoc19
 Var19 : Con19 → Ty19 → Set; Var19
  = λ Γ A →
    (Var19 : Con19 → Ty19 → Set)
-   (vz  : ∀{Γ A} → Var19 (snoc19 Γ A) A)
-   (vs  : ∀{Γ B A} → Var19 Γ A → Var19 (snoc19 Γ B) A)
+   (vz  : ∀ Γ A → Var19 (snoc19 Γ A) A)
+   (vs  : ∀ Γ B A → Var19 Γ A → Var19 (snoc19 Γ B) A)
  → Var19 Γ A
 
 vz19 : ∀{Γ A} → Var19 (snoc19 Γ A) A; vz19
- = λ Var19 vz19 vs → vz19
+ = λ Var19 vz19 vs → vz19 _ _
 
 vs19 : ∀{Γ B A} → Var19 Γ A → Var19 (snoc19 Γ B) A; vs19
- = λ x Var19 vz19 vs19 → vs19 (x Var19 vz19 vs19)
+ = λ x Var19 vz19 vs19 → vs19 _ _ _ (x Var19 vz19 vs19)
 
 Tm19 : Con19 → Ty19 → Set; Tm19
  = λ Γ A →
    (Tm19  : Con19 → Ty19 → Set)
-   (var   : ∀{Γ A} → Var19 Γ A → Tm19 Γ A)
-   (lam   : ∀{Γ A B} → Tm19 (snoc19 Γ A) B → Tm19 Γ (arr19 A B))
-   (app   : ∀{Γ A B} → Tm19 Γ (arr19 A B) → Tm19 Γ A → Tm19 Γ B)
-   (tt    : ∀{Γ} → Tm19 Γ top19)
-   (pair  : ∀{Γ A B} → Tm19 Γ A → Tm19 Γ B → Tm19 Γ (prod19 A B))
-   (fst   : ∀{Γ A B} → Tm19 Γ (prod19 A B) → Tm19 Γ A)
-   (snd   : ∀{Γ A B} → Tm19 Γ (prod19 A B) → Tm19 Γ B)
-   (left  : ∀{Γ A B} → Tm19 Γ A → Tm19 Γ (sum19 A B))
-   (right : ∀{Γ A B} → Tm19 Γ B → Tm19 Γ (sum19 A B))
-   (case  : ∀{Γ A B C} → Tm19 Γ (sum19 A B) → Tm19 Γ (arr19 A C) → Tm19 Γ (arr19 B C) → Tm19 Γ C)
-   (zero  : ∀{Γ} → Tm19 Γ nat19)
-   (suc   : ∀{Γ} → Tm19 Γ nat19 → Tm19 Γ nat19)
-   (rec   : ∀{Γ A} → Tm19 Γ nat19 → Tm19 Γ (arr19 nat19 (arr19 A A)) → Tm19 Γ A → Tm19 Γ A)
+   (var   : ∀ Γ A      → Var19 Γ A → Tm19 Γ A)
+   (lam   : ∀ Γ A B    → Tm19 (snoc19 Γ A) B → Tm19 Γ (arr19 A B))
+   (app   : ∀ Γ A B    → Tm19 Γ (arr19 A B) → Tm19 Γ A → Tm19 Γ B)
+   (tt    : ∀ Γ        → Tm19 Γ top19)
+   (pair  : ∀ Γ A B    → Tm19 Γ A → Tm19 Γ B → Tm19 Γ (prod19 A B))
+   (fst   : ∀ Γ A B    → Tm19 Γ (prod19 A B) → Tm19 Γ A)
+   (snd   : ∀ Γ A B    → Tm19 Γ (prod19 A B) → Tm19 Γ B)
+   (left  : ∀ Γ A B    → Tm19 Γ A → Tm19 Γ (sum19 A B))
+   (right : ∀ Γ A B    → Tm19 Γ B → Tm19 Γ (sum19 A B))
+   (case  : ∀ Γ A B C  → Tm19 Γ (sum19 A B) → Tm19 Γ (arr19 A C) → Tm19 Γ (arr19 B C) → Tm19 Γ C)
+   (zero  : ∀ Γ        → Tm19 Γ nat19)
+   (suc   : ∀ Γ        → Tm19 Γ nat19 → Tm19 Γ nat19)
+   (rec   : ∀ Γ A      → Tm19 Γ nat19 → Tm19 Γ (arr19 nat19 (arr19 A A)) → Tm19 Γ A → Tm19 Γ A)
  → Tm19 Γ A
 
 var19 : ∀{Γ A} → Var19 Γ A → Tm19 Γ A; var19
  = λ x Tm19 var19 lam app tt pair fst snd left right case zero suc rec →
-     var19 x
+     var19 _ _ x
 
 lam19 : ∀{Γ A B} → Tm19 (snoc19 Γ A) B → Tm19 Γ (arr19 A B); lam19
  = λ t Tm19 var19 lam19 app tt pair fst snd left right case zero suc rec →
-     lam19 (t Tm19 var19 lam19 app tt pair fst snd left right case zero suc rec)
+     lam19 _ _ _ (t Tm19 var19 lam19 app tt pair fst snd left right case zero suc rec)
 
 app19 : ∀{Γ A B} → Tm19 Γ (arr19 A B) → Tm19 Γ A → Tm19 Γ B; app19
  = λ t u Tm19 var19 lam19 app19 tt pair fst snd left right case zero suc rec →
-     app19 (t Tm19 var19 lam19 app19 tt pair fst snd left right case zero suc rec)
+     app19 _ _ _ (t Tm19 var19 lam19 app19 tt pair fst snd left right case zero suc rec)
          (u Tm19 var19 lam19 app19 tt pair fst snd left right case zero suc rec)
 
 tt19 : ∀{Γ} → Tm19 Γ top19; tt19
- = λ Tm19 var19 lam19 app19 tt19 pair fst snd left right case zero suc rec → tt19
+ = λ Tm19 var19 lam19 app19 tt19 pair fst snd left right case zero suc rec → tt19 _
 
 pair19 : ∀{Γ A B} → Tm19 Γ A → Tm19 Γ B → Tm19 Γ (prod19 A B); pair19
  = λ t u Tm19 var19 lam19 app19 tt19 pair19 fst snd left right case zero suc rec →
-     pair19 (t Tm19 var19 lam19 app19 tt19 pair19 fst snd left right case zero suc rec)
+     pair19 _ _ _ (t Tm19 var19 lam19 app19 tt19 pair19 fst snd left right case zero suc rec)
           (u Tm19 var19 lam19 app19 tt19 pair19 fst snd left right case zero suc rec)
 
 fst19 : ∀{Γ A B} → Tm19 Γ (prod19 A B) → Tm19 Γ A; fst19
  = λ t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd left right case zero suc rec →
-     fst19 (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd left right case zero suc rec)
+     fst19 _ _ _ (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd left right case zero suc rec)
 
 snd19 : ∀{Γ A B} → Tm19 Γ (prod19 A B) → Tm19 Γ B; snd19
  = λ t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left right case zero suc rec →
-     snd19 (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left right case zero suc rec)
+     snd19 _ _ _ (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left right case zero suc rec)
 
 left19 : ∀{Γ A B} → Tm19 Γ A → Tm19 Γ (sum19 A B); left19
  = λ t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right case zero suc rec →
-     left19 (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right case zero suc rec)
+     left19 _ _ _ (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right case zero suc rec)
 
 right19 : ∀{Γ A B} → Tm19 Γ B → Tm19 Γ (sum19 A B); right19
  = λ t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case zero suc rec →
-     right19 (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case zero suc rec)
+     right19 _ _ _ (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case zero suc rec)
 
 case19 : ∀{Γ A B C} → Tm19 Γ (sum19 A B) → Tm19 Γ (arr19 A C) → Tm19 Γ (arr19 B C) → Tm19 Γ C; case19
  = λ t u v Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero suc rec →
-     case19 (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero suc rec)
+     case19 _ _ _ _
+           (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero suc rec)
            (u Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero suc rec)
            (v Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero suc rec)
 
 zero19  : ∀{Γ} → Tm19 Γ nat19; zero19
- = λ Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc rec → zero19
+ = λ Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc rec → zero19 _
 
 suc19 : ∀{Γ} → Tm19 Γ nat19 → Tm19 Γ nat19; suc19
  = λ t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc19 rec →
-   suc19 (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc19 rec)
+   suc19 _ (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc19 rec)
 
 rec19 : ∀{Γ A} → Tm19 Γ nat19 → Tm19 Γ (arr19 nat19 (arr19 A A)) → Tm19 Γ A → Tm19 Γ A; rec19
  = λ t u v Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc19 rec19 →
-     rec19 (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc19 rec19)
-         (u Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc19 rec19)
-         (v Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc19 rec19)
+     rec19 _ _
+          (t Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc19 rec19)
+          (u Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc19 rec19)
+          (v Tm19 var19 lam19 app19 tt19 pair19 fst19 snd19 left19 right19 case19 zero19 suc19 rec19)
 
 v019 : ∀{Γ A} → Tm19 (snoc19 Γ A) A; v019
  = var19 vz19
@@ -3318,89 +3358,91 @@ snoc20 : Con20 → Ty20 → Con20; snoc20
 Var20 : Con20 → Ty20 → Set; Var20
  = λ Γ A →
    (Var20 : Con20 → Ty20 → Set)
-   (vz  : ∀{Γ A} → Var20 (snoc20 Γ A) A)
-   (vs  : ∀{Γ B A} → Var20 Γ A → Var20 (snoc20 Γ B) A)
+   (vz  : ∀ Γ A → Var20 (snoc20 Γ A) A)
+   (vs  : ∀ Γ B A → Var20 Γ A → Var20 (snoc20 Γ B) A)
  → Var20 Γ A
 
 vz20 : ∀{Γ A} → Var20 (snoc20 Γ A) A; vz20
- = λ Var20 vz20 vs → vz20
+ = λ Var20 vz20 vs → vz20 _ _
 
 vs20 : ∀{Γ B A} → Var20 Γ A → Var20 (snoc20 Γ B) A; vs20
- = λ x Var20 vz20 vs20 → vs20 (x Var20 vz20 vs20)
+ = λ x Var20 vz20 vs20 → vs20 _ _ _ (x Var20 vz20 vs20)
 
 Tm20 : Con20 → Ty20 → Set; Tm20
  = λ Γ A →
    (Tm20  : Con20 → Ty20 → Set)
-   (var   : ∀{Γ A} → Var20 Γ A → Tm20 Γ A)
-   (lam   : ∀{Γ A B} → Tm20 (snoc20 Γ A) B → Tm20 Γ (arr20 A B))
-   (app   : ∀{Γ A B} → Tm20 Γ (arr20 A B) → Tm20 Γ A → Tm20 Γ B)
-   (tt    : ∀{Γ} → Tm20 Γ top20)
-   (pair  : ∀{Γ A B} → Tm20 Γ A → Tm20 Γ B → Tm20 Γ (prod20 A B))
-   (fst   : ∀{Γ A B} → Tm20 Γ (prod20 A B) → Tm20 Γ A)
-   (snd   : ∀{Γ A B} → Tm20 Γ (prod20 A B) → Tm20 Γ B)
-   (left  : ∀{Γ A B} → Tm20 Γ A → Tm20 Γ (sum20 A B))
-   (right : ∀{Γ A B} → Tm20 Γ B → Tm20 Γ (sum20 A B))
-   (case  : ∀{Γ A B C} → Tm20 Γ (sum20 A B) → Tm20 Γ (arr20 A C) → Tm20 Γ (arr20 B C) → Tm20 Γ C)
-   (zero  : ∀{Γ} → Tm20 Γ nat20)
-   (suc   : ∀{Γ} → Tm20 Γ nat20 → Tm20 Γ nat20)
-   (rec   : ∀{Γ A} → Tm20 Γ nat20 → Tm20 Γ (arr20 nat20 (arr20 A A)) → Tm20 Γ A → Tm20 Γ A)
+   (var   : ∀ Γ A      → Var20 Γ A → Tm20 Γ A)
+   (lam   : ∀ Γ A B    → Tm20 (snoc20 Γ A) B → Tm20 Γ (arr20 A B))
+   (app   : ∀ Γ A B    → Tm20 Γ (arr20 A B) → Tm20 Γ A → Tm20 Γ B)
+   (tt    : ∀ Γ        → Tm20 Γ top20)
+   (pair  : ∀ Γ A B    → Tm20 Γ A → Tm20 Γ B → Tm20 Γ (prod20 A B))
+   (fst   : ∀ Γ A B    → Tm20 Γ (prod20 A B) → Tm20 Γ A)
+   (snd   : ∀ Γ A B    → Tm20 Γ (prod20 A B) → Tm20 Γ B)
+   (left  : ∀ Γ A B    → Tm20 Γ A → Tm20 Γ (sum20 A B))
+   (right : ∀ Γ A B    → Tm20 Γ B → Tm20 Γ (sum20 A B))
+   (case  : ∀ Γ A B C  → Tm20 Γ (sum20 A B) → Tm20 Γ (arr20 A C) → Tm20 Γ (arr20 B C) → Tm20 Γ C)
+   (zero  : ∀ Γ        → Tm20 Γ nat20)
+   (suc   : ∀ Γ        → Tm20 Γ nat20 → Tm20 Γ nat20)
+   (rec   : ∀ Γ A      → Tm20 Γ nat20 → Tm20 Γ (arr20 nat20 (arr20 A A)) → Tm20 Γ A → Tm20 Γ A)
  → Tm20 Γ A
 
 var20 : ∀{Γ A} → Var20 Γ A → Tm20 Γ A; var20
  = λ x Tm20 var20 lam app tt pair fst snd left right case zero suc rec →
-     var20 x
+     var20 _ _ x
 
 lam20 : ∀{Γ A B} → Tm20 (snoc20 Γ A) B → Tm20 Γ (arr20 A B); lam20
  = λ t Tm20 var20 lam20 app tt pair fst snd left right case zero suc rec →
-     lam20 (t Tm20 var20 lam20 app tt pair fst snd left right case zero suc rec)
+     lam20 _ _ _ (t Tm20 var20 lam20 app tt pair fst snd left right case zero suc rec)
 
 app20 : ∀{Γ A B} → Tm20 Γ (arr20 A B) → Tm20 Γ A → Tm20 Γ B; app20
  = λ t u Tm20 var20 lam20 app20 tt pair fst snd left right case zero suc rec →
-     app20 (t Tm20 var20 lam20 app20 tt pair fst snd left right case zero suc rec)
+     app20 _ _ _ (t Tm20 var20 lam20 app20 tt pair fst snd left right case zero suc rec)
          (u Tm20 var20 lam20 app20 tt pair fst snd left right case zero suc rec)
 
 tt20 : ∀{Γ} → Tm20 Γ top20; tt20
- = λ Tm20 var20 lam20 app20 tt20 pair fst snd left right case zero suc rec → tt20
+ = λ Tm20 var20 lam20 app20 tt20 pair fst snd left right case zero suc rec → tt20 _
 
 pair20 : ∀{Γ A B} → Tm20 Γ A → Tm20 Γ B → Tm20 Γ (prod20 A B); pair20
  = λ t u Tm20 var20 lam20 app20 tt20 pair20 fst snd left right case zero suc rec →
-     pair20 (t Tm20 var20 lam20 app20 tt20 pair20 fst snd left right case zero suc rec)
+     pair20 _ _ _ (t Tm20 var20 lam20 app20 tt20 pair20 fst snd left right case zero suc rec)
           (u Tm20 var20 lam20 app20 tt20 pair20 fst snd left right case zero suc rec)
 
 fst20 : ∀{Γ A B} → Tm20 Γ (prod20 A B) → Tm20 Γ A; fst20
  = λ t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd left right case zero suc rec →
-     fst20 (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd left right case zero suc rec)
+     fst20 _ _ _ (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd left right case zero suc rec)
 
 snd20 : ∀{Γ A B} → Tm20 Γ (prod20 A B) → Tm20 Γ B; snd20
  = λ t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left right case zero suc rec →
-     snd20 (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left right case zero suc rec)
+     snd20 _ _ _ (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left right case zero suc rec)
 
 left20 : ∀{Γ A B} → Tm20 Γ A → Tm20 Γ (sum20 A B); left20
  = λ t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right case zero suc rec →
-     left20 (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right case zero suc rec)
+     left20 _ _ _ (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right case zero suc rec)
 
 right20 : ∀{Γ A B} → Tm20 Γ B → Tm20 Γ (sum20 A B); right20
  = λ t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case zero suc rec →
-     right20 (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case zero suc rec)
+     right20 _ _ _ (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case zero suc rec)
 
 case20 : ∀{Γ A B C} → Tm20 Γ (sum20 A B) → Tm20 Γ (arr20 A C) → Tm20 Γ (arr20 B C) → Tm20 Γ C; case20
  = λ t u v Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero suc rec →
-     case20 (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero suc rec)
+     case20 _ _ _ _
+           (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero suc rec)
            (u Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero suc rec)
            (v Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero suc rec)
 
 zero20  : ∀{Γ} → Tm20 Γ nat20; zero20
- = λ Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc rec → zero20
+ = λ Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc rec → zero20 _
 
 suc20 : ∀{Γ} → Tm20 Γ nat20 → Tm20 Γ nat20; suc20
  = λ t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc20 rec →
-   suc20 (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc20 rec)
+   suc20 _ (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc20 rec)
 
 rec20 : ∀{Γ A} → Tm20 Γ nat20 → Tm20 Γ (arr20 nat20 (arr20 A A)) → Tm20 Γ A → Tm20 Γ A; rec20
  = λ t u v Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc20 rec20 →
-     rec20 (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc20 rec20)
-         (u Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc20 rec20)
-         (v Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc20 rec20)
+     rec20 _ _
+          (t Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc20 rec20)
+          (u Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc20 rec20)
+          (v Tm20 var20 lam20 app20 tt20 pair20 fst20 snd20 left20 right20 case20 zero20 suc20 rec20)
 
 v020 : ∀{Γ A} → Tm20 (snoc20 Γ A) A; v020
  = var20 vz20
@@ -3482,89 +3524,91 @@ snoc21 : Con21 → Ty21 → Con21; snoc21
 Var21 : Con21 → Ty21 → Set; Var21
  = λ Γ A →
    (Var21 : Con21 → Ty21 → Set)
-   (vz  : ∀{Γ A} → Var21 (snoc21 Γ A) A)
-   (vs  : ∀{Γ B A} → Var21 Γ A → Var21 (snoc21 Γ B) A)
+   (vz  : ∀ Γ A → Var21 (snoc21 Γ A) A)
+   (vs  : ∀ Γ B A → Var21 Γ A → Var21 (snoc21 Γ B) A)
  → Var21 Γ A
 
 vz21 : ∀{Γ A} → Var21 (snoc21 Γ A) A; vz21
- = λ Var21 vz21 vs → vz21
+ = λ Var21 vz21 vs → vz21 _ _
 
 vs21 : ∀{Γ B A} → Var21 Γ A → Var21 (snoc21 Γ B) A; vs21
- = λ x Var21 vz21 vs21 → vs21 (x Var21 vz21 vs21)
+ = λ x Var21 vz21 vs21 → vs21 _ _ _ (x Var21 vz21 vs21)
 
 Tm21 : Con21 → Ty21 → Set; Tm21
  = λ Γ A →
    (Tm21  : Con21 → Ty21 → Set)
-   (var   : ∀{Γ A} → Var21 Γ A → Tm21 Γ A)
-   (lam   : ∀{Γ A B} → Tm21 (snoc21 Γ A) B → Tm21 Γ (arr21 A B))
-   (app   : ∀{Γ A B} → Tm21 Γ (arr21 A B) → Tm21 Γ A → Tm21 Γ B)
-   (tt    : ∀{Γ} → Tm21 Γ top21)
-   (pair  : ∀{Γ A B} → Tm21 Γ A → Tm21 Γ B → Tm21 Γ (prod21 A B))
-   (fst   : ∀{Γ A B} → Tm21 Γ (prod21 A B) → Tm21 Γ A)
-   (snd   : ∀{Γ A B} → Tm21 Γ (prod21 A B) → Tm21 Γ B)
-   (left  : ∀{Γ A B} → Tm21 Γ A → Tm21 Γ (sum21 A B))
-   (right : ∀{Γ A B} → Tm21 Γ B → Tm21 Γ (sum21 A B))
-   (case  : ∀{Γ A B C} → Tm21 Γ (sum21 A B) → Tm21 Γ (arr21 A C) → Tm21 Γ (arr21 B C) → Tm21 Γ C)
-   (zero  : ∀{Γ} → Tm21 Γ nat21)
-   (suc   : ∀{Γ} → Tm21 Γ nat21 → Tm21 Γ nat21)
-   (rec   : ∀{Γ A} → Tm21 Γ nat21 → Tm21 Γ (arr21 nat21 (arr21 A A)) → Tm21 Γ A → Tm21 Γ A)
+   (var   : ∀ Γ A      → Var21 Γ A → Tm21 Γ A)
+   (lam   : ∀ Γ A B    → Tm21 (snoc21 Γ A) B → Tm21 Γ (arr21 A B))
+   (app   : ∀ Γ A B    → Tm21 Γ (arr21 A B) → Tm21 Γ A → Tm21 Γ B)
+   (tt    : ∀ Γ        → Tm21 Γ top21)
+   (pair  : ∀ Γ A B    → Tm21 Γ A → Tm21 Γ B → Tm21 Γ (prod21 A B))
+   (fst   : ∀ Γ A B    → Tm21 Γ (prod21 A B) → Tm21 Γ A)
+   (snd   : ∀ Γ A B    → Tm21 Γ (prod21 A B) → Tm21 Γ B)
+   (left  : ∀ Γ A B    → Tm21 Γ A → Tm21 Γ (sum21 A B))
+   (right : ∀ Γ A B    → Tm21 Γ B → Tm21 Γ (sum21 A B))
+   (case  : ∀ Γ A B C  → Tm21 Γ (sum21 A B) → Tm21 Γ (arr21 A C) → Tm21 Γ (arr21 B C) → Tm21 Γ C)
+   (zero  : ∀ Γ        → Tm21 Γ nat21)
+   (suc   : ∀ Γ        → Tm21 Γ nat21 → Tm21 Γ nat21)
+   (rec   : ∀ Γ A      → Tm21 Γ nat21 → Tm21 Γ (arr21 nat21 (arr21 A A)) → Tm21 Γ A → Tm21 Γ A)
  → Tm21 Γ A
 
 var21 : ∀{Γ A} → Var21 Γ A → Tm21 Γ A; var21
  = λ x Tm21 var21 lam app tt pair fst snd left right case zero suc rec →
-     var21 x
+     var21 _ _ x
 
 lam21 : ∀{Γ A B} → Tm21 (snoc21 Γ A) B → Tm21 Γ (arr21 A B); lam21
  = λ t Tm21 var21 lam21 app tt pair fst snd left right case zero suc rec →
-     lam21 (t Tm21 var21 lam21 app tt pair fst snd left right case zero suc rec)
+     lam21 _ _ _ (t Tm21 var21 lam21 app tt pair fst snd left right case zero suc rec)
 
 app21 : ∀{Γ A B} → Tm21 Γ (arr21 A B) → Tm21 Γ A → Tm21 Γ B; app21
  = λ t u Tm21 var21 lam21 app21 tt pair fst snd left right case zero suc rec →
-     app21 (t Tm21 var21 lam21 app21 tt pair fst snd left right case zero suc rec)
+     app21 _ _ _ (t Tm21 var21 lam21 app21 tt pair fst snd left right case zero suc rec)
          (u Tm21 var21 lam21 app21 tt pair fst snd left right case zero suc rec)
 
 tt21 : ∀{Γ} → Tm21 Γ top21; tt21
- = λ Tm21 var21 lam21 app21 tt21 pair fst snd left right case zero suc rec → tt21
+ = λ Tm21 var21 lam21 app21 tt21 pair fst snd left right case zero suc rec → tt21 _
 
 pair21 : ∀{Γ A B} → Tm21 Γ A → Tm21 Γ B → Tm21 Γ (prod21 A B); pair21
  = λ t u Tm21 var21 lam21 app21 tt21 pair21 fst snd left right case zero suc rec →
-     pair21 (t Tm21 var21 lam21 app21 tt21 pair21 fst snd left right case zero suc rec)
+     pair21 _ _ _ (t Tm21 var21 lam21 app21 tt21 pair21 fst snd left right case zero suc rec)
           (u Tm21 var21 lam21 app21 tt21 pair21 fst snd left right case zero suc rec)
 
 fst21 : ∀{Γ A B} → Tm21 Γ (prod21 A B) → Tm21 Γ A; fst21
  = λ t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd left right case zero suc rec →
-     fst21 (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd left right case zero suc rec)
+     fst21 _ _ _ (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd left right case zero suc rec)
 
 snd21 : ∀{Γ A B} → Tm21 Γ (prod21 A B) → Tm21 Γ B; snd21
  = λ t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left right case zero suc rec →
-     snd21 (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left right case zero suc rec)
+     snd21 _ _ _ (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left right case zero suc rec)
 
 left21 : ∀{Γ A B} → Tm21 Γ A → Tm21 Γ (sum21 A B); left21
  = λ t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right case zero suc rec →
-     left21 (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right case zero suc rec)
+     left21 _ _ _ (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right case zero suc rec)
 
 right21 : ∀{Γ A B} → Tm21 Γ B → Tm21 Γ (sum21 A B); right21
  = λ t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case zero suc rec →
-     right21 (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case zero suc rec)
+     right21 _ _ _ (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case zero suc rec)
 
 case21 : ∀{Γ A B C} → Tm21 Γ (sum21 A B) → Tm21 Γ (arr21 A C) → Tm21 Γ (arr21 B C) → Tm21 Γ C; case21
  = λ t u v Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero suc rec →
-     case21 (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero suc rec)
+     case21 _ _ _ _
+           (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero suc rec)
            (u Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero suc rec)
            (v Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero suc rec)
 
 zero21  : ∀{Γ} → Tm21 Γ nat21; zero21
- = λ Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc rec → zero21
+ = λ Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc rec → zero21 _
 
 suc21 : ∀{Γ} → Tm21 Γ nat21 → Tm21 Γ nat21; suc21
  = λ t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc21 rec →
-   suc21 (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc21 rec)
+   suc21 _ (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc21 rec)
 
 rec21 : ∀{Γ A} → Tm21 Γ nat21 → Tm21 Γ (arr21 nat21 (arr21 A A)) → Tm21 Γ A → Tm21 Γ A; rec21
  = λ t u v Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc21 rec21 →
-     rec21 (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc21 rec21)
-         (u Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc21 rec21)
-         (v Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc21 rec21)
+     rec21 _ _
+          (t Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc21 rec21)
+          (u Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc21 rec21)
+          (v Tm21 var21 lam21 app21 tt21 pair21 fst21 snd21 left21 right21 case21 zero21 suc21 rec21)
 
 v021 : ∀{Γ A} → Tm21 (snoc21 Γ A) A; v021
  = var21 vz21
@@ -3646,89 +3690,91 @@ snoc22 : Con22 → Ty22 → Con22; snoc22
 Var22 : Con22 → Ty22 → Set; Var22
  = λ Γ A →
    (Var22 : Con22 → Ty22 → Set)
-   (vz  : ∀{Γ A} → Var22 (snoc22 Γ A) A)
-   (vs  : ∀{Γ B A} → Var22 Γ A → Var22 (snoc22 Γ B) A)
+   (vz  : ∀ Γ A → Var22 (snoc22 Γ A) A)
+   (vs  : ∀ Γ B A → Var22 Γ A → Var22 (snoc22 Γ B) A)
  → Var22 Γ A
 
 vz22 : ∀{Γ A} → Var22 (snoc22 Γ A) A; vz22
- = λ Var22 vz22 vs → vz22
+ = λ Var22 vz22 vs → vz22 _ _
 
 vs22 : ∀{Γ B A} → Var22 Γ A → Var22 (snoc22 Γ B) A; vs22
- = λ x Var22 vz22 vs22 → vs22 (x Var22 vz22 vs22)
+ = λ x Var22 vz22 vs22 → vs22 _ _ _ (x Var22 vz22 vs22)
 
 Tm22 : Con22 → Ty22 → Set; Tm22
  = λ Γ A →
    (Tm22  : Con22 → Ty22 → Set)
-   (var   : ∀{Γ A} → Var22 Γ A → Tm22 Γ A)
-   (lam   : ∀{Γ A B} → Tm22 (snoc22 Γ A) B → Tm22 Γ (arr22 A B))
-   (app   : ∀{Γ A B} → Tm22 Γ (arr22 A B) → Tm22 Γ A → Tm22 Γ B)
-   (tt    : ∀{Γ} → Tm22 Γ top22)
-   (pair  : ∀{Γ A B} → Tm22 Γ A → Tm22 Γ B → Tm22 Γ (prod22 A B))
-   (fst   : ∀{Γ A B} → Tm22 Γ (prod22 A B) → Tm22 Γ A)
-   (snd   : ∀{Γ A B} → Tm22 Γ (prod22 A B) → Tm22 Γ B)
-   (left  : ∀{Γ A B} → Tm22 Γ A → Tm22 Γ (sum22 A B))
-   (right : ∀{Γ A B} → Tm22 Γ B → Tm22 Γ (sum22 A B))
-   (case  : ∀{Γ A B C} → Tm22 Γ (sum22 A B) → Tm22 Γ (arr22 A C) → Tm22 Γ (arr22 B C) → Tm22 Γ C)
-   (zero  : ∀{Γ} → Tm22 Γ nat22)
-   (suc   : ∀{Γ} → Tm22 Γ nat22 → Tm22 Γ nat22)
-   (rec   : ∀{Γ A} → Tm22 Γ nat22 → Tm22 Γ (arr22 nat22 (arr22 A A)) → Tm22 Γ A → Tm22 Γ A)
+   (var   : ∀ Γ A      → Var22 Γ A → Tm22 Γ A)
+   (lam   : ∀ Γ A B    → Tm22 (snoc22 Γ A) B → Tm22 Γ (arr22 A B))
+   (app   : ∀ Γ A B    → Tm22 Γ (arr22 A B) → Tm22 Γ A → Tm22 Γ B)
+   (tt    : ∀ Γ        → Tm22 Γ top22)
+   (pair  : ∀ Γ A B    → Tm22 Γ A → Tm22 Γ B → Tm22 Γ (prod22 A B))
+   (fst   : ∀ Γ A B    → Tm22 Γ (prod22 A B) → Tm22 Γ A)
+   (snd   : ∀ Γ A B    → Tm22 Γ (prod22 A B) → Tm22 Γ B)
+   (left  : ∀ Γ A B    → Tm22 Γ A → Tm22 Γ (sum22 A B))
+   (right : ∀ Γ A B    → Tm22 Γ B → Tm22 Γ (sum22 A B))
+   (case  : ∀ Γ A B C  → Tm22 Γ (sum22 A B) → Tm22 Γ (arr22 A C) → Tm22 Γ (arr22 B C) → Tm22 Γ C)
+   (zero  : ∀ Γ        → Tm22 Γ nat22)
+   (suc   : ∀ Γ        → Tm22 Γ nat22 → Tm22 Γ nat22)
+   (rec   : ∀ Γ A      → Tm22 Γ nat22 → Tm22 Γ (arr22 nat22 (arr22 A A)) → Tm22 Γ A → Tm22 Γ A)
  → Tm22 Γ A
 
 var22 : ∀{Γ A} → Var22 Γ A → Tm22 Γ A; var22
  = λ x Tm22 var22 lam app tt pair fst snd left right case zero suc rec →
-     var22 x
+     var22 _ _ x
 
 lam22 : ∀{Γ A B} → Tm22 (snoc22 Γ A) B → Tm22 Γ (arr22 A B); lam22
  = λ t Tm22 var22 lam22 app tt pair fst snd left right case zero suc rec →
-     lam22 (t Tm22 var22 lam22 app tt pair fst snd left right case zero suc rec)
+     lam22 _ _ _ (t Tm22 var22 lam22 app tt pair fst snd left right case zero suc rec)
 
 app22 : ∀{Γ A B} → Tm22 Γ (arr22 A B) → Tm22 Γ A → Tm22 Γ B; app22
  = λ t u Tm22 var22 lam22 app22 tt pair fst snd left right case zero suc rec →
-     app22 (t Tm22 var22 lam22 app22 tt pair fst snd left right case zero suc rec)
+     app22 _ _ _ (t Tm22 var22 lam22 app22 tt pair fst snd left right case zero suc rec)
          (u Tm22 var22 lam22 app22 tt pair fst snd left right case zero suc rec)
 
 tt22 : ∀{Γ} → Tm22 Γ top22; tt22
- = λ Tm22 var22 lam22 app22 tt22 pair fst snd left right case zero suc rec → tt22
+ = λ Tm22 var22 lam22 app22 tt22 pair fst snd left right case zero suc rec → tt22 _
 
 pair22 : ∀{Γ A B} → Tm22 Γ A → Tm22 Γ B → Tm22 Γ (prod22 A B); pair22
  = λ t u Tm22 var22 lam22 app22 tt22 pair22 fst snd left right case zero suc rec →
-     pair22 (t Tm22 var22 lam22 app22 tt22 pair22 fst snd left right case zero suc rec)
+     pair22 _ _ _ (t Tm22 var22 lam22 app22 tt22 pair22 fst snd left right case zero suc rec)
           (u Tm22 var22 lam22 app22 tt22 pair22 fst snd left right case zero suc rec)
 
 fst22 : ∀{Γ A B} → Tm22 Γ (prod22 A B) → Tm22 Γ A; fst22
  = λ t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd left right case zero suc rec →
-     fst22 (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd left right case zero suc rec)
+     fst22 _ _ _ (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd left right case zero suc rec)
 
 snd22 : ∀{Γ A B} → Tm22 Γ (prod22 A B) → Tm22 Γ B; snd22
  = λ t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left right case zero suc rec →
-     snd22 (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left right case zero suc rec)
+     snd22 _ _ _ (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left right case zero suc rec)
 
 left22 : ∀{Γ A B} → Tm22 Γ A → Tm22 Γ (sum22 A B); left22
  = λ t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right case zero suc rec →
-     left22 (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right case zero suc rec)
+     left22 _ _ _ (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right case zero suc rec)
 
 right22 : ∀{Γ A B} → Tm22 Γ B → Tm22 Γ (sum22 A B); right22
  = λ t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case zero suc rec →
-     right22 (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case zero suc rec)
+     right22 _ _ _ (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case zero suc rec)
 
 case22 : ∀{Γ A B C} → Tm22 Γ (sum22 A B) → Tm22 Γ (arr22 A C) → Tm22 Γ (arr22 B C) → Tm22 Γ C; case22
  = λ t u v Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero suc rec →
-     case22 (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero suc rec)
+     case22 _ _ _ _
+           (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero suc rec)
            (u Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero suc rec)
            (v Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero suc rec)
 
 zero22  : ∀{Γ} → Tm22 Γ nat22; zero22
- = λ Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc rec → zero22
+ = λ Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc rec → zero22 _
 
 suc22 : ∀{Γ} → Tm22 Γ nat22 → Tm22 Γ nat22; suc22
  = λ t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc22 rec →
-   suc22 (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc22 rec)
+   suc22 _ (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc22 rec)
 
 rec22 : ∀{Γ A} → Tm22 Γ nat22 → Tm22 Γ (arr22 nat22 (arr22 A A)) → Tm22 Γ A → Tm22 Γ A; rec22
  = λ t u v Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc22 rec22 →
-     rec22 (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc22 rec22)
-         (u Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc22 rec22)
-         (v Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc22 rec22)
+     rec22 _ _
+          (t Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc22 rec22)
+          (u Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc22 rec22)
+          (v Tm22 var22 lam22 app22 tt22 pair22 fst22 snd22 left22 right22 case22 zero22 suc22 rec22)
 
 v022 : ∀{Γ A} → Tm22 (snoc22 Γ A) A; v022
  = var22 vz22
@@ -3810,89 +3856,91 @@ snoc23 : Con23 → Ty23 → Con23; snoc23
 Var23 : Con23 → Ty23 → Set; Var23
  = λ Γ A →
    (Var23 : Con23 → Ty23 → Set)
-   (vz  : ∀{Γ A} → Var23 (snoc23 Γ A) A)
-   (vs  : ∀{Γ B A} → Var23 Γ A → Var23 (snoc23 Γ B) A)
+   (vz  : ∀ Γ A → Var23 (snoc23 Γ A) A)
+   (vs  : ∀ Γ B A → Var23 Γ A → Var23 (snoc23 Γ B) A)
  → Var23 Γ A
 
 vz23 : ∀{Γ A} → Var23 (snoc23 Γ A) A; vz23
- = λ Var23 vz23 vs → vz23
+ = λ Var23 vz23 vs → vz23 _ _
 
 vs23 : ∀{Γ B A} → Var23 Γ A → Var23 (snoc23 Γ B) A; vs23
- = λ x Var23 vz23 vs23 → vs23 (x Var23 vz23 vs23)
+ = λ x Var23 vz23 vs23 → vs23 _ _ _ (x Var23 vz23 vs23)
 
 Tm23 : Con23 → Ty23 → Set; Tm23
  = λ Γ A →
    (Tm23  : Con23 → Ty23 → Set)
-   (var   : ∀{Γ A} → Var23 Γ A → Tm23 Γ A)
-   (lam   : ∀{Γ A B} → Tm23 (snoc23 Γ A) B → Tm23 Γ (arr23 A B))
-   (app   : ∀{Γ A B} → Tm23 Γ (arr23 A B) → Tm23 Γ A → Tm23 Γ B)
-   (tt    : ∀{Γ} → Tm23 Γ top23)
-   (pair  : ∀{Γ A B} → Tm23 Γ A → Tm23 Γ B → Tm23 Γ (prod23 A B))
-   (fst   : ∀{Γ A B} → Tm23 Γ (prod23 A B) → Tm23 Γ A)
-   (snd   : ∀{Γ A B} → Tm23 Γ (prod23 A B) → Tm23 Γ B)
-   (left  : ∀{Γ A B} → Tm23 Γ A → Tm23 Γ (sum23 A B))
-   (right : ∀{Γ A B} → Tm23 Γ B → Tm23 Γ (sum23 A B))
-   (case  : ∀{Γ A B C} → Tm23 Γ (sum23 A B) → Tm23 Γ (arr23 A C) → Tm23 Γ (arr23 B C) → Tm23 Γ C)
-   (zero  : ∀{Γ} → Tm23 Γ nat23)
-   (suc   : ∀{Γ} → Tm23 Γ nat23 → Tm23 Γ nat23)
-   (rec   : ∀{Γ A} → Tm23 Γ nat23 → Tm23 Γ (arr23 nat23 (arr23 A A)) → Tm23 Γ A → Tm23 Γ A)
+   (var   : ∀ Γ A      → Var23 Γ A → Tm23 Γ A)
+   (lam   : ∀ Γ A B    → Tm23 (snoc23 Γ A) B → Tm23 Γ (arr23 A B))
+   (app   : ∀ Γ A B    → Tm23 Γ (arr23 A B) → Tm23 Γ A → Tm23 Γ B)
+   (tt    : ∀ Γ        → Tm23 Γ top23)
+   (pair  : ∀ Γ A B    → Tm23 Γ A → Tm23 Γ B → Tm23 Γ (prod23 A B))
+   (fst   : ∀ Γ A B    → Tm23 Γ (prod23 A B) → Tm23 Γ A)
+   (snd   : ∀ Γ A B    → Tm23 Γ (prod23 A B) → Tm23 Γ B)
+   (left  : ∀ Γ A B    → Tm23 Γ A → Tm23 Γ (sum23 A B))
+   (right : ∀ Γ A B    → Tm23 Γ B → Tm23 Γ (sum23 A B))
+   (case  : ∀ Γ A B C  → Tm23 Γ (sum23 A B) → Tm23 Γ (arr23 A C) → Tm23 Γ (arr23 B C) → Tm23 Γ C)
+   (zero  : ∀ Γ        → Tm23 Γ nat23)
+   (suc   : ∀ Γ        → Tm23 Γ nat23 → Tm23 Γ nat23)
+   (rec   : ∀ Γ A      → Tm23 Γ nat23 → Tm23 Γ (arr23 nat23 (arr23 A A)) → Tm23 Γ A → Tm23 Γ A)
  → Tm23 Γ A
 
 var23 : ∀{Γ A} → Var23 Γ A → Tm23 Γ A; var23
  = λ x Tm23 var23 lam app tt pair fst snd left right case zero suc rec →
-     var23 x
+     var23 _ _ x
 
 lam23 : ∀{Γ A B} → Tm23 (snoc23 Γ A) B → Tm23 Γ (arr23 A B); lam23
  = λ t Tm23 var23 lam23 app tt pair fst snd left right case zero suc rec →
-     lam23 (t Tm23 var23 lam23 app tt pair fst snd left right case zero suc rec)
+     lam23 _ _ _ (t Tm23 var23 lam23 app tt pair fst snd left right case zero suc rec)
 
 app23 : ∀{Γ A B} → Tm23 Γ (arr23 A B) → Tm23 Γ A → Tm23 Γ B; app23
  = λ t u Tm23 var23 lam23 app23 tt pair fst snd left right case zero suc rec →
-     app23 (t Tm23 var23 lam23 app23 tt pair fst snd left right case zero suc rec)
+     app23 _ _ _ (t Tm23 var23 lam23 app23 tt pair fst snd left right case zero suc rec)
          (u Tm23 var23 lam23 app23 tt pair fst snd left right case zero suc rec)
 
 tt23 : ∀{Γ} → Tm23 Γ top23; tt23
- = λ Tm23 var23 lam23 app23 tt23 pair fst snd left right case zero suc rec → tt23
+ = λ Tm23 var23 lam23 app23 tt23 pair fst snd left right case zero suc rec → tt23 _
 
 pair23 : ∀{Γ A B} → Tm23 Γ A → Tm23 Γ B → Tm23 Γ (prod23 A B); pair23
  = λ t u Tm23 var23 lam23 app23 tt23 pair23 fst snd left right case zero suc rec →
-     pair23 (t Tm23 var23 lam23 app23 tt23 pair23 fst snd left right case zero suc rec)
+     pair23 _ _ _ (t Tm23 var23 lam23 app23 tt23 pair23 fst snd left right case zero suc rec)
           (u Tm23 var23 lam23 app23 tt23 pair23 fst snd left right case zero suc rec)
 
 fst23 : ∀{Γ A B} → Tm23 Γ (prod23 A B) → Tm23 Γ A; fst23
  = λ t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd left right case zero suc rec →
-     fst23 (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd left right case zero suc rec)
+     fst23 _ _ _ (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd left right case zero suc rec)
 
 snd23 : ∀{Γ A B} → Tm23 Γ (prod23 A B) → Tm23 Γ B; snd23
  = λ t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left right case zero suc rec →
-     snd23 (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left right case zero suc rec)
+     snd23 _ _ _ (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left right case zero suc rec)
 
 left23 : ∀{Γ A B} → Tm23 Γ A → Tm23 Γ (sum23 A B); left23
  = λ t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right case zero suc rec →
-     left23 (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right case zero suc rec)
+     left23 _ _ _ (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right case zero suc rec)
 
 right23 : ∀{Γ A B} → Tm23 Γ B → Tm23 Γ (sum23 A B); right23
  = λ t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case zero suc rec →
-     right23 (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case zero suc rec)
+     right23 _ _ _ (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case zero suc rec)
 
 case23 : ∀{Γ A B C} → Tm23 Γ (sum23 A B) → Tm23 Γ (arr23 A C) → Tm23 Γ (arr23 B C) → Tm23 Γ C; case23
  = λ t u v Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero suc rec →
-     case23 (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero suc rec)
+     case23 _ _ _ _
+           (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero suc rec)
            (u Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero suc rec)
            (v Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero suc rec)
 
 zero23  : ∀{Γ} → Tm23 Γ nat23; zero23
- = λ Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc rec → zero23
+ = λ Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc rec → zero23 _
 
 suc23 : ∀{Γ} → Tm23 Γ nat23 → Tm23 Γ nat23; suc23
  = λ t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc23 rec →
-   suc23 (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc23 rec)
+   suc23 _ (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc23 rec)
 
 rec23 : ∀{Γ A} → Tm23 Γ nat23 → Tm23 Γ (arr23 nat23 (arr23 A A)) → Tm23 Γ A → Tm23 Γ A; rec23
  = λ t u v Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc23 rec23 →
-     rec23 (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc23 rec23)
-         (u Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc23 rec23)
-         (v Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc23 rec23)
+     rec23 _ _
+          (t Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc23 rec23)
+          (u Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc23 rec23)
+          (v Tm23 var23 lam23 app23 tt23 pair23 fst23 snd23 left23 right23 case23 zero23 suc23 rec23)
 
 v023 : ∀{Γ A} → Tm23 (snoc23 Γ A) A; v023
  = var23 vz23
@@ -3974,89 +4022,91 @@ snoc24 : Con24 → Ty24 → Con24; snoc24
 Var24 : Con24 → Ty24 → Set; Var24
  = λ Γ A →
    (Var24 : Con24 → Ty24 → Set)
-   (vz  : ∀{Γ A} → Var24 (snoc24 Γ A) A)
-   (vs  : ∀{Γ B A} → Var24 Γ A → Var24 (snoc24 Γ B) A)
+   (vz  : ∀ Γ A → Var24 (snoc24 Γ A) A)
+   (vs  : ∀ Γ B A → Var24 Γ A → Var24 (snoc24 Γ B) A)
  → Var24 Γ A
 
 vz24 : ∀{Γ A} → Var24 (snoc24 Γ A) A; vz24
- = λ Var24 vz24 vs → vz24
+ = λ Var24 vz24 vs → vz24 _ _
 
 vs24 : ∀{Γ B A} → Var24 Γ A → Var24 (snoc24 Γ B) A; vs24
- = λ x Var24 vz24 vs24 → vs24 (x Var24 vz24 vs24)
+ = λ x Var24 vz24 vs24 → vs24 _ _ _ (x Var24 vz24 vs24)
 
 Tm24 : Con24 → Ty24 → Set; Tm24
  = λ Γ A →
    (Tm24  : Con24 → Ty24 → Set)
-   (var   : ∀{Γ A} → Var24 Γ A → Tm24 Γ A)
-   (lam   : ∀{Γ A B} → Tm24 (snoc24 Γ A) B → Tm24 Γ (arr24 A B))
-   (app   : ∀{Γ A B} → Tm24 Γ (arr24 A B) → Tm24 Γ A → Tm24 Γ B)
-   (tt    : ∀{Γ} → Tm24 Γ top24)
-   (pair  : ∀{Γ A B} → Tm24 Γ A → Tm24 Γ B → Tm24 Γ (prod24 A B))
-   (fst   : ∀{Γ A B} → Tm24 Γ (prod24 A B) → Tm24 Γ A)
-   (snd   : ∀{Γ A B} → Tm24 Γ (prod24 A B) → Tm24 Γ B)
-   (left  : ∀{Γ A B} → Tm24 Γ A → Tm24 Γ (sum24 A B))
-   (right : ∀{Γ A B} → Tm24 Γ B → Tm24 Γ (sum24 A B))
-   (case  : ∀{Γ A B C} → Tm24 Γ (sum24 A B) → Tm24 Γ (arr24 A C) → Tm24 Γ (arr24 B C) → Tm24 Γ C)
-   (zero  : ∀{Γ} → Tm24 Γ nat24)
-   (suc   : ∀{Γ} → Tm24 Γ nat24 → Tm24 Γ nat24)
-   (rec   : ∀{Γ A} → Tm24 Γ nat24 → Tm24 Γ (arr24 nat24 (arr24 A A)) → Tm24 Γ A → Tm24 Γ A)
+   (var   : ∀ Γ A      → Var24 Γ A → Tm24 Γ A)
+   (lam   : ∀ Γ A B    → Tm24 (snoc24 Γ A) B → Tm24 Γ (arr24 A B))
+   (app   : ∀ Γ A B    → Tm24 Γ (arr24 A B) → Tm24 Γ A → Tm24 Γ B)
+   (tt    : ∀ Γ        → Tm24 Γ top24)
+   (pair  : ∀ Γ A B    → Tm24 Γ A → Tm24 Γ B → Tm24 Γ (prod24 A B))
+   (fst   : ∀ Γ A B    → Tm24 Γ (prod24 A B) → Tm24 Γ A)
+   (snd   : ∀ Γ A B    → Tm24 Γ (prod24 A B) → Tm24 Γ B)
+   (left  : ∀ Γ A B    → Tm24 Γ A → Tm24 Γ (sum24 A B))
+   (right : ∀ Γ A B    → Tm24 Γ B → Tm24 Γ (sum24 A B))
+   (case  : ∀ Γ A B C  → Tm24 Γ (sum24 A B) → Tm24 Γ (arr24 A C) → Tm24 Γ (arr24 B C) → Tm24 Γ C)
+   (zero  : ∀ Γ        → Tm24 Γ nat24)
+   (suc   : ∀ Γ        → Tm24 Γ nat24 → Tm24 Γ nat24)
+   (rec   : ∀ Γ A      → Tm24 Γ nat24 → Tm24 Γ (arr24 nat24 (arr24 A A)) → Tm24 Γ A → Tm24 Γ A)
  → Tm24 Γ A
 
 var24 : ∀{Γ A} → Var24 Γ A → Tm24 Γ A; var24
  = λ x Tm24 var24 lam app tt pair fst snd left right case zero suc rec →
-     var24 x
+     var24 _ _ x
 
 lam24 : ∀{Γ A B} → Tm24 (snoc24 Γ A) B → Tm24 Γ (arr24 A B); lam24
  = λ t Tm24 var24 lam24 app tt pair fst snd left right case zero suc rec →
-     lam24 (t Tm24 var24 lam24 app tt pair fst snd left right case zero suc rec)
+     lam24 _ _ _ (t Tm24 var24 lam24 app tt pair fst snd left right case zero suc rec)
 
 app24 : ∀{Γ A B} → Tm24 Γ (arr24 A B) → Tm24 Γ A → Tm24 Γ B; app24
  = λ t u Tm24 var24 lam24 app24 tt pair fst snd left right case zero suc rec →
-     app24 (t Tm24 var24 lam24 app24 tt pair fst snd left right case zero suc rec)
+     app24 _ _ _ (t Tm24 var24 lam24 app24 tt pair fst snd left right case zero suc rec)
          (u Tm24 var24 lam24 app24 tt pair fst snd left right case zero suc rec)
 
 tt24 : ∀{Γ} → Tm24 Γ top24; tt24
- = λ Tm24 var24 lam24 app24 tt24 pair fst snd left right case zero suc rec → tt24
+ = λ Tm24 var24 lam24 app24 tt24 pair fst snd left right case zero suc rec → tt24 _
 
 pair24 : ∀{Γ A B} → Tm24 Γ A → Tm24 Γ B → Tm24 Γ (prod24 A B); pair24
  = λ t u Tm24 var24 lam24 app24 tt24 pair24 fst snd left right case zero suc rec →
-     pair24 (t Tm24 var24 lam24 app24 tt24 pair24 fst snd left right case zero suc rec)
+     pair24 _ _ _ (t Tm24 var24 lam24 app24 tt24 pair24 fst snd left right case zero suc rec)
           (u Tm24 var24 lam24 app24 tt24 pair24 fst snd left right case zero suc rec)
 
 fst24 : ∀{Γ A B} → Tm24 Γ (prod24 A B) → Tm24 Γ A; fst24
  = λ t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd left right case zero suc rec →
-     fst24 (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd left right case zero suc rec)
+     fst24 _ _ _ (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd left right case zero suc rec)
 
 snd24 : ∀{Γ A B} → Tm24 Γ (prod24 A B) → Tm24 Γ B; snd24
  = λ t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left right case zero suc rec →
-     snd24 (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left right case zero suc rec)
+     snd24 _ _ _ (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left right case zero suc rec)
 
 left24 : ∀{Γ A B} → Tm24 Γ A → Tm24 Γ (sum24 A B); left24
  = λ t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right case zero suc rec →
-     left24 (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right case zero suc rec)
+     left24 _ _ _ (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right case zero suc rec)
 
 right24 : ∀{Γ A B} → Tm24 Γ B → Tm24 Γ (sum24 A B); right24
  = λ t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case zero suc rec →
-     right24 (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case zero suc rec)
+     right24 _ _ _ (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case zero suc rec)
 
 case24 : ∀{Γ A B C} → Tm24 Γ (sum24 A B) → Tm24 Γ (arr24 A C) → Tm24 Γ (arr24 B C) → Tm24 Γ C; case24
  = λ t u v Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero suc rec →
-     case24 (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero suc rec)
+     case24 _ _ _ _
+           (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero suc rec)
            (u Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero suc rec)
            (v Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero suc rec)
 
 zero24  : ∀{Γ} → Tm24 Γ nat24; zero24
- = λ Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc rec → zero24
+ = λ Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc rec → zero24 _
 
 suc24 : ∀{Γ} → Tm24 Γ nat24 → Tm24 Γ nat24; suc24
  = λ t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc24 rec →
-   suc24 (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc24 rec)
+   suc24 _ (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc24 rec)
 
 rec24 : ∀{Γ A} → Tm24 Γ nat24 → Tm24 Γ (arr24 nat24 (arr24 A A)) → Tm24 Γ A → Tm24 Γ A; rec24
  = λ t u v Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc24 rec24 →
-     rec24 (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc24 rec24)
-         (u Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc24 rec24)
-         (v Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc24 rec24)
+     rec24 _ _
+          (t Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc24 rec24)
+          (u Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc24 rec24)
+          (v Tm24 var24 lam24 app24 tt24 pair24 fst24 snd24 left24 right24 case24 zero24 suc24 rec24)
 
 v024 : ∀{Γ A} → Tm24 (snoc24 Γ A) A; v024
  = var24 vz24
@@ -4138,89 +4188,91 @@ snoc25 : Con25 → Ty25 → Con25; snoc25
 Var25 : Con25 → Ty25 → Set; Var25
  = λ Γ A →
    (Var25 : Con25 → Ty25 → Set)
-   (vz  : ∀{Γ A} → Var25 (snoc25 Γ A) A)
-   (vs  : ∀{Γ B A} → Var25 Γ A → Var25 (snoc25 Γ B) A)
+   (vz  : ∀ Γ A → Var25 (snoc25 Γ A) A)
+   (vs  : ∀ Γ B A → Var25 Γ A → Var25 (snoc25 Γ B) A)
  → Var25 Γ A
 
 vz25 : ∀{Γ A} → Var25 (snoc25 Γ A) A; vz25
- = λ Var25 vz25 vs → vz25
+ = λ Var25 vz25 vs → vz25 _ _
 
 vs25 : ∀{Γ B A} → Var25 Γ A → Var25 (snoc25 Γ B) A; vs25
- = λ x Var25 vz25 vs25 → vs25 (x Var25 vz25 vs25)
+ = λ x Var25 vz25 vs25 → vs25 _ _ _ (x Var25 vz25 vs25)
 
 Tm25 : Con25 → Ty25 → Set; Tm25
  = λ Γ A →
    (Tm25  : Con25 → Ty25 → Set)
-   (var   : ∀{Γ A} → Var25 Γ A → Tm25 Γ A)
-   (lam   : ∀{Γ A B} → Tm25 (snoc25 Γ A) B → Tm25 Γ (arr25 A B))
-   (app   : ∀{Γ A B} → Tm25 Γ (arr25 A B) → Tm25 Γ A → Tm25 Γ B)
-   (tt    : ∀{Γ} → Tm25 Γ top25)
-   (pair  : ∀{Γ A B} → Tm25 Γ A → Tm25 Γ B → Tm25 Γ (prod25 A B))
-   (fst   : ∀{Γ A B} → Tm25 Γ (prod25 A B) → Tm25 Γ A)
-   (snd   : ∀{Γ A B} → Tm25 Γ (prod25 A B) → Tm25 Γ B)
-   (left  : ∀{Γ A B} → Tm25 Γ A → Tm25 Γ (sum25 A B))
-   (right : ∀{Γ A B} → Tm25 Γ B → Tm25 Γ (sum25 A B))
-   (case  : ∀{Γ A B C} → Tm25 Γ (sum25 A B) → Tm25 Γ (arr25 A C) → Tm25 Γ (arr25 B C) → Tm25 Γ C)
-   (zero  : ∀{Γ} → Tm25 Γ nat25)
-   (suc   : ∀{Γ} → Tm25 Γ nat25 → Tm25 Γ nat25)
-   (rec   : ∀{Γ A} → Tm25 Γ nat25 → Tm25 Γ (arr25 nat25 (arr25 A A)) → Tm25 Γ A → Tm25 Γ A)
+   (var   : ∀ Γ A      → Var25 Γ A → Tm25 Γ A)
+   (lam   : ∀ Γ A B    → Tm25 (snoc25 Γ A) B → Tm25 Γ (arr25 A B))
+   (app   : ∀ Γ A B    → Tm25 Γ (arr25 A B) → Tm25 Γ A → Tm25 Γ B)
+   (tt    : ∀ Γ        → Tm25 Γ top25)
+   (pair  : ∀ Γ A B    → Tm25 Γ A → Tm25 Γ B → Tm25 Γ (prod25 A B))
+   (fst   : ∀ Γ A B    → Tm25 Γ (prod25 A B) → Tm25 Γ A)
+   (snd   : ∀ Γ A B    → Tm25 Γ (prod25 A B) → Tm25 Γ B)
+   (left  : ∀ Γ A B    → Tm25 Γ A → Tm25 Γ (sum25 A B))
+   (right : ∀ Γ A B    → Tm25 Γ B → Tm25 Γ (sum25 A B))
+   (case  : ∀ Γ A B C  → Tm25 Γ (sum25 A B) → Tm25 Γ (arr25 A C) → Tm25 Γ (arr25 B C) → Tm25 Γ C)
+   (zero  : ∀ Γ        → Tm25 Γ nat25)
+   (suc   : ∀ Γ        → Tm25 Γ nat25 → Tm25 Γ nat25)
+   (rec   : ∀ Γ A      → Tm25 Γ nat25 → Tm25 Γ (arr25 nat25 (arr25 A A)) → Tm25 Γ A → Tm25 Γ A)
  → Tm25 Γ A
 
 var25 : ∀{Γ A} → Var25 Γ A → Tm25 Γ A; var25
  = λ x Tm25 var25 lam app tt pair fst snd left right case zero suc rec →
-     var25 x
+     var25 _ _ x
 
 lam25 : ∀{Γ A B} → Tm25 (snoc25 Γ A) B → Tm25 Γ (arr25 A B); lam25
  = λ t Tm25 var25 lam25 app tt pair fst snd left right case zero suc rec →
-     lam25 (t Tm25 var25 lam25 app tt pair fst snd left right case zero suc rec)
+     lam25 _ _ _ (t Tm25 var25 lam25 app tt pair fst snd left right case zero suc rec)
 
 app25 : ∀{Γ A B} → Tm25 Γ (arr25 A B) → Tm25 Γ A → Tm25 Γ B; app25
  = λ t u Tm25 var25 lam25 app25 tt pair fst snd left right case zero suc rec →
-     app25 (t Tm25 var25 lam25 app25 tt pair fst snd left right case zero suc rec)
+     app25 _ _ _ (t Tm25 var25 lam25 app25 tt pair fst snd left right case zero suc rec)
          (u Tm25 var25 lam25 app25 tt pair fst snd left right case zero suc rec)
 
 tt25 : ∀{Γ} → Tm25 Γ top25; tt25
- = λ Tm25 var25 lam25 app25 tt25 pair fst snd left right case zero suc rec → tt25
+ = λ Tm25 var25 lam25 app25 tt25 pair fst snd left right case zero suc rec → tt25 _
 
 pair25 : ∀{Γ A B} → Tm25 Γ A → Tm25 Γ B → Tm25 Γ (prod25 A B); pair25
  = λ t u Tm25 var25 lam25 app25 tt25 pair25 fst snd left right case zero suc rec →
-     pair25 (t Tm25 var25 lam25 app25 tt25 pair25 fst snd left right case zero suc rec)
+     pair25 _ _ _ (t Tm25 var25 lam25 app25 tt25 pair25 fst snd left right case zero suc rec)
           (u Tm25 var25 lam25 app25 tt25 pair25 fst snd left right case zero suc rec)
 
 fst25 : ∀{Γ A B} → Tm25 Γ (prod25 A B) → Tm25 Γ A; fst25
  = λ t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd left right case zero suc rec →
-     fst25 (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd left right case zero suc rec)
+     fst25 _ _ _ (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd left right case zero suc rec)
 
 snd25 : ∀{Γ A B} → Tm25 Γ (prod25 A B) → Tm25 Γ B; snd25
  = λ t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left right case zero suc rec →
-     snd25 (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left right case zero suc rec)
+     snd25 _ _ _ (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left right case zero suc rec)
 
 left25 : ∀{Γ A B} → Tm25 Γ A → Tm25 Γ (sum25 A B); left25
  = λ t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right case zero suc rec →
-     left25 (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right case zero suc rec)
+     left25 _ _ _ (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right case zero suc rec)
 
 right25 : ∀{Γ A B} → Tm25 Γ B → Tm25 Γ (sum25 A B); right25
  = λ t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case zero suc rec →
-     right25 (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case zero suc rec)
+     right25 _ _ _ (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case zero suc rec)
 
 case25 : ∀{Γ A B C} → Tm25 Γ (sum25 A B) → Tm25 Γ (arr25 A C) → Tm25 Γ (arr25 B C) → Tm25 Γ C; case25
  = λ t u v Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero suc rec →
-     case25 (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero suc rec)
+     case25 _ _ _ _
+           (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero suc rec)
            (u Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero suc rec)
            (v Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero suc rec)
 
 zero25  : ∀{Γ} → Tm25 Γ nat25; zero25
- = λ Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc rec → zero25
+ = λ Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc rec → zero25 _
 
 suc25 : ∀{Γ} → Tm25 Γ nat25 → Tm25 Γ nat25; suc25
  = λ t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc25 rec →
-   suc25 (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc25 rec)
+   suc25 _ (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc25 rec)
 
 rec25 : ∀{Γ A} → Tm25 Γ nat25 → Tm25 Γ (arr25 nat25 (arr25 A A)) → Tm25 Γ A → Tm25 Γ A; rec25
  = λ t u v Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc25 rec25 →
-     rec25 (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc25 rec25)
-         (u Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc25 rec25)
-         (v Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc25 rec25)
+     rec25 _ _
+          (t Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc25 rec25)
+          (u Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc25 rec25)
+          (v Tm25 var25 lam25 app25 tt25 pair25 fst25 snd25 left25 right25 case25 zero25 suc25 rec25)
 
 v025 : ∀{Γ A} → Tm25 (snoc25 Γ A) A; v025
  = var25 vz25
@@ -4302,89 +4354,91 @@ snoc26 : Con26 → Ty26 → Con26; snoc26
 Var26 : Con26 → Ty26 → Set; Var26
  = λ Γ A →
    (Var26 : Con26 → Ty26 → Set)
-   (vz  : ∀{Γ A} → Var26 (snoc26 Γ A) A)
-   (vs  : ∀{Γ B A} → Var26 Γ A → Var26 (snoc26 Γ B) A)
+   (vz  : ∀ Γ A → Var26 (snoc26 Γ A) A)
+   (vs  : ∀ Γ B A → Var26 Γ A → Var26 (snoc26 Γ B) A)
  → Var26 Γ A
 
 vz26 : ∀{Γ A} → Var26 (snoc26 Γ A) A; vz26
- = λ Var26 vz26 vs → vz26
+ = λ Var26 vz26 vs → vz26 _ _
 
 vs26 : ∀{Γ B A} → Var26 Γ A → Var26 (snoc26 Γ B) A; vs26
- = λ x Var26 vz26 vs26 → vs26 (x Var26 vz26 vs26)
+ = λ x Var26 vz26 vs26 → vs26 _ _ _ (x Var26 vz26 vs26)
 
 Tm26 : Con26 → Ty26 → Set; Tm26
  = λ Γ A →
    (Tm26  : Con26 → Ty26 → Set)
-   (var   : ∀{Γ A} → Var26 Γ A → Tm26 Γ A)
-   (lam   : ∀{Γ A B} → Tm26 (snoc26 Γ A) B → Tm26 Γ (arr26 A B))
-   (app   : ∀{Γ A B} → Tm26 Γ (arr26 A B) → Tm26 Γ A → Tm26 Γ B)
-   (tt    : ∀{Γ} → Tm26 Γ top26)
-   (pair  : ∀{Γ A B} → Tm26 Γ A → Tm26 Γ B → Tm26 Γ (prod26 A B))
-   (fst   : ∀{Γ A B} → Tm26 Γ (prod26 A B) → Tm26 Γ A)
-   (snd   : ∀{Γ A B} → Tm26 Γ (prod26 A B) → Tm26 Γ B)
-   (left  : ∀{Γ A B} → Tm26 Γ A → Tm26 Γ (sum26 A B))
-   (right : ∀{Γ A B} → Tm26 Γ B → Tm26 Γ (sum26 A B))
-   (case  : ∀{Γ A B C} → Tm26 Γ (sum26 A B) → Tm26 Γ (arr26 A C) → Tm26 Γ (arr26 B C) → Tm26 Γ C)
-   (zero  : ∀{Γ} → Tm26 Γ nat26)
-   (suc   : ∀{Γ} → Tm26 Γ nat26 → Tm26 Γ nat26)
-   (rec   : ∀{Γ A} → Tm26 Γ nat26 → Tm26 Γ (arr26 nat26 (arr26 A A)) → Tm26 Γ A → Tm26 Γ A)
+   (var   : ∀ Γ A      → Var26 Γ A → Tm26 Γ A)
+   (lam   : ∀ Γ A B    → Tm26 (snoc26 Γ A) B → Tm26 Γ (arr26 A B))
+   (app   : ∀ Γ A B    → Tm26 Γ (arr26 A B) → Tm26 Γ A → Tm26 Γ B)
+   (tt    : ∀ Γ        → Tm26 Γ top26)
+   (pair  : ∀ Γ A B    → Tm26 Γ A → Tm26 Γ B → Tm26 Γ (prod26 A B))
+   (fst   : ∀ Γ A B    → Tm26 Γ (prod26 A B) → Tm26 Γ A)
+   (snd   : ∀ Γ A B    → Tm26 Γ (prod26 A B) → Tm26 Γ B)
+   (left  : ∀ Γ A B    → Tm26 Γ A → Tm26 Γ (sum26 A B))
+   (right : ∀ Γ A B    → Tm26 Γ B → Tm26 Γ (sum26 A B))
+   (case  : ∀ Γ A B C  → Tm26 Γ (sum26 A B) → Tm26 Γ (arr26 A C) → Tm26 Γ (arr26 B C) → Tm26 Γ C)
+   (zero  : ∀ Γ        → Tm26 Γ nat26)
+   (suc   : ∀ Γ        → Tm26 Γ nat26 → Tm26 Γ nat26)
+   (rec   : ∀ Γ A      → Tm26 Γ nat26 → Tm26 Γ (arr26 nat26 (arr26 A A)) → Tm26 Γ A → Tm26 Γ A)
  → Tm26 Γ A
 
 var26 : ∀{Γ A} → Var26 Γ A → Tm26 Γ A; var26
  = λ x Tm26 var26 lam app tt pair fst snd left right case zero suc rec →
-     var26 x
+     var26 _ _ x
 
 lam26 : ∀{Γ A B} → Tm26 (snoc26 Γ A) B → Tm26 Γ (arr26 A B); lam26
  = λ t Tm26 var26 lam26 app tt pair fst snd left right case zero suc rec →
-     lam26 (t Tm26 var26 lam26 app tt pair fst snd left right case zero suc rec)
+     lam26 _ _ _ (t Tm26 var26 lam26 app tt pair fst snd left right case zero suc rec)
 
 app26 : ∀{Γ A B} → Tm26 Γ (arr26 A B) → Tm26 Γ A → Tm26 Γ B; app26
  = λ t u Tm26 var26 lam26 app26 tt pair fst snd left right case zero suc rec →
-     app26 (t Tm26 var26 lam26 app26 tt pair fst snd left right case zero suc rec)
+     app26 _ _ _ (t Tm26 var26 lam26 app26 tt pair fst snd left right case zero suc rec)
          (u Tm26 var26 lam26 app26 tt pair fst snd left right case zero suc rec)
 
 tt26 : ∀{Γ} → Tm26 Γ top26; tt26
- = λ Tm26 var26 lam26 app26 tt26 pair fst snd left right case zero suc rec → tt26
+ = λ Tm26 var26 lam26 app26 tt26 pair fst snd left right case zero suc rec → tt26 _
 
 pair26 : ∀{Γ A B} → Tm26 Γ A → Tm26 Γ B → Tm26 Γ (prod26 A B); pair26
  = λ t u Tm26 var26 lam26 app26 tt26 pair26 fst snd left right case zero suc rec →
-     pair26 (t Tm26 var26 lam26 app26 tt26 pair26 fst snd left right case zero suc rec)
+     pair26 _ _ _ (t Tm26 var26 lam26 app26 tt26 pair26 fst snd left right case zero suc rec)
           (u Tm26 var26 lam26 app26 tt26 pair26 fst snd left right case zero suc rec)
 
 fst26 : ∀{Γ A B} → Tm26 Γ (prod26 A B) → Tm26 Γ A; fst26
  = λ t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd left right case zero suc rec →
-     fst26 (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd left right case zero suc rec)
+     fst26 _ _ _ (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd left right case zero suc rec)
 
 snd26 : ∀{Γ A B} → Tm26 Γ (prod26 A B) → Tm26 Γ B; snd26
  = λ t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left right case zero suc rec →
-     snd26 (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left right case zero suc rec)
+     snd26 _ _ _ (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left right case zero suc rec)
 
 left26 : ∀{Γ A B} → Tm26 Γ A → Tm26 Γ (sum26 A B); left26
  = λ t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right case zero suc rec →
-     left26 (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right case zero suc rec)
+     left26 _ _ _ (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right case zero suc rec)
 
 right26 : ∀{Γ A B} → Tm26 Γ B → Tm26 Γ (sum26 A B); right26
  = λ t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case zero suc rec →
-     right26 (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case zero suc rec)
+     right26 _ _ _ (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case zero suc rec)
 
 case26 : ∀{Γ A B C} → Tm26 Γ (sum26 A B) → Tm26 Γ (arr26 A C) → Tm26 Γ (arr26 B C) → Tm26 Γ C; case26
  = λ t u v Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero suc rec →
-     case26 (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero suc rec)
+     case26 _ _ _ _
+           (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero suc rec)
            (u Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero suc rec)
            (v Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero suc rec)
 
 zero26  : ∀{Γ} → Tm26 Γ nat26; zero26
- = λ Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc rec → zero26
+ = λ Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc rec → zero26 _
 
 suc26 : ∀{Γ} → Tm26 Γ nat26 → Tm26 Γ nat26; suc26
  = λ t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc26 rec →
-   suc26 (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc26 rec)
+   suc26 _ (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc26 rec)
 
 rec26 : ∀{Γ A} → Tm26 Γ nat26 → Tm26 Γ (arr26 nat26 (arr26 A A)) → Tm26 Γ A → Tm26 Γ A; rec26
  = λ t u v Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc26 rec26 →
-     rec26 (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc26 rec26)
-         (u Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc26 rec26)
-         (v Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc26 rec26)
+     rec26 _ _
+          (t Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc26 rec26)
+          (u Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc26 rec26)
+          (v Tm26 var26 lam26 app26 tt26 pair26 fst26 snd26 left26 right26 case26 zero26 suc26 rec26)
 
 v026 : ∀{Γ A} → Tm26 (snoc26 Γ A) A; v026
  = var26 vz26
@@ -4466,89 +4520,91 @@ snoc27 : Con27 → Ty27 → Con27; snoc27
 Var27 : Con27 → Ty27 → Set; Var27
  = λ Γ A →
    (Var27 : Con27 → Ty27 → Set)
-   (vz  : ∀{Γ A} → Var27 (snoc27 Γ A) A)
-   (vs  : ∀{Γ B A} → Var27 Γ A → Var27 (snoc27 Γ B) A)
+   (vz  : ∀ Γ A → Var27 (snoc27 Γ A) A)
+   (vs  : ∀ Γ B A → Var27 Γ A → Var27 (snoc27 Γ B) A)
  → Var27 Γ A
 
 vz27 : ∀{Γ A} → Var27 (snoc27 Γ A) A; vz27
- = λ Var27 vz27 vs → vz27
+ = λ Var27 vz27 vs → vz27 _ _
 
 vs27 : ∀{Γ B A} → Var27 Γ A → Var27 (snoc27 Γ B) A; vs27
- = λ x Var27 vz27 vs27 → vs27 (x Var27 vz27 vs27)
+ = λ x Var27 vz27 vs27 → vs27 _ _ _ (x Var27 vz27 vs27)
 
 Tm27 : Con27 → Ty27 → Set; Tm27
  = λ Γ A →
    (Tm27  : Con27 → Ty27 → Set)
-   (var   : ∀{Γ A} → Var27 Γ A → Tm27 Γ A)
-   (lam   : ∀{Γ A B} → Tm27 (snoc27 Γ A) B → Tm27 Γ (arr27 A B))
-   (app   : ∀{Γ A B} → Tm27 Γ (arr27 A B) → Tm27 Γ A → Tm27 Γ B)
-   (tt    : ∀{Γ} → Tm27 Γ top27)
-   (pair  : ∀{Γ A B} → Tm27 Γ A → Tm27 Γ B → Tm27 Γ (prod27 A B))
-   (fst   : ∀{Γ A B} → Tm27 Γ (prod27 A B) → Tm27 Γ A)
-   (snd   : ∀{Γ A B} → Tm27 Γ (prod27 A B) → Tm27 Γ B)
-   (left  : ∀{Γ A B} → Tm27 Γ A → Tm27 Γ (sum27 A B))
-   (right : ∀{Γ A B} → Tm27 Γ B → Tm27 Γ (sum27 A B))
-   (case  : ∀{Γ A B C} → Tm27 Γ (sum27 A B) → Tm27 Γ (arr27 A C) → Tm27 Γ (arr27 B C) → Tm27 Γ C)
-   (zero  : ∀{Γ} → Tm27 Γ nat27)
-   (suc   : ∀{Γ} → Tm27 Γ nat27 → Tm27 Γ nat27)
-   (rec   : ∀{Γ A} → Tm27 Γ nat27 → Tm27 Γ (arr27 nat27 (arr27 A A)) → Tm27 Γ A → Tm27 Γ A)
+   (var   : ∀ Γ A      → Var27 Γ A → Tm27 Γ A)
+   (lam   : ∀ Γ A B    → Tm27 (snoc27 Γ A) B → Tm27 Γ (arr27 A B))
+   (app   : ∀ Γ A B    → Tm27 Γ (arr27 A B) → Tm27 Γ A → Tm27 Γ B)
+   (tt    : ∀ Γ        → Tm27 Γ top27)
+   (pair  : ∀ Γ A B    → Tm27 Γ A → Tm27 Γ B → Tm27 Γ (prod27 A B))
+   (fst   : ∀ Γ A B    → Tm27 Γ (prod27 A B) → Tm27 Γ A)
+   (snd   : ∀ Γ A B    → Tm27 Γ (prod27 A B) → Tm27 Γ B)
+   (left  : ∀ Γ A B    → Tm27 Γ A → Tm27 Γ (sum27 A B))
+   (right : ∀ Γ A B    → Tm27 Γ B → Tm27 Γ (sum27 A B))
+   (case  : ∀ Γ A B C  → Tm27 Γ (sum27 A B) → Tm27 Γ (arr27 A C) → Tm27 Γ (arr27 B C) → Tm27 Γ C)
+   (zero  : ∀ Γ        → Tm27 Γ nat27)
+   (suc   : ∀ Γ        → Tm27 Γ nat27 → Tm27 Γ nat27)
+   (rec   : ∀ Γ A      → Tm27 Γ nat27 → Tm27 Γ (arr27 nat27 (arr27 A A)) → Tm27 Γ A → Tm27 Γ A)
  → Tm27 Γ A
 
 var27 : ∀{Γ A} → Var27 Γ A → Tm27 Γ A; var27
  = λ x Tm27 var27 lam app tt pair fst snd left right case zero suc rec →
-     var27 x
+     var27 _ _ x
 
 lam27 : ∀{Γ A B} → Tm27 (snoc27 Γ A) B → Tm27 Γ (arr27 A B); lam27
  = λ t Tm27 var27 lam27 app tt pair fst snd left right case zero suc rec →
-     lam27 (t Tm27 var27 lam27 app tt pair fst snd left right case zero suc rec)
+     lam27 _ _ _ (t Tm27 var27 lam27 app tt pair fst snd left right case zero suc rec)
 
 app27 : ∀{Γ A B} → Tm27 Γ (arr27 A B) → Tm27 Γ A → Tm27 Γ B; app27
  = λ t u Tm27 var27 lam27 app27 tt pair fst snd left right case zero suc rec →
-     app27 (t Tm27 var27 lam27 app27 tt pair fst snd left right case zero suc rec)
+     app27 _ _ _ (t Tm27 var27 lam27 app27 tt pair fst snd left right case zero suc rec)
          (u Tm27 var27 lam27 app27 tt pair fst snd left right case zero suc rec)
 
 tt27 : ∀{Γ} → Tm27 Γ top27; tt27
- = λ Tm27 var27 lam27 app27 tt27 pair fst snd left right case zero suc rec → tt27
+ = λ Tm27 var27 lam27 app27 tt27 pair fst snd left right case zero suc rec → tt27 _
 
 pair27 : ∀{Γ A B} → Tm27 Γ A → Tm27 Γ B → Tm27 Γ (prod27 A B); pair27
  = λ t u Tm27 var27 lam27 app27 tt27 pair27 fst snd left right case zero suc rec →
-     pair27 (t Tm27 var27 lam27 app27 tt27 pair27 fst snd left right case zero suc rec)
+     pair27 _ _ _ (t Tm27 var27 lam27 app27 tt27 pair27 fst snd left right case zero suc rec)
           (u Tm27 var27 lam27 app27 tt27 pair27 fst snd left right case zero suc rec)
 
 fst27 : ∀{Γ A B} → Tm27 Γ (prod27 A B) → Tm27 Γ A; fst27
  = λ t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd left right case zero suc rec →
-     fst27 (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd left right case zero suc rec)
+     fst27 _ _ _ (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd left right case zero suc rec)
 
 snd27 : ∀{Γ A B} → Tm27 Γ (prod27 A B) → Tm27 Γ B; snd27
  = λ t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left right case zero suc rec →
-     snd27 (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left right case zero suc rec)
+     snd27 _ _ _ (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left right case zero suc rec)
 
 left27 : ∀{Γ A B} → Tm27 Γ A → Tm27 Γ (sum27 A B); left27
  = λ t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right case zero suc rec →
-     left27 (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right case zero suc rec)
+     left27 _ _ _ (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right case zero suc rec)
 
 right27 : ∀{Γ A B} → Tm27 Γ B → Tm27 Γ (sum27 A B); right27
  = λ t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case zero suc rec →
-     right27 (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case zero suc rec)
+     right27 _ _ _ (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case zero suc rec)
 
 case27 : ∀{Γ A B C} → Tm27 Γ (sum27 A B) → Tm27 Γ (arr27 A C) → Tm27 Γ (arr27 B C) → Tm27 Γ C; case27
  = λ t u v Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero suc rec →
-     case27 (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero suc rec)
+     case27 _ _ _ _
+           (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero suc rec)
            (u Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero suc rec)
            (v Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero suc rec)
 
 zero27  : ∀{Γ} → Tm27 Γ nat27; zero27
- = λ Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc rec → zero27
+ = λ Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc rec → zero27 _
 
 suc27 : ∀{Γ} → Tm27 Γ nat27 → Tm27 Γ nat27; suc27
  = λ t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc27 rec →
-   suc27 (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc27 rec)
+   suc27 _ (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc27 rec)
 
 rec27 : ∀{Γ A} → Tm27 Γ nat27 → Tm27 Γ (arr27 nat27 (arr27 A A)) → Tm27 Γ A → Tm27 Γ A; rec27
  = λ t u v Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc27 rec27 →
-     rec27 (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc27 rec27)
-         (u Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc27 rec27)
-         (v Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc27 rec27)
+     rec27 _ _
+          (t Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc27 rec27)
+          (u Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc27 rec27)
+          (v Tm27 var27 lam27 app27 tt27 pair27 fst27 snd27 left27 right27 case27 zero27 suc27 rec27)
 
 v027 : ∀{Γ A} → Tm27 (snoc27 Γ A) A; v027
  = var27 vz27
@@ -4630,89 +4686,91 @@ snoc28 : Con28 → Ty28 → Con28; snoc28
 Var28 : Con28 → Ty28 → Set; Var28
  = λ Γ A →
    (Var28 : Con28 → Ty28 → Set)
-   (vz  : ∀{Γ A} → Var28 (snoc28 Γ A) A)
-   (vs  : ∀{Γ B A} → Var28 Γ A → Var28 (snoc28 Γ B) A)
+   (vz  : ∀ Γ A → Var28 (snoc28 Γ A) A)
+   (vs  : ∀ Γ B A → Var28 Γ A → Var28 (snoc28 Γ B) A)
  → Var28 Γ A
 
 vz28 : ∀{Γ A} → Var28 (snoc28 Γ A) A; vz28
- = λ Var28 vz28 vs → vz28
+ = λ Var28 vz28 vs → vz28 _ _
 
 vs28 : ∀{Γ B A} → Var28 Γ A → Var28 (snoc28 Γ B) A; vs28
- = λ x Var28 vz28 vs28 → vs28 (x Var28 vz28 vs28)
+ = λ x Var28 vz28 vs28 → vs28 _ _ _ (x Var28 vz28 vs28)
 
 Tm28 : Con28 → Ty28 → Set; Tm28
  = λ Γ A →
    (Tm28  : Con28 → Ty28 → Set)
-   (var   : ∀{Γ A} → Var28 Γ A → Tm28 Γ A)
-   (lam   : ∀{Γ A B} → Tm28 (snoc28 Γ A) B → Tm28 Γ (arr28 A B))
-   (app   : ∀{Γ A B} → Tm28 Γ (arr28 A B) → Tm28 Γ A → Tm28 Γ B)
-   (tt    : ∀{Γ} → Tm28 Γ top28)
-   (pair  : ∀{Γ A B} → Tm28 Γ A → Tm28 Γ B → Tm28 Γ (prod28 A B))
-   (fst   : ∀{Γ A B} → Tm28 Γ (prod28 A B) → Tm28 Γ A)
-   (snd   : ∀{Γ A B} → Tm28 Γ (prod28 A B) → Tm28 Γ B)
-   (left  : ∀{Γ A B} → Tm28 Γ A → Tm28 Γ (sum28 A B))
-   (right : ∀{Γ A B} → Tm28 Γ B → Tm28 Γ (sum28 A B))
-   (case  : ∀{Γ A B C} → Tm28 Γ (sum28 A B) → Tm28 Γ (arr28 A C) → Tm28 Γ (arr28 B C) → Tm28 Γ C)
-   (zero  : ∀{Γ} → Tm28 Γ nat28)
-   (suc   : ∀{Γ} → Tm28 Γ nat28 → Tm28 Γ nat28)
-   (rec   : ∀{Γ A} → Tm28 Γ nat28 → Tm28 Γ (arr28 nat28 (arr28 A A)) → Tm28 Γ A → Tm28 Γ A)
+   (var   : ∀ Γ A      → Var28 Γ A → Tm28 Γ A)
+   (lam   : ∀ Γ A B    → Tm28 (snoc28 Γ A) B → Tm28 Γ (arr28 A B))
+   (app   : ∀ Γ A B    → Tm28 Γ (arr28 A B) → Tm28 Γ A → Tm28 Γ B)
+   (tt    : ∀ Γ        → Tm28 Γ top28)
+   (pair  : ∀ Γ A B    → Tm28 Γ A → Tm28 Γ B → Tm28 Γ (prod28 A B))
+   (fst   : ∀ Γ A B    → Tm28 Γ (prod28 A B) → Tm28 Γ A)
+   (snd   : ∀ Γ A B    → Tm28 Γ (prod28 A B) → Tm28 Γ B)
+   (left  : ∀ Γ A B    → Tm28 Γ A → Tm28 Γ (sum28 A B))
+   (right : ∀ Γ A B    → Tm28 Γ B → Tm28 Γ (sum28 A B))
+   (case  : ∀ Γ A B C  → Tm28 Γ (sum28 A B) → Tm28 Γ (arr28 A C) → Tm28 Γ (arr28 B C) → Tm28 Γ C)
+   (zero  : ∀ Γ        → Tm28 Γ nat28)
+   (suc   : ∀ Γ        → Tm28 Γ nat28 → Tm28 Γ nat28)
+   (rec   : ∀ Γ A      → Tm28 Γ nat28 → Tm28 Γ (arr28 nat28 (arr28 A A)) → Tm28 Γ A → Tm28 Γ A)
  → Tm28 Γ A
 
 var28 : ∀{Γ A} → Var28 Γ A → Tm28 Γ A; var28
  = λ x Tm28 var28 lam app tt pair fst snd left right case zero suc rec →
-     var28 x
+     var28 _ _ x
 
 lam28 : ∀{Γ A B} → Tm28 (snoc28 Γ A) B → Tm28 Γ (arr28 A B); lam28
  = λ t Tm28 var28 lam28 app tt pair fst snd left right case zero suc rec →
-     lam28 (t Tm28 var28 lam28 app tt pair fst snd left right case zero suc rec)
+     lam28 _ _ _ (t Tm28 var28 lam28 app tt pair fst snd left right case zero suc rec)
 
 app28 : ∀{Γ A B} → Tm28 Γ (arr28 A B) → Tm28 Γ A → Tm28 Γ B; app28
  = λ t u Tm28 var28 lam28 app28 tt pair fst snd left right case zero suc rec →
-     app28 (t Tm28 var28 lam28 app28 tt pair fst snd left right case zero suc rec)
+     app28 _ _ _ (t Tm28 var28 lam28 app28 tt pair fst snd left right case zero suc rec)
          (u Tm28 var28 lam28 app28 tt pair fst snd left right case zero suc rec)
 
 tt28 : ∀{Γ} → Tm28 Γ top28; tt28
- = λ Tm28 var28 lam28 app28 tt28 pair fst snd left right case zero suc rec → tt28
+ = λ Tm28 var28 lam28 app28 tt28 pair fst snd left right case zero suc rec → tt28 _
 
 pair28 : ∀{Γ A B} → Tm28 Γ A → Tm28 Γ B → Tm28 Γ (prod28 A B); pair28
  = λ t u Tm28 var28 lam28 app28 tt28 pair28 fst snd left right case zero suc rec →
-     pair28 (t Tm28 var28 lam28 app28 tt28 pair28 fst snd left right case zero suc rec)
+     pair28 _ _ _ (t Tm28 var28 lam28 app28 tt28 pair28 fst snd left right case zero suc rec)
           (u Tm28 var28 lam28 app28 tt28 pair28 fst snd left right case zero suc rec)
 
 fst28 : ∀{Γ A B} → Tm28 Γ (prod28 A B) → Tm28 Γ A; fst28
  = λ t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd left right case zero suc rec →
-     fst28 (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd left right case zero suc rec)
+     fst28 _ _ _ (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd left right case zero suc rec)
 
 snd28 : ∀{Γ A B} → Tm28 Γ (prod28 A B) → Tm28 Γ B; snd28
  = λ t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left right case zero suc rec →
-     snd28 (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left right case zero suc rec)
+     snd28 _ _ _ (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left right case zero suc rec)
 
 left28 : ∀{Γ A B} → Tm28 Γ A → Tm28 Γ (sum28 A B); left28
  = λ t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right case zero suc rec →
-     left28 (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right case zero suc rec)
+     left28 _ _ _ (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right case zero suc rec)
 
 right28 : ∀{Γ A B} → Tm28 Γ B → Tm28 Γ (sum28 A B); right28
  = λ t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case zero suc rec →
-     right28 (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case zero suc rec)
+     right28 _ _ _ (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case zero suc rec)
 
 case28 : ∀{Γ A B C} → Tm28 Γ (sum28 A B) → Tm28 Γ (arr28 A C) → Tm28 Γ (arr28 B C) → Tm28 Γ C; case28
  = λ t u v Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero suc rec →
-     case28 (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero suc rec)
+     case28 _ _ _ _
+           (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero suc rec)
            (u Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero suc rec)
            (v Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero suc rec)
 
 zero28  : ∀{Γ} → Tm28 Γ nat28; zero28
- = λ Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc rec → zero28
+ = λ Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc rec → zero28 _
 
 suc28 : ∀{Γ} → Tm28 Γ nat28 → Tm28 Γ nat28; suc28
  = λ t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc28 rec →
-   suc28 (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc28 rec)
+   suc28 _ (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc28 rec)
 
 rec28 : ∀{Γ A} → Tm28 Γ nat28 → Tm28 Γ (arr28 nat28 (arr28 A A)) → Tm28 Γ A → Tm28 Γ A; rec28
  = λ t u v Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc28 rec28 →
-     rec28 (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc28 rec28)
-         (u Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc28 rec28)
-         (v Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc28 rec28)
+     rec28 _ _
+          (t Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc28 rec28)
+          (u Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc28 rec28)
+          (v Tm28 var28 lam28 app28 tt28 pair28 fst28 snd28 left28 right28 case28 zero28 suc28 rec28)
 
 v028 : ∀{Γ A} → Tm28 (snoc28 Γ A) A; v028
  = var28 vz28
@@ -4794,89 +4852,91 @@ snoc29 : Con29 → Ty29 → Con29; snoc29
 Var29 : Con29 → Ty29 → Set; Var29
  = λ Γ A →
    (Var29 : Con29 → Ty29 → Set)
-   (vz  : ∀{Γ A} → Var29 (snoc29 Γ A) A)
-   (vs  : ∀{Γ B A} → Var29 Γ A → Var29 (snoc29 Γ B) A)
+   (vz  : ∀ Γ A → Var29 (snoc29 Γ A) A)
+   (vs  : ∀ Γ B A → Var29 Γ A → Var29 (snoc29 Γ B) A)
  → Var29 Γ A
 
 vz29 : ∀{Γ A} → Var29 (snoc29 Γ A) A; vz29
- = λ Var29 vz29 vs → vz29
+ = λ Var29 vz29 vs → vz29 _ _
 
 vs29 : ∀{Γ B A} → Var29 Γ A → Var29 (snoc29 Γ B) A; vs29
- = λ x Var29 vz29 vs29 → vs29 (x Var29 vz29 vs29)
+ = λ x Var29 vz29 vs29 → vs29 _ _ _ (x Var29 vz29 vs29)
 
 Tm29 : Con29 → Ty29 → Set; Tm29
  = λ Γ A →
    (Tm29  : Con29 → Ty29 → Set)
-   (var   : ∀{Γ A} → Var29 Γ A → Tm29 Γ A)
-   (lam   : ∀{Γ A B} → Tm29 (snoc29 Γ A) B → Tm29 Γ (arr29 A B))
-   (app   : ∀{Γ A B} → Tm29 Γ (arr29 A B) → Tm29 Γ A → Tm29 Γ B)
-   (tt    : ∀{Γ} → Tm29 Γ top29)
-   (pair  : ∀{Γ A B} → Tm29 Γ A → Tm29 Γ B → Tm29 Γ (prod29 A B))
-   (fst   : ∀{Γ A B} → Tm29 Γ (prod29 A B) → Tm29 Γ A)
-   (snd   : ∀{Γ A B} → Tm29 Γ (prod29 A B) → Tm29 Γ B)
-   (left  : ∀{Γ A B} → Tm29 Γ A → Tm29 Γ (sum29 A B))
-   (right : ∀{Γ A B} → Tm29 Γ B → Tm29 Γ (sum29 A B))
-   (case  : ∀{Γ A B C} → Tm29 Γ (sum29 A B) → Tm29 Γ (arr29 A C) → Tm29 Γ (arr29 B C) → Tm29 Γ C)
-   (zero  : ∀{Γ} → Tm29 Γ nat29)
-   (suc   : ∀{Γ} → Tm29 Γ nat29 → Tm29 Γ nat29)
-   (rec   : ∀{Γ A} → Tm29 Γ nat29 → Tm29 Γ (arr29 nat29 (arr29 A A)) → Tm29 Γ A → Tm29 Γ A)
+   (var   : ∀ Γ A      → Var29 Γ A → Tm29 Γ A)
+   (lam   : ∀ Γ A B    → Tm29 (snoc29 Γ A) B → Tm29 Γ (arr29 A B))
+   (app   : ∀ Γ A B    → Tm29 Γ (arr29 A B) → Tm29 Γ A → Tm29 Γ B)
+   (tt    : ∀ Γ        → Tm29 Γ top29)
+   (pair  : ∀ Γ A B    → Tm29 Γ A → Tm29 Γ B → Tm29 Γ (prod29 A B))
+   (fst   : ∀ Γ A B    → Tm29 Γ (prod29 A B) → Tm29 Γ A)
+   (snd   : ∀ Γ A B    → Tm29 Γ (prod29 A B) → Tm29 Γ B)
+   (left  : ∀ Γ A B    → Tm29 Γ A → Tm29 Γ (sum29 A B))
+   (right : ∀ Γ A B    → Tm29 Γ B → Tm29 Γ (sum29 A B))
+   (case  : ∀ Γ A B C  → Tm29 Γ (sum29 A B) → Tm29 Γ (arr29 A C) → Tm29 Γ (arr29 B C) → Tm29 Γ C)
+   (zero  : ∀ Γ        → Tm29 Γ nat29)
+   (suc   : ∀ Γ        → Tm29 Γ nat29 → Tm29 Γ nat29)
+   (rec   : ∀ Γ A      → Tm29 Γ nat29 → Tm29 Γ (arr29 nat29 (arr29 A A)) → Tm29 Γ A → Tm29 Γ A)
  → Tm29 Γ A
 
 var29 : ∀{Γ A} → Var29 Γ A → Tm29 Γ A; var29
  = λ x Tm29 var29 lam app tt pair fst snd left right case zero suc rec →
-     var29 x
+     var29 _ _ x
 
 lam29 : ∀{Γ A B} → Tm29 (snoc29 Γ A) B → Tm29 Γ (arr29 A B); lam29
  = λ t Tm29 var29 lam29 app tt pair fst snd left right case zero suc rec →
-     lam29 (t Tm29 var29 lam29 app tt pair fst snd left right case zero suc rec)
+     lam29 _ _ _ (t Tm29 var29 lam29 app tt pair fst snd left right case zero suc rec)
 
 app29 : ∀{Γ A B} → Tm29 Γ (arr29 A B) → Tm29 Γ A → Tm29 Γ B; app29
  = λ t u Tm29 var29 lam29 app29 tt pair fst snd left right case zero suc rec →
-     app29 (t Tm29 var29 lam29 app29 tt pair fst snd left right case zero suc rec)
+     app29 _ _ _ (t Tm29 var29 lam29 app29 tt pair fst snd left right case zero suc rec)
          (u Tm29 var29 lam29 app29 tt pair fst snd left right case zero suc rec)
 
 tt29 : ∀{Γ} → Tm29 Γ top29; tt29
- = λ Tm29 var29 lam29 app29 tt29 pair fst snd left right case zero suc rec → tt29
+ = λ Tm29 var29 lam29 app29 tt29 pair fst snd left right case zero suc rec → tt29 _
 
 pair29 : ∀{Γ A B} → Tm29 Γ A → Tm29 Γ B → Tm29 Γ (prod29 A B); pair29
  = λ t u Tm29 var29 lam29 app29 tt29 pair29 fst snd left right case zero suc rec →
-     pair29 (t Tm29 var29 lam29 app29 tt29 pair29 fst snd left right case zero suc rec)
+     pair29 _ _ _ (t Tm29 var29 lam29 app29 tt29 pair29 fst snd left right case zero suc rec)
           (u Tm29 var29 lam29 app29 tt29 pair29 fst snd left right case zero suc rec)
 
 fst29 : ∀{Γ A B} → Tm29 Γ (prod29 A B) → Tm29 Γ A; fst29
  = λ t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd left right case zero suc rec →
-     fst29 (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd left right case zero suc rec)
+     fst29 _ _ _ (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd left right case zero suc rec)
 
 snd29 : ∀{Γ A B} → Tm29 Γ (prod29 A B) → Tm29 Γ B; snd29
  = λ t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left right case zero suc rec →
-     snd29 (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left right case zero suc rec)
+     snd29 _ _ _ (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left right case zero suc rec)
 
 left29 : ∀{Γ A B} → Tm29 Γ A → Tm29 Γ (sum29 A B); left29
  = λ t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right case zero suc rec →
-     left29 (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right case zero suc rec)
+     left29 _ _ _ (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right case zero suc rec)
 
 right29 : ∀{Γ A B} → Tm29 Γ B → Tm29 Γ (sum29 A B); right29
  = λ t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case zero suc rec →
-     right29 (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case zero suc rec)
+     right29 _ _ _ (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case zero suc rec)
 
 case29 : ∀{Γ A B C} → Tm29 Γ (sum29 A B) → Tm29 Γ (arr29 A C) → Tm29 Γ (arr29 B C) → Tm29 Γ C; case29
  = λ t u v Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero suc rec →
-     case29 (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero suc rec)
+     case29 _ _ _ _
+           (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero suc rec)
            (u Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero suc rec)
            (v Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero suc rec)
 
 zero29  : ∀{Γ} → Tm29 Γ nat29; zero29
- = λ Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc rec → zero29
+ = λ Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc rec → zero29 _
 
 suc29 : ∀{Γ} → Tm29 Γ nat29 → Tm29 Γ nat29; suc29
  = λ t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc29 rec →
-   suc29 (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc29 rec)
+   suc29 _ (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc29 rec)
 
 rec29 : ∀{Γ A} → Tm29 Γ nat29 → Tm29 Γ (arr29 nat29 (arr29 A A)) → Tm29 Γ A → Tm29 Γ A; rec29
  = λ t u v Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc29 rec29 →
-     rec29 (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc29 rec29)
-         (u Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc29 rec29)
-         (v Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc29 rec29)
+     rec29 _ _
+          (t Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc29 rec29)
+          (u Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc29 rec29)
+          (v Tm29 var29 lam29 app29 tt29 pair29 fst29 snd29 left29 right29 case29 zero29 suc29 rec29)
 
 v029 : ∀{Γ A} → Tm29 (snoc29 Γ A) A; v029
  = var29 vz29
@@ -4958,89 +5018,91 @@ snoc30 : Con30 → Ty30 → Con30; snoc30
 Var30 : Con30 → Ty30 → Set; Var30
  = λ Γ A →
    (Var30 : Con30 → Ty30 → Set)
-   (vz  : ∀{Γ A} → Var30 (snoc30 Γ A) A)
-   (vs  : ∀{Γ B A} → Var30 Γ A → Var30 (snoc30 Γ B) A)
+   (vz  : ∀ Γ A → Var30 (snoc30 Γ A) A)
+   (vs  : ∀ Γ B A → Var30 Γ A → Var30 (snoc30 Γ B) A)
  → Var30 Γ A
 
 vz30 : ∀{Γ A} → Var30 (snoc30 Γ A) A; vz30
- = λ Var30 vz30 vs → vz30
+ = λ Var30 vz30 vs → vz30 _ _
 
 vs30 : ∀{Γ B A} → Var30 Γ A → Var30 (snoc30 Γ B) A; vs30
- = λ x Var30 vz30 vs30 → vs30 (x Var30 vz30 vs30)
+ = λ x Var30 vz30 vs30 → vs30 _ _ _ (x Var30 vz30 vs30)
 
 Tm30 : Con30 → Ty30 → Set; Tm30
  = λ Γ A →
    (Tm30  : Con30 → Ty30 → Set)
-   (var   : ∀{Γ A} → Var30 Γ A → Tm30 Γ A)
-   (lam   : ∀{Γ A B} → Tm30 (snoc30 Γ A) B → Tm30 Γ (arr30 A B))
-   (app   : ∀{Γ A B} → Tm30 Γ (arr30 A B) → Tm30 Γ A → Tm30 Γ B)
-   (tt    : ∀{Γ} → Tm30 Γ top30)
-   (pair  : ∀{Γ A B} → Tm30 Γ A → Tm30 Γ B → Tm30 Γ (prod30 A B))
-   (fst   : ∀{Γ A B} → Tm30 Γ (prod30 A B) → Tm30 Γ A)
-   (snd   : ∀{Γ A B} → Tm30 Γ (prod30 A B) → Tm30 Γ B)
-   (left  : ∀{Γ A B} → Tm30 Γ A → Tm30 Γ (sum30 A B))
-   (right : ∀{Γ A B} → Tm30 Γ B → Tm30 Γ (sum30 A B))
-   (case  : ∀{Γ A B C} → Tm30 Γ (sum30 A B) → Tm30 Γ (arr30 A C) → Tm30 Γ (arr30 B C) → Tm30 Γ C)
-   (zero  : ∀{Γ} → Tm30 Γ nat30)
-   (suc   : ∀{Γ} → Tm30 Γ nat30 → Tm30 Γ nat30)
-   (rec   : ∀{Γ A} → Tm30 Γ nat30 → Tm30 Γ (arr30 nat30 (arr30 A A)) → Tm30 Γ A → Tm30 Γ A)
+   (var   : ∀ Γ A      → Var30 Γ A → Tm30 Γ A)
+   (lam   : ∀ Γ A B    → Tm30 (snoc30 Γ A) B → Tm30 Γ (arr30 A B))
+   (app   : ∀ Γ A B    → Tm30 Γ (arr30 A B) → Tm30 Γ A → Tm30 Γ B)
+   (tt    : ∀ Γ        → Tm30 Γ top30)
+   (pair  : ∀ Γ A B    → Tm30 Γ A → Tm30 Γ B → Tm30 Γ (prod30 A B))
+   (fst   : ∀ Γ A B    → Tm30 Γ (prod30 A B) → Tm30 Γ A)
+   (snd   : ∀ Γ A B    → Tm30 Γ (prod30 A B) → Tm30 Γ B)
+   (left  : ∀ Γ A B    → Tm30 Γ A → Tm30 Γ (sum30 A B))
+   (right : ∀ Γ A B    → Tm30 Γ B → Tm30 Γ (sum30 A B))
+   (case  : ∀ Γ A B C  → Tm30 Γ (sum30 A B) → Tm30 Γ (arr30 A C) → Tm30 Γ (arr30 B C) → Tm30 Γ C)
+   (zero  : ∀ Γ        → Tm30 Γ nat30)
+   (suc   : ∀ Γ        → Tm30 Γ nat30 → Tm30 Γ nat30)
+   (rec   : ∀ Γ A      → Tm30 Γ nat30 → Tm30 Γ (arr30 nat30 (arr30 A A)) → Tm30 Γ A → Tm30 Γ A)
  → Tm30 Γ A
 
 var30 : ∀{Γ A} → Var30 Γ A → Tm30 Γ A; var30
  = λ x Tm30 var30 lam app tt pair fst snd left right case zero suc rec →
-     var30 x
+     var30 _ _ x
 
 lam30 : ∀{Γ A B} → Tm30 (snoc30 Γ A) B → Tm30 Γ (arr30 A B); lam30
  = λ t Tm30 var30 lam30 app tt pair fst snd left right case zero suc rec →
-     lam30 (t Tm30 var30 lam30 app tt pair fst snd left right case zero suc rec)
+     lam30 _ _ _ (t Tm30 var30 lam30 app tt pair fst snd left right case zero suc rec)
 
 app30 : ∀{Γ A B} → Tm30 Γ (arr30 A B) → Tm30 Γ A → Tm30 Γ B; app30
  = λ t u Tm30 var30 lam30 app30 tt pair fst snd left right case zero suc rec →
-     app30 (t Tm30 var30 lam30 app30 tt pair fst snd left right case zero suc rec)
+     app30 _ _ _ (t Tm30 var30 lam30 app30 tt pair fst snd left right case zero suc rec)
          (u Tm30 var30 lam30 app30 tt pair fst snd left right case zero suc rec)
 
 tt30 : ∀{Γ} → Tm30 Γ top30; tt30
- = λ Tm30 var30 lam30 app30 tt30 pair fst snd left right case zero suc rec → tt30
+ = λ Tm30 var30 lam30 app30 tt30 pair fst snd left right case zero suc rec → tt30 _
 
 pair30 : ∀{Γ A B} → Tm30 Γ A → Tm30 Γ B → Tm30 Γ (prod30 A B); pair30
  = λ t u Tm30 var30 lam30 app30 tt30 pair30 fst snd left right case zero suc rec →
-     pair30 (t Tm30 var30 lam30 app30 tt30 pair30 fst snd left right case zero suc rec)
+     pair30 _ _ _ (t Tm30 var30 lam30 app30 tt30 pair30 fst snd left right case zero suc rec)
           (u Tm30 var30 lam30 app30 tt30 pair30 fst snd left right case zero suc rec)
 
 fst30 : ∀{Γ A B} → Tm30 Γ (prod30 A B) → Tm30 Γ A; fst30
  = λ t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd left right case zero suc rec →
-     fst30 (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd left right case zero suc rec)
+     fst30 _ _ _ (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd left right case zero suc rec)
 
 snd30 : ∀{Γ A B} → Tm30 Γ (prod30 A B) → Tm30 Γ B; snd30
  = λ t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left right case zero suc rec →
-     snd30 (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left right case zero suc rec)
+     snd30 _ _ _ (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left right case zero suc rec)
 
 left30 : ∀{Γ A B} → Tm30 Γ A → Tm30 Γ (sum30 A B); left30
  = λ t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right case zero suc rec →
-     left30 (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right case zero suc rec)
+     left30 _ _ _ (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right case zero suc rec)
 
 right30 : ∀{Γ A B} → Tm30 Γ B → Tm30 Γ (sum30 A B); right30
  = λ t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case zero suc rec →
-     right30 (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case zero suc rec)
+     right30 _ _ _ (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case zero suc rec)
 
 case30 : ∀{Γ A B C} → Tm30 Γ (sum30 A B) → Tm30 Γ (arr30 A C) → Tm30 Γ (arr30 B C) → Tm30 Γ C; case30
  = λ t u v Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero suc rec →
-     case30 (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero suc rec)
+     case30 _ _ _ _
+           (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero suc rec)
            (u Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero suc rec)
            (v Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero suc rec)
 
 zero30  : ∀{Γ} → Tm30 Γ nat30; zero30
- = λ Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc rec → zero30
+ = λ Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc rec → zero30 _
 
 suc30 : ∀{Γ} → Tm30 Γ nat30 → Tm30 Γ nat30; suc30
  = λ t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc30 rec →
-   suc30 (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc30 rec)
+   suc30 _ (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc30 rec)
 
 rec30 : ∀{Γ A} → Tm30 Γ nat30 → Tm30 Γ (arr30 nat30 (arr30 A A)) → Tm30 Γ A → Tm30 Γ A; rec30
  = λ t u v Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc30 rec30 →
-     rec30 (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc30 rec30)
-         (u Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc30 rec30)
-         (v Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc30 rec30)
+     rec30 _ _
+          (t Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc30 rec30)
+          (u Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc30 rec30)
+          (v Tm30 var30 lam30 app30 tt30 pair30 fst30 snd30 left30 right30 case30 zero30 suc30 rec30)
 
 v030 : ∀{Γ A} → Tm30 (snoc30 Γ A) A; v030
  = var30 vz30
@@ -5122,89 +5184,91 @@ snoc31 : Con31 → Ty31 → Con31; snoc31
 Var31 : Con31 → Ty31 → Set; Var31
  = λ Γ A →
    (Var31 : Con31 → Ty31 → Set)
-   (vz  : ∀{Γ A} → Var31 (snoc31 Γ A) A)
-   (vs  : ∀{Γ B A} → Var31 Γ A → Var31 (snoc31 Γ B) A)
+   (vz  : ∀ Γ A → Var31 (snoc31 Γ A) A)
+   (vs  : ∀ Γ B A → Var31 Γ A → Var31 (snoc31 Γ B) A)
  → Var31 Γ A
 
 vz31 : ∀{Γ A} → Var31 (snoc31 Γ A) A; vz31
- = λ Var31 vz31 vs → vz31
+ = λ Var31 vz31 vs → vz31 _ _
 
 vs31 : ∀{Γ B A} → Var31 Γ A → Var31 (snoc31 Γ B) A; vs31
- = λ x Var31 vz31 vs31 → vs31 (x Var31 vz31 vs31)
+ = λ x Var31 vz31 vs31 → vs31 _ _ _ (x Var31 vz31 vs31)
 
 Tm31 : Con31 → Ty31 → Set; Tm31
  = λ Γ A →
    (Tm31  : Con31 → Ty31 → Set)
-   (var   : ∀{Γ A} → Var31 Γ A → Tm31 Γ A)
-   (lam   : ∀{Γ A B} → Tm31 (snoc31 Γ A) B → Tm31 Γ (arr31 A B))
-   (app   : ∀{Γ A B} → Tm31 Γ (arr31 A B) → Tm31 Γ A → Tm31 Γ B)
-   (tt    : ∀{Γ} → Tm31 Γ top31)
-   (pair  : ∀{Γ A B} → Tm31 Γ A → Tm31 Γ B → Tm31 Γ (prod31 A B))
-   (fst   : ∀{Γ A B} → Tm31 Γ (prod31 A B) → Tm31 Γ A)
-   (snd   : ∀{Γ A B} → Tm31 Γ (prod31 A B) → Tm31 Γ B)
-   (left  : ∀{Γ A B} → Tm31 Γ A → Tm31 Γ (sum31 A B))
-   (right : ∀{Γ A B} → Tm31 Γ B → Tm31 Γ (sum31 A B))
-   (case  : ∀{Γ A B C} → Tm31 Γ (sum31 A B) → Tm31 Γ (arr31 A C) → Tm31 Γ (arr31 B C) → Tm31 Γ C)
-   (zero  : ∀{Γ} → Tm31 Γ nat31)
-   (suc   : ∀{Γ} → Tm31 Γ nat31 → Tm31 Γ nat31)
-   (rec   : ∀{Γ A} → Tm31 Γ nat31 → Tm31 Γ (arr31 nat31 (arr31 A A)) → Tm31 Γ A → Tm31 Γ A)
+   (var   : ∀ Γ A      → Var31 Γ A → Tm31 Γ A)
+   (lam   : ∀ Γ A B    → Tm31 (snoc31 Γ A) B → Tm31 Γ (arr31 A B))
+   (app   : ∀ Γ A B    → Tm31 Γ (arr31 A B) → Tm31 Γ A → Tm31 Γ B)
+   (tt    : ∀ Γ        → Tm31 Γ top31)
+   (pair  : ∀ Γ A B    → Tm31 Γ A → Tm31 Γ B → Tm31 Γ (prod31 A B))
+   (fst   : ∀ Γ A B    → Tm31 Γ (prod31 A B) → Tm31 Γ A)
+   (snd   : ∀ Γ A B    → Tm31 Γ (prod31 A B) → Tm31 Γ B)
+   (left  : ∀ Γ A B    → Tm31 Γ A → Tm31 Γ (sum31 A B))
+   (right : ∀ Γ A B    → Tm31 Γ B → Tm31 Γ (sum31 A B))
+   (case  : ∀ Γ A B C  → Tm31 Γ (sum31 A B) → Tm31 Γ (arr31 A C) → Tm31 Γ (arr31 B C) → Tm31 Γ C)
+   (zero  : ∀ Γ        → Tm31 Γ nat31)
+   (suc   : ∀ Γ        → Tm31 Γ nat31 → Tm31 Γ nat31)
+   (rec   : ∀ Γ A      → Tm31 Γ nat31 → Tm31 Γ (arr31 nat31 (arr31 A A)) → Tm31 Γ A → Tm31 Γ A)
  → Tm31 Γ A
 
 var31 : ∀{Γ A} → Var31 Γ A → Tm31 Γ A; var31
  = λ x Tm31 var31 lam app tt pair fst snd left right case zero suc rec →
-     var31 x
+     var31 _ _ x
 
 lam31 : ∀{Γ A B} → Tm31 (snoc31 Γ A) B → Tm31 Γ (arr31 A B); lam31
  = λ t Tm31 var31 lam31 app tt pair fst snd left right case zero suc rec →
-     lam31 (t Tm31 var31 lam31 app tt pair fst snd left right case zero suc rec)
+     lam31 _ _ _ (t Tm31 var31 lam31 app tt pair fst snd left right case zero suc rec)
 
 app31 : ∀{Γ A B} → Tm31 Γ (arr31 A B) → Tm31 Γ A → Tm31 Γ B; app31
  = λ t u Tm31 var31 lam31 app31 tt pair fst snd left right case zero suc rec →
-     app31 (t Tm31 var31 lam31 app31 tt pair fst snd left right case zero suc rec)
+     app31 _ _ _ (t Tm31 var31 lam31 app31 tt pair fst snd left right case zero suc rec)
          (u Tm31 var31 lam31 app31 tt pair fst snd left right case zero suc rec)
 
 tt31 : ∀{Γ} → Tm31 Γ top31; tt31
- = λ Tm31 var31 lam31 app31 tt31 pair fst snd left right case zero suc rec → tt31
+ = λ Tm31 var31 lam31 app31 tt31 pair fst snd left right case zero suc rec → tt31 _
 
 pair31 : ∀{Γ A B} → Tm31 Γ A → Tm31 Γ B → Tm31 Γ (prod31 A B); pair31
  = λ t u Tm31 var31 lam31 app31 tt31 pair31 fst snd left right case zero suc rec →
-     pair31 (t Tm31 var31 lam31 app31 tt31 pair31 fst snd left right case zero suc rec)
+     pair31 _ _ _ (t Tm31 var31 lam31 app31 tt31 pair31 fst snd left right case zero suc rec)
           (u Tm31 var31 lam31 app31 tt31 pair31 fst snd left right case zero suc rec)
 
 fst31 : ∀{Γ A B} → Tm31 Γ (prod31 A B) → Tm31 Γ A; fst31
  = λ t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd left right case zero suc rec →
-     fst31 (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd left right case zero suc rec)
+     fst31 _ _ _ (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd left right case zero suc rec)
 
 snd31 : ∀{Γ A B} → Tm31 Γ (prod31 A B) → Tm31 Γ B; snd31
  = λ t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left right case zero suc rec →
-     snd31 (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left right case zero suc rec)
+     snd31 _ _ _ (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left right case zero suc rec)
 
 left31 : ∀{Γ A B} → Tm31 Γ A → Tm31 Γ (sum31 A B); left31
  = λ t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right case zero suc rec →
-     left31 (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right case zero suc rec)
+     left31 _ _ _ (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right case zero suc rec)
 
 right31 : ∀{Γ A B} → Tm31 Γ B → Tm31 Γ (sum31 A B); right31
  = λ t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case zero suc rec →
-     right31 (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case zero suc rec)
+     right31 _ _ _ (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case zero suc rec)
 
 case31 : ∀{Γ A B C} → Tm31 Γ (sum31 A B) → Tm31 Γ (arr31 A C) → Tm31 Γ (arr31 B C) → Tm31 Γ C; case31
  = λ t u v Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero suc rec →
-     case31 (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero suc rec)
+     case31 _ _ _ _
+           (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero suc rec)
            (u Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero suc rec)
            (v Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero suc rec)
 
 zero31  : ∀{Γ} → Tm31 Γ nat31; zero31
- = λ Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc rec → zero31
+ = λ Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc rec → zero31 _
 
 suc31 : ∀{Γ} → Tm31 Γ nat31 → Tm31 Γ nat31; suc31
  = λ t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc31 rec →
-   suc31 (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc31 rec)
+   suc31 _ (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc31 rec)
 
 rec31 : ∀{Γ A} → Tm31 Γ nat31 → Tm31 Γ (arr31 nat31 (arr31 A A)) → Tm31 Γ A → Tm31 Γ A; rec31
  = λ t u v Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc31 rec31 →
-     rec31 (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc31 rec31)
-         (u Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc31 rec31)
-         (v Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc31 rec31)
+     rec31 _ _
+          (t Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc31 rec31)
+          (u Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc31 rec31)
+          (v Tm31 var31 lam31 app31 tt31 pair31 fst31 snd31 left31 right31 case31 zero31 suc31 rec31)
 
 v031 : ∀{Γ A} → Tm31 (snoc31 Γ A) A; v031
  = var31 vz31
@@ -5286,89 +5350,91 @@ snoc32 : Con32 → Ty32 → Con32; snoc32
 Var32 : Con32 → Ty32 → Set; Var32
  = λ Γ A →
    (Var32 : Con32 → Ty32 → Set)
-   (vz  : ∀{Γ A} → Var32 (snoc32 Γ A) A)
-   (vs  : ∀{Γ B A} → Var32 Γ A → Var32 (snoc32 Γ B) A)
+   (vz  : ∀ Γ A → Var32 (snoc32 Γ A) A)
+   (vs  : ∀ Γ B A → Var32 Γ A → Var32 (snoc32 Γ B) A)
  → Var32 Γ A
 
 vz32 : ∀{Γ A} → Var32 (snoc32 Γ A) A; vz32
- = λ Var32 vz32 vs → vz32
+ = λ Var32 vz32 vs → vz32 _ _
 
 vs32 : ∀{Γ B A} → Var32 Γ A → Var32 (snoc32 Γ B) A; vs32
- = λ x Var32 vz32 vs32 → vs32 (x Var32 vz32 vs32)
+ = λ x Var32 vz32 vs32 → vs32 _ _ _ (x Var32 vz32 vs32)
 
 Tm32 : Con32 → Ty32 → Set; Tm32
  = λ Γ A →
    (Tm32  : Con32 → Ty32 → Set)
-   (var   : ∀{Γ A} → Var32 Γ A → Tm32 Γ A)
-   (lam   : ∀{Γ A B} → Tm32 (snoc32 Γ A) B → Tm32 Γ (arr32 A B))
-   (app   : ∀{Γ A B} → Tm32 Γ (arr32 A B) → Tm32 Γ A → Tm32 Γ B)
-   (tt    : ∀{Γ} → Tm32 Γ top32)
-   (pair  : ∀{Γ A B} → Tm32 Γ A → Tm32 Γ B → Tm32 Γ (prod32 A B))
-   (fst   : ∀{Γ A B} → Tm32 Γ (prod32 A B) → Tm32 Γ A)
-   (snd   : ∀{Γ A B} → Tm32 Γ (prod32 A B) → Tm32 Γ B)
-   (left  : ∀{Γ A B} → Tm32 Γ A → Tm32 Γ (sum32 A B))
-   (right : ∀{Γ A B} → Tm32 Γ B → Tm32 Γ (sum32 A B))
-   (case  : ∀{Γ A B C} → Tm32 Γ (sum32 A B) → Tm32 Γ (arr32 A C) → Tm32 Γ (arr32 B C) → Tm32 Γ C)
-   (zero  : ∀{Γ} → Tm32 Γ nat32)
-   (suc   : ∀{Γ} → Tm32 Γ nat32 → Tm32 Γ nat32)
-   (rec   : ∀{Γ A} → Tm32 Γ nat32 → Tm32 Γ (arr32 nat32 (arr32 A A)) → Tm32 Γ A → Tm32 Γ A)
+   (var   : ∀ Γ A      → Var32 Γ A → Tm32 Γ A)
+   (lam   : ∀ Γ A B    → Tm32 (snoc32 Γ A) B → Tm32 Γ (arr32 A B))
+   (app   : ∀ Γ A B    → Tm32 Γ (arr32 A B) → Tm32 Γ A → Tm32 Γ B)
+   (tt    : ∀ Γ        → Tm32 Γ top32)
+   (pair  : ∀ Γ A B    → Tm32 Γ A → Tm32 Γ B → Tm32 Γ (prod32 A B))
+   (fst   : ∀ Γ A B    → Tm32 Γ (prod32 A B) → Tm32 Γ A)
+   (snd   : ∀ Γ A B    → Tm32 Γ (prod32 A B) → Tm32 Γ B)
+   (left  : ∀ Γ A B    → Tm32 Γ A → Tm32 Γ (sum32 A B))
+   (right : ∀ Γ A B    → Tm32 Γ B → Tm32 Γ (sum32 A B))
+   (case  : ∀ Γ A B C  → Tm32 Γ (sum32 A B) → Tm32 Γ (arr32 A C) → Tm32 Γ (arr32 B C) → Tm32 Γ C)
+   (zero  : ∀ Γ        → Tm32 Γ nat32)
+   (suc   : ∀ Γ        → Tm32 Γ nat32 → Tm32 Γ nat32)
+   (rec   : ∀ Γ A      → Tm32 Γ nat32 → Tm32 Γ (arr32 nat32 (arr32 A A)) → Tm32 Γ A → Tm32 Γ A)
  → Tm32 Γ A
 
 var32 : ∀{Γ A} → Var32 Γ A → Tm32 Γ A; var32
  = λ x Tm32 var32 lam app tt pair fst snd left right case zero suc rec →
-     var32 x
+     var32 _ _ x
 
 lam32 : ∀{Γ A B} → Tm32 (snoc32 Γ A) B → Tm32 Γ (arr32 A B); lam32
  = λ t Tm32 var32 lam32 app tt pair fst snd left right case zero suc rec →
-     lam32 (t Tm32 var32 lam32 app tt pair fst snd left right case zero suc rec)
+     lam32 _ _ _ (t Tm32 var32 lam32 app tt pair fst snd left right case zero suc rec)
 
 app32 : ∀{Γ A B} → Tm32 Γ (arr32 A B) → Tm32 Γ A → Tm32 Γ B; app32
  = λ t u Tm32 var32 lam32 app32 tt pair fst snd left right case zero suc rec →
-     app32 (t Tm32 var32 lam32 app32 tt pair fst snd left right case zero suc rec)
+     app32 _ _ _ (t Tm32 var32 lam32 app32 tt pair fst snd left right case zero suc rec)
          (u Tm32 var32 lam32 app32 tt pair fst snd left right case zero suc rec)
 
 tt32 : ∀{Γ} → Tm32 Γ top32; tt32
- = λ Tm32 var32 lam32 app32 tt32 pair fst snd left right case zero suc rec → tt32
+ = λ Tm32 var32 lam32 app32 tt32 pair fst snd left right case zero suc rec → tt32 _
 
 pair32 : ∀{Γ A B} → Tm32 Γ A → Tm32 Γ B → Tm32 Γ (prod32 A B); pair32
  = λ t u Tm32 var32 lam32 app32 tt32 pair32 fst snd left right case zero suc rec →
-     pair32 (t Tm32 var32 lam32 app32 tt32 pair32 fst snd left right case zero suc rec)
+     pair32 _ _ _ (t Tm32 var32 lam32 app32 tt32 pair32 fst snd left right case zero suc rec)
           (u Tm32 var32 lam32 app32 tt32 pair32 fst snd left right case zero suc rec)
 
 fst32 : ∀{Γ A B} → Tm32 Γ (prod32 A B) → Tm32 Γ A; fst32
  = λ t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd left right case zero suc rec →
-     fst32 (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd left right case zero suc rec)
+     fst32 _ _ _ (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd left right case zero suc rec)
 
 snd32 : ∀{Γ A B} → Tm32 Γ (prod32 A B) → Tm32 Γ B; snd32
  = λ t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left right case zero suc rec →
-     snd32 (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left right case zero suc rec)
+     snd32 _ _ _ (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left right case zero suc rec)
 
 left32 : ∀{Γ A B} → Tm32 Γ A → Tm32 Γ (sum32 A B); left32
  = λ t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right case zero suc rec →
-     left32 (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right case zero suc rec)
+     left32 _ _ _ (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right case zero suc rec)
 
 right32 : ∀{Γ A B} → Tm32 Γ B → Tm32 Γ (sum32 A B); right32
  = λ t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case zero suc rec →
-     right32 (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case zero suc rec)
+     right32 _ _ _ (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case zero suc rec)
 
 case32 : ∀{Γ A B C} → Tm32 Γ (sum32 A B) → Tm32 Γ (arr32 A C) → Tm32 Γ (arr32 B C) → Tm32 Γ C; case32
  = λ t u v Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero suc rec →
-     case32 (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero suc rec)
+     case32 _ _ _ _
+           (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero suc rec)
            (u Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero suc rec)
            (v Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero suc rec)
 
 zero32  : ∀{Γ} → Tm32 Γ nat32; zero32
- = λ Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc rec → zero32
+ = λ Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc rec → zero32 _
 
 suc32 : ∀{Γ} → Tm32 Γ nat32 → Tm32 Γ nat32; suc32
  = λ t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc32 rec →
-   suc32 (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc32 rec)
+   suc32 _ (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc32 rec)
 
 rec32 : ∀{Γ A} → Tm32 Γ nat32 → Tm32 Γ (arr32 nat32 (arr32 A A)) → Tm32 Γ A → Tm32 Γ A; rec32
  = λ t u v Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc32 rec32 →
-     rec32 (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc32 rec32)
-         (u Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc32 rec32)
-         (v Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc32 rec32)
+     rec32 _ _
+          (t Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc32 rec32)
+          (u Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc32 rec32)
+          (v Tm32 var32 lam32 app32 tt32 pair32 fst32 snd32 left32 right32 case32 zero32 suc32 rec32)
 
 v032 : ∀{Γ A} → Tm32 (snoc32 Γ A) A; v032
  = var32 vz32
@@ -5450,89 +5516,91 @@ snoc33 : Con33 → Ty33 → Con33; snoc33
 Var33 : Con33 → Ty33 → Set; Var33
  = λ Γ A →
    (Var33 : Con33 → Ty33 → Set)
-   (vz  : ∀{Γ A} → Var33 (snoc33 Γ A) A)
-   (vs  : ∀{Γ B A} → Var33 Γ A → Var33 (snoc33 Γ B) A)
+   (vz  : ∀ Γ A → Var33 (snoc33 Γ A) A)
+   (vs  : ∀ Γ B A → Var33 Γ A → Var33 (snoc33 Γ B) A)
  → Var33 Γ A
 
 vz33 : ∀{Γ A} → Var33 (snoc33 Γ A) A; vz33
- = λ Var33 vz33 vs → vz33
+ = λ Var33 vz33 vs → vz33 _ _
 
 vs33 : ∀{Γ B A} → Var33 Γ A → Var33 (snoc33 Γ B) A; vs33
- = λ x Var33 vz33 vs33 → vs33 (x Var33 vz33 vs33)
+ = λ x Var33 vz33 vs33 → vs33 _ _ _ (x Var33 vz33 vs33)
 
 Tm33 : Con33 → Ty33 → Set; Tm33
  = λ Γ A →
    (Tm33  : Con33 → Ty33 → Set)
-   (var   : ∀{Γ A} → Var33 Γ A → Tm33 Γ A)
-   (lam   : ∀{Γ A B} → Tm33 (snoc33 Γ A) B → Tm33 Γ (arr33 A B))
-   (app   : ∀{Γ A B} → Tm33 Γ (arr33 A B) → Tm33 Γ A → Tm33 Γ B)
-   (tt    : ∀{Γ} → Tm33 Γ top33)
-   (pair  : ∀{Γ A B} → Tm33 Γ A → Tm33 Γ B → Tm33 Γ (prod33 A B))
-   (fst   : ∀{Γ A B} → Tm33 Γ (prod33 A B) → Tm33 Γ A)
-   (snd   : ∀{Γ A B} → Tm33 Γ (prod33 A B) → Tm33 Γ B)
-   (left  : ∀{Γ A B} → Tm33 Γ A → Tm33 Γ (sum33 A B))
-   (right : ∀{Γ A B} → Tm33 Γ B → Tm33 Γ (sum33 A B))
-   (case  : ∀{Γ A B C} → Tm33 Γ (sum33 A B) → Tm33 Γ (arr33 A C) → Tm33 Γ (arr33 B C) → Tm33 Γ C)
-   (zero  : ∀{Γ} → Tm33 Γ nat33)
-   (suc   : ∀{Γ} → Tm33 Γ nat33 → Tm33 Γ nat33)
-   (rec   : ∀{Γ A} → Tm33 Γ nat33 → Tm33 Γ (arr33 nat33 (arr33 A A)) → Tm33 Γ A → Tm33 Γ A)
+   (var   : ∀ Γ A      → Var33 Γ A → Tm33 Γ A)
+   (lam   : ∀ Γ A B    → Tm33 (snoc33 Γ A) B → Tm33 Γ (arr33 A B))
+   (app   : ∀ Γ A B    → Tm33 Γ (arr33 A B) → Tm33 Γ A → Tm33 Γ B)
+   (tt    : ∀ Γ        → Tm33 Γ top33)
+   (pair  : ∀ Γ A B    → Tm33 Γ A → Tm33 Γ B → Tm33 Γ (prod33 A B))
+   (fst   : ∀ Γ A B    → Tm33 Γ (prod33 A B) → Tm33 Γ A)
+   (snd   : ∀ Γ A B    → Tm33 Γ (prod33 A B) → Tm33 Γ B)
+   (left  : ∀ Γ A B    → Tm33 Γ A → Tm33 Γ (sum33 A B))
+   (right : ∀ Γ A B    → Tm33 Γ B → Tm33 Γ (sum33 A B))
+   (case  : ∀ Γ A B C  → Tm33 Γ (sum33 A B) → Tm33 Γ (arr33 A C) → Tm33 Γ (arr33 B C) → Tm33 Γ C)
+   (zero  : ∀ Γ        → Tm33 Γ nat33)
+   (suc   : ∀ Γ        → Tm33 Γ nat33 → Tm33 Γ nat33)
+   (rec   : ∀ Γ A      → Tm33 Γ nat33 → Tm33 Γ (arr33 nat33 (arr33 A A)) → Tm33 Γ A → Tm33 Γ A)
  → Tm33 Γ A
 
 var33 : ∀{Γ A} → Var33 Γ A → Tm33 Γ A; var33
  = λ x Tm33 var33 lam app tt pair fst snd left right case zero suc rec →
-     var33 x
+     var33 _ _ x
 
 lam33 : ∀{Γ A B} → Tm33 (snoc33 Γ A) B → Tm33 Γ (arr33 A B); lam33
  = λ t Tm33 var33 lam33 app tt pair fst snd left right case zero suc rec →
-     lam33 (t Tm33 var33 lam33 app tt pair fst snd left right case zero suc rec)
+     lam33 _ _ _ (t Tm33 var33 lam33 app tt pair fst snd left right case zero suc rec)
 
 app33 : ∀{Γ A B} → Tm33 Γ (arr33 A B) → Tm33 Γ A → Tm33 Γ B; app33
  = λ t u Tm33 var33 lam33 app33 tt pair fst snd left right case zero suc rec →
-     app33 (t Tm33 var33 lam33 app33 tt pair fst snd left right case zero suc rec)
+     app33 _ _ _ (t Tm33 var33 lam33 app33 tt pair fst snd left right case zero suc rec)
          (u Tm33 var33 lam33 app33 tt pair fst snd left right case zero suc rec)
 
 tt33 : ∀{Γ} → Tm33 Γ top33; tt33
- = λ Tm33 var33 lam33 app33 tt33 pair fst snd left right case zero suc rec → tt33
+ = λ Tm33 var33 lam33 app33 tt33 pair fst snd left right case zero suc rec → tt33 _
 
 pair33 : ∀{Γ A B} → Tm33 Γ A → Tm33 Γ B → Tm33 Γ (prod33 A B); pair33
  = λ t u Tm33 var33 lam33 app33 tt33 pair33 fst snd left right case zero suc rec →
-     pair33 (t Tm33 var33 lam33 app33 tt33 pair33 fst snd left right case zero suc rec)
+     pair33 _ _ _ (t Tm33 var33 lam33 app33 tt33 pair33 fst snd left right case zero suc rec)
           (u Tm33 var33 lam33 app33 tt33 pair33 fst snd left right case zero suc rec)
 
 fst33 : ∀{Γ A B} → Tm33 Γ (prod33 A B) → Tm33 Γ A; fst33
  = λ t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd left right case zero suc rec →
-     fst33 (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd left right case zero suc rec)
+     fst33 _ _ _ (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd left right case zero suc rec)
 
 snd33 : ∀{Γ A B} → Tm33 Γ (prod33 A B) → Tm33 Γ B; snd33
  = λ t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left right case zero suc rec →
-     snd33 (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left right case zero suc rec)
+     snd33 _ _ _ (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left right case zero suc rec)
 
 left33 : ∀{Γ A B} → Tm33 Γ A → Tm33 Γ (sum33 A B); left33
  = λ t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right case zero suc rec →
-     left33 (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right case zero suc rec)
+     left33 _ _ _ (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right case zero suc rec)
 
 right33 : ∀{Γ A B} → Tm33 Γ B → Tm33 Γ (sum33 A B); right33
  = λ t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case zero suc rec →
-     right33 (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case zero suc rec)
+     right33 _ _ _ (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case zero suc rec)
 
 case33 : ∀{Γ A B C} → Tm33 Γ (sum33 A B) → Tm33 Γ (arr33 A C) → Tm33 Γ (arr33 B C) → Tm33 Γ C; case33
  = λ t u v Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero suc rec →
-     case33 (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero suc rec)
+     case33 _ _ _ _
+           (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero suc rec)
            (u Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero suc rec)
            (v Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero suc rec)
 
 zero33  : ∀{Γ} → Tm33 Γ nat33; zero33
- = λ Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc rec → zero33
+ = λ Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc rec → zero33 _
 
 suc33 : ∀{Γ} → Tm33 Γ nat33 → Tm33 Γ nat33; suc33
  = λ t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc33 rec →
-   suc33 (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc33 rec)
+   suc33 _ (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc33 rec)
 
 rec33 : ∀{Γ A} → Tm33 Γ nat33 → Tm33 Γ (arr33 nat33 (arr33 A A)) → Tm33 Γ A → Tm33 Γ A; rec33
  = λ t u v Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc33 rec33 →
-     rec33 (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc33 rec33)
-         (u Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc33 rec33)
-         (v Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc33 rec33)
+     rec33 _ _
+          (t Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc33 rec33)
+          (u Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc33 rec33)
+          (v Tm33 var33 lam33 app33 tt33 pair33 fst33 snd33 left33 right33 case33 zero33 suc33 rec33)
 
 v033 : ∀{Γ A} → Tm33 (snoc33 Γ A) A; v033
  = var33 vz33
@@ -5614,89 +5682,91 @@ snoc34 : Con34 → Ty34 → Con34; snoc34
 Var34 : Con34 → Ty34 → Set; Var34
  = λ Γ A →
    (Var34 : Con34 → Ty34 → Set)
-   (vz  : ∀{Γ A} → Var34 (snoc34 Γ A) A)
-   (vs  : ∀{Γ B A} → Var34 Γ A → Var34 (snoc34 Γ B) A)
+   (vz  : ∀ Γ A → Var34 (snoc34 Γ A) A)
+   (vs  : ∀ Γ B A → Var34 Γ A → Var34 (snoc34 Γ B) A)
  → Var34 Γ A
 
 vz34 : ∀{Γ A} → Var34 (snoc34 Γ A) A; vz34
- = λ Var34 vz34 vs → vz34
+ = λ Var34 vz34 vs → vz34 _ _
 
 vs34 : ∀{Γ B A} → Var34 Γ A → Var34 (snoc34 Γ B) A; vs34
- = λ x Var34 vz34 vs34 → vs34 (x Var34 vz34 vs34)
+ = λ x Var34 vz34 vs34 → vs34 _ _ _ (x Var34 vz34 vs34)
 
 Tm34 : Con34 → Ty34 → Set; Tm34
  = λ Γ A →
    (Tm34  : Con34 → Ty34 → Set)
-   (var   : ∀{Γ A} → Var34 Γ A → Tm34 Γ A)
-   (lam   : ∀{Γ A B} → Tm34 (snoc34 Γ A) B → Tm34 Γ (arr34 A B))
-   (app   : ∀{Γ A B} → Tm34 Γ (arr34 A B) → Tm34 Γ A → Tm34 Γ B)
-   (tt    : ∀{Γ} → Tm34 Γ top34)
-   (pair  : ∀{Γ A B} → Tm34 Γ A → Tm34 Γ B → Tm34 Γ (prod34 A B))
-   (fst   : ∀{Γ A B} → Tm34 Γ (prod34 A B) → Tm34 Γ A)
-   (snd   : ∀{Γ A B} → Tm34 Γ (prod34 A B) → Tm34 Γ B)
-   (left  : ∀{Γ A B} → Tm34 Γ A → Tm34 Γ (sum34 A B))
-   (right : ∀{Γ A B} → Tm34 Γ B → Tm34 Γ (sum34 A B))
-   (case  : ∀{Γ A B C} → Tm34 Γ (sum34 A B) → Tm34 Γ (arr34 A C) → Tm34 Γ (arr34 B C) → Tm34 Γ C)
-   (zero  : ∀{Γ} → Tm34 Γ nat34)
-   (suc   : ∀{Γ} → Tm34 Γ nat34 → Tm34 Γ nat34)
-   (rec   : ∀{Γ A} → Tm34 Γ nat34 → Tm34 Γ (arr34 nat34 (arr34 A A)) → Tm34 Γ A → Tm34 Γ A)
+   (var   : ∀ Γ A      → Var34 Γ A → Tm34 Γ A)
+   (lam   : ∀ Γ A B    → Tm34 (snoc34 Γ A) B → Tm34 Γ (arr34 A B))
+   (app   : ∀ Γ A B    → Tm34 Γ (arr34 A B) → Tm34 Γ A → Tm34 Γ B)
+   (tt    : ∀ Γ        → Tm34 Γ top34)
+   (pair  : ∀ Γ A B    → Tm34 Γ A → Tm34 Γ B → Tm34 Γ (prod34 A B))
+   (fst   : ∀ Γ A B    → Tm34 Γ (prod34 A B) → Tm34 Γ A)
+   (snd   : ∀ Γ A B    → Tm34 Γ (prod34 A B) → Tm34 Γ B)
+   (left  : ∀ Γ A B    → Tm34 Γ A → Tm34 Γ (sum34 A B))
+   (right : ∀ Γ A B    → Tm34 Γ B → Tm34 Γ (sum34 A B))
+   (case  : ∀ Γ A B C  → Tm34 Γ (sum34 A B) → Tm34 Γ (arr34 A C) → Tm34 Γ (arr34 B C) → Tm34 Γ C)
+   (zero  : ∀ Γ        → Tm34 Γ nat34)
+   (suc   : ∀ Γ        → Tm34 Γ nat34 → Tm34 Γ nat34)
+   (rec   : ∀ Γ A      → Tm34 Γ nat34 → Tm34 Γ (arr34 nat34 (arr34 A A)) → Tm34 Γ A → Tm34 Γ A)
  → Tm34 Γ A
 
 var34 : ∀{Γ A} → Var34 Γ A → Tm34 Γ A; var34
  = λ x Tm34 var34 lam app tt pair fst snd left right case zero suc rec →
-     var34 x
+     var34 _ _ x
 
 lam34 : ∀{Γ A B} → Tm34 (snoc34 Γ A) B → Tm34 Γ (arr34 A B); lam34
  = λ t Tm34 var34 lam34 app tt pair fst snd left right case zero suc rec →
-     lam34 (t Tm34 var34 lam34 app tt pair fst snd left right case zero suc rec)
+     lam34 _ _ _ (t Tm34 var34 lam34 app tt pair fst snd left right case zero suc rec)
 
 app34 : ∀{Γ A B} → Tm34 Γ (arr34 A B) → Tm34 Γ A → Tm34 Γ B; app34
  = λ t u Tm34 var34 lam34 app34 tt pair fst snd left right case zero suc rec →
-     app34 (t Tm34 var34 lam34 app34 tt pair fst snd left right case zero suc rec)
+     app34 _ _ _ (t Tm34 var34 lam34 app34 tt pair fst snd left right case zero suc rec)
          (u Tm34 var34 lam34 app34 tt pair fst snd left right case zero suc rec)
 
 tt34 : ∀{Γ} → Tm34 Γ top34; tt34
- = λ Tm34 var34 lam34 app34 tt34 pair fst snd left right case zero suc rec → tt34
+ = λ Tm34 var34 lam34 app34 tt34 pair fst snd left right case zero suc rec → tt34 _
 
 pair34 : ∀{Γ A B} → Tm34 Γ A → Tm34 Γ B → Tm34 Γ (prod34 A B); pair34
  = λ t u Tm34 var34 lam34 app34 tt34 pair34 fst snd left right case zero suc rec →
-     pair34 (t Tm34 var34 lam34 app34 tt34 pair34 fst snd left right case zero suc rec)
+     pair34 _ _ _ (t Tm34 var34 lam34 app34 tt34 pair34 fst snd left right case zero suc rec)
           (u Tm34 var34 lam34 app34 tt34 pair34 fst snd left right case zero suc rec)
 
 fst34 : ∀{Γ A B} → Tm34 Γ (prod34 A B) → Tm34 Γ A; fst34
  = λ t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd left right case zero suc rec →
-     fst34 (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd left right case zero suc rec)
+     fst34 _ _ _ (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd left right case zero suc rec)
 
 snd34 : ∀{Γ A B} → Tm34 Γ (prod34 A B) → Tm34 Γ B; snd34
  = λ t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left right case zero suc rec →
-     snd34 (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left right case zero suc rec)
+     snd34 _ _ _ (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left right case zero suc rec)
 
 left34 : ∀{Γ A B} → Tm34 Γ A → Tm34 Γ (sum34 A B); left34
  = λ t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right case zero suc rec →
-     left34 (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right case zero suc rec)
+     left34 _ _ _ (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right case zero suc rec)
 
 right34 : ∀{Γ A B} → Tm34 Γ B → Tm34 Γ (sum34 A B); right34
  = λ t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case zero suc rec →
-     right34 (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case zero suc rec)
+     right34 _ _ _ (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case zero suc rec)
 
 case34 : ∀{Γ A B C} → Tm34 Γ (sum34 A B) → Tm34 Γ (arr34 A C) → Tm34 Γ (arr34 B C) → Tm34 Γ C; case34
  = λ t u v Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero suc rec →
-     case34 (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero suc rec)
+     case34 _ _ _ _
+           (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero suc rec)
            (u Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero suc rec)
            (v Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero suc rec)
 
 zero34  : ∀{Γ} → Tm34 Γ nat34; zero34
- = λ Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc rec → zero34
+ = λ Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc rec → zero34 _
 
 suc34 : ∀{Γ} → Tm34 Γ nat34 → Tm34 Γ nat34; suc34
  = λ t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc34 rec →
-   suc34 (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc34 rec)
+   suc34 _ (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc34 rec)
 
 rec34 : ∀{Γ A} → Tm34 Γ nat34 → Tm34 Γ (arr34 nat34 (arr34 A A)) → Tm34 Γ A → Tm34 Γ A; rec34
  = λ t u v Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc34 rec34 →
-     rec34 (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc34 rec34)
-         (u Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc34 rec34)
-         (v Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc34 rec34)
+     rec34 _ _
+          (t Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc34 rec34)
+          (u Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc34 rec34)
+          (v Tm34 var34 lam34 app34 tt34 pair34 fst34 snd34 left34 right34 case34 zero34 suc34 rec34)
 
 v034 : ∀{Γ A} → Tm34 (snoc34 Γ A) A; v034
  = var34 vz34
@@ -5778,89 +5848,91 @@ snoc35 : Con35 → Ty35 → Con35; snoc35
 Var35 : Con35 → Ty35 → Set; Var35
  = λ Γ A →
    (Var35 : Con35 → Ty35 → Set)
-   (vz  : ∀{Γ A} → Var35 (snoc35 Γ A) A)
-   (vs  : ∀{Γ B A} → Var35 Γ A → Var35 (snoc35 Γ B) A)
+   (vz  : ∀ Γ A → Var35 (snoc35 Γ A) A)
+   (vs  : ∀ Γ B A → Var35 Γ A → Var35 (snoc35 Γ B) A)
  → Var35 Γ A
 
 vz35 : ∀{Γ A} → Var35 (snoc35 Γ A) A; vz35
- = λ Var35 vz35 vs → vz35
+ = λ Var35 vz35 vs → vz35 _ _
 
 vs35 : ∀{Γ B A} → Var35 Γ A → Var35 (snoc35 Γ B) A; vs35
- = λ x Var35 vz35 vs35 → vs35 (x Var35 vz35 vs35)
+ = λ x Var35 vz35 vs35 → vs35 _ _ _ (x Var35 vz35 vs35)
 
 Tm35 : Con35 → Ty35 → Set; Tm35
  = λ Γ A →
    (Tm35  : Con35 → Ty35 → Set)
-   (var   : ∀{Γ A} → Var35 Γ A → Tm35 Γ A)
-   (lam   : ∀{Γ A B} → Tm35 (snoc35 Γ A) B → Tm35 Γ (arr35 A B))
-   (app   : ∀{Γ A B} → Tm35 Γ (arr35 A B) → Tm35 Γ A → Tm35 Γ B)
-   (tt    : ∀{Γ} → Tm35 Γ top35)
-   (pair  : ∀{Γ A B} → Tm35 Γ A → Tm35 Γ B → Tm35 Γ (prod35 A B))
-   (fst   : ∀{Γ A B} → Tm35 Γ (prod35 A B) → Tm35 Γ A)
-   (snd   : ∀{Γ A B} → Tm35 Γ (prod35 A B) → Tm35 Γ B)
-   (left  : ∀{Γ A B} → Tm35 Γ A → Tm35 Γ (sum35 A B))
-   (right : ∀{Γ A B} → Tm35 Γ B → Tm35 Γ (sum35 A B))
-   (case  : ∀{Γ A B C} → Tm35 Γ (sum35 A B) → Tm35 Γ (arr35 A C) → Tm35 Γ (arr35 B C) → Tm35 Γ C)
-   (zero  : ∀{Γ} → Tm35 Γ nat35)
-   (suc   : ∀{Γ} → Tm35 Γ nat35 → Tm35 Γ nat35)
-   (rec   : ∀{Γ A} → Tm35 Γ nat35 → Tm35 Γ (arr35 nat35 (arr35 A A)) → Tm35 Γ A → Tm35 Γ A)
+   (var   : ∀ Γ A      → Var35 Γ A → Tm35 Γ A)
+   (lam   : ∀ Γ A B    → Tm35 (snoc35 Γ A) B → Tm35 Γ (arr35 A B))
+   (app   : ∀ Γ A B    → Tm35 Γ (arr35 A B) → Tm35 Γ A → Tm35 Γ B)
+   (tt    : ∀ Γ        → Tm35 Γ top35)
+   (pair  : ∀ Γ A B    → Tm35 Γ A → Tm35 Γ B → Tm35 Γ (prod35 A B))
+   (fst   : ∀ Γ A B    → Tm35 Γ (prod35 A B) → Tm35 Γ A)
+   (snd   : ∀ Γ A B    → Tm35 Γ (prod35 A B) → Tm35 Γ B)
+   (left  : ∀ Γ A B    → Tm35 Γ A → Tm35 Γ (sum35 A B))
+   (right : ∀ Γ A B    → Tm35 Γ B → Tm35 Γ (sum35 A B))
+   (case  : ∀ Γ A B C  → Tm35 Γ (sum35 A B) → Tm35 Γ (arr35 A C) → Tm35 Γ (arr35 B C) → Tm35 Γ C)
+   (zero  : ∀ Γ        → Tm35 Γ nat35)
+   (suc   : ∀ Γ        → Tm35 Γ nat35 → Tm35 Γ nat35)
+   (rec   : ∀ Γ A      → Tm35 Γ nat35 → Tm35 Γ (arr35 nat35 (arr35 A A)) → Tm35 Γ A → Tm35 Γ A)
  → Tm35 Γ A
 
 var35 : ∀{Γ A} → Var35 Γ A → Tm35 Γ A; var35
  = λ x Tm35 var35 lam app tt pair fst snd left right case zero suc rec →
-     var35 x
+     var35 _ _ x
 
 lam35 : ∀{Γ A B} → Tm35 (snoc35 Γ A) B → Tm35 Γ (arr35 A B); lam35
  = λ t Tm35 var35 lam35 app tt pair fst snd left right case zero suc rec →
-     lam35 (t Tm35 var35 lam35 app tt pair fst snd left right case zero suc rec)
+     lam35 _ _ _ (t Tm35 var35 lam35 app tt pair fst snd left right case zero suc rec)
 
 app35 : ∀{Γ A B} → Tm35 Γ (arr35 A B) → Tm35 Γ A → Tm35 Γ B; app35
  = λ t u Tm35 var35 lam35 app35 tt pair fst snd left right case zero suc rec →
-     app35 (t Tm35 var35 lam35 app35 tt pair fst snd left right case zero suc rec)
+     app35 _ _ _ (t Tm35 var35 lam35 app35 tt pair fst snd left right case zero suc rec)
          (u Tm35 var35 lam35 app35 tt pair fst snd left right case zero suc rec)
 
 tt35 : ∀{Γ} → Tm35 Γ top35; tt35
- = λ Tm35 var35 lam35 app35 tt35 pair fst snd left right case zero suc rec → tt35
+ = λ Tm35 var35 lam35 app35 tt35 pair fst snd left right case zero suc rec → tt35 _
 
 pair35 : ∀{Γ A B} → Tm35 Γ A → Tm35 Γ B → Tm35 Γ (prod35 A B); pair35
  = λ t u Tm35 var35 lam35 app35 tt35 pair35 fst snd left right case zero suc rec →
-     pair35 (t Tm35 var35 lam35 app35 tt35 pair35 fst snd left right case zero suc rec)
+     pair35 _ _ _ (t Tm35 var35 lam35 app35 tt35 pair35 fst snd left right case zero suc rec)
           (u Tm35 var35 lam35 app35 tt35 pair35 fst snd left right case zero suc rec)
 
 fst35 : ∀{Γ A B} → Tm35 Γ (prod35 A B) → Tm35 Γ A; fst35
  = λ t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd left right case zero suc rec →
-     fst35 (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd left right case zero suc rec)
+     fst35 _ _ _ (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd left right case zero suc rec)
 
 snd35 : ∀{Γ A B} → Tm35 Γ (prod35 A B) → Tm35 Γ B; snd35
  = λ t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left right case zero suc rec →
-     snd35 (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left right case zero suc rec)
+     snd35 _ _ _ (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left right case zero suc rec)
 
 left35 : ∀{Γ A B} → Tm35 Γ A → Tm35 Γ (sum35 A B); left35
  = λ t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right case zero suc rec →
-     left35 (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right case zero suc rec)
+     left35 _ _ _ (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right case zero suc rec)
 
 right35 : ∀{Γ A B} → Tm35 Γ B → Tm35 Γ (sum35 A B); right35
  = λ t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case zero suc rec →
-     right35 (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case zero suc rec)
+     right35 _ _ _ (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case zero suc rec)
 
 case35 : ∀{Γ A B C} → Tm35 Γ (sum35 A B) → Tm35 Γ (arr35 A C) → Tm35 Γ (arr35 B C) → Tm35 Γ C; case35
  = λ t u v Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero suc rec →
-     case35 (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero suc rec)
+     case35 _ _ _ _
+           (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero suc rec)
            (u Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero suc rec)
            (v Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero suc rec)
 
 zero35  : ∀{Γ} → Tm35 Γ nat35; zero35
- = λ Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc rec → zero35
+ = λ Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc rec → zero35 _
 
 suc35 : ∀{Γ} → Tm35 Γ nat35 → Tm35 Γ nat35; suc35
  = λ t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc35 rec →
-   suc35 (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc35 rec)
+   suc35 _ (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc35 rec)
 
 rec35 : ∀{Γ A} → Tm35 Γ nat35 → Tm35 Γ (arr35 nat35 (arr35 A A)) → Tm35 Γ A → Tm35 Γ A; rec35
  = λ t u v Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc35 rec35 →
-     rec35 (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc35 rec35)
-         (u Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc35 rec35)
-         (v Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc35 rec35)
+     rec35 _ _
+          (t Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc35 rec35)
+          (u Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc35 rec35)
+          (v Tm35 var35 lam35 app35 tt35 pair35 fst35 snd35 left35 right35 case35 zero35 suc35 rec35)
 
 v035 : ∀{Γ A} → Tm35 (snoc35 Γ A) A; v035
  = var35 vz35
@@ -5942,89 +6014,91 @@ snoc36 : Con36 → Ty36 → Con36; snoc36
 Var36 : Con36 → Ty36 → Set; Var36
  = λ Γ A →
    (Var36 : Con36 → Ty36 → Set)
-   (vz  : ∀{Γ A} → Var36 (snoc36 Γ A) A)
-   (vs  : ∀{Γ B A} → Var36 Γ A → Var36 (snoc36 Γ B) A)
+   (vz  : ∀ Γ A → Var36 (snoc36 Γ A) A)
+   (vs  : ∀ Γ B A → Var36 Γ A → Var36 (snoc36 Γ B) A)
  → Var36 Γ A
 
 vz36 : ∀{Γ A} → Var36 (snoc36 Γ A) A; vz36
- = λ Var36 vz36 vs → vz36
+ = λ Var36 vz36 vs → vz36 _ _
 
 vs36 : ∀{Γ B A} → Var36 Γ A → Var36 (snoc36 Γ B) A; vs36
- = λ x Var36 vz36 vs36 → vs36 (x Var36 vz36 vs36)
+ = λ x Var36 vz36 vs36 → vs36 _ _ _ (x Var36 vz36 vs36)
 
 Tm36 : Con36 → Ty36 → Set; Tm36
  = λ Γ A →
    (Tm36  : Con36 → Ty36 → Set)
-   (var   : ∀{Γ A} → Var36 Γ A → Tm36 Γ A)
-   (lam   : ∀{Γ A B} → Tm36 (snoc36 Γ A) B → Tm36 Γ (arr36 A B))
-   (app   : ∀{Γ A B} → Tm36 Γ (arr36 A B) → Tm36 Γ A → Tm36 Γ B)
-   (tt    : ∀{Γ} → Tm36 Γ top36)
-   (pair  : ∀{Γ A B} → Tm36 Γ A → Tm36 Γ B → Tm36 Γ (prod36 A B))
-   (fst   : ∀{Γ A B} → Tm36 Γ (prod36 A B) → Tm36 Γ A)
-   (snd   : ∀{Γ A B} → Tm36 Γ (prod36 A B) → Tm36 Γ B)
-   (left  : ∀{Γ A B} → Tm36 Γ A → Tm36 Γ (sum36 A B))
-   (right : ∀{Γ A B} → Tm36 Γ B → Tm36 Γ (sum36 A B))
-   (case  : ∀{Γ A B C} → Tm36 Γ (sum36 A B) → Tm36 Γ (arr36 A C) → Tm36 Γ (arr36 B C) → Tm36 Γ C)
-   (zero  : ∀{Γ} → Tm36 Γ nat36)
-   (suc   : ∀{Γ} → Tm36 Γ nat36 → Tm36 Γ nat36)
-   (rec   : ∀{Γ A} → Tm36 Γ nat36 → Tm36 Γ (arr36 nat36 (arr36 A A)) → Tm36 Γ A → Tm36 Γ A)
+   (var   : ∀ Γ A      → Var36 Γ A → Tm36 Γ A)
+   (lam   : ∀ Γ A B    → Tm36 (snoc36 Γ A) B → Tm36 Γ (arr36 A B))
+   (app   : ∀ Γ A B    → Tm36 Γ (arr36 A B) → Tm36 Γ A → Tm36 Γ B)
+   (tt    : ∀ Γ        → Tm36 Γ top36)
+   (pair  : ∀ Γ A B    → Tm36 Γ A → Tm36 Γ B → Tm36 Γ (prod36 A B))
+   (fst   : ∀ Γ A B    → Tm36 Γ (prod36 A B) → Tm36 Γ A)
+   (snd   : ∀ Γ A B    → Tm36 Γ (prod36 A B) → Tm36 Γ B)
+   (left  : ∀ Γ A B    → Tm36 Γ A → Tm36 Γ (sum36 A B))
+   (right : ∀ Γ A B    → Tm36 Γ B → Tm36 Γ (sum36 A B))
+   (case  : ∀ Γ A B C  → Tm36 Γ (sum36 A B) → Tm36 Γ (arr36 A C) → Tm36 Γ (arr36 B C) → Tm36 Γ C)
+   (zero  : ∀ Γ        → Tm36 Γ nat36)
+   (suc   : ∀ Γ        → Tm36 Γ nat36 → Tm36 Γ nat36)
+   (rec   : ∀ Γ A      → Tm36 Γ nat36 → Tm36 Γ (arr36 nat36 (arr36 A A)) → Tm36 Γ A → Tm36 Γ A)
  → Tm36 Γ A
 
 var36 : ∀{Γ A} → Var36 Γ A → Tm36 Γ A; var36
  = λ x Tm36 var36 lam app tt pair fst snd left right case zero suc rec →
-     var36 x
+     var36 _ _ x
 
 lam36 : ∀{Γ A B} → Tm36 (snoc36 Γ A) B → Tm36 Γ (arr36 A B); lam36
  = λ t Tm36 var36 lam36 app tt pair fst snd left right case zero suc rec →
-     lam36 (t Tm36 var36 lam36 app tt pair fst snd left right case zero suc rec)
+     lam36 _ _ _ (t Tm36 var36 lam36 app tt pair fst snd left right case zero suc rec)
 
 app36 : ∀{Γ A B} → Tm36 Γ (arr36 A B) → Tm36 Γ A → Tm36 Γ B; app36
  = λ t u Tm36 var36 lam36 app36 tt pair fst snd left right case zero suc rec →
-     app36 (t Tm36 var36 lam36 app36 tt pair fst snd left right case zero suc rec)
+     app36 _ _ _ (t Tm36 var36 lam36 app36 tt pair fst snd left right case zero suc rec)
          (u Tm36 var36 lam36 app36 tt pair fst snd left right case zero suc rec)
 
 tt36 : ∀{Γ} → Tm36 Γ top36; tt36
- = λ Tm36 var36 lam36 app36 tt36 pair fst snd left right case zero suc rec → tt36
+ = λ Tm36 var36 lam36 app36 tt36 pair fst snd left right case zero suc rec → tt36 _
 
 pair36 : ∀{Γ A B} → Tm36 Γ A → Tm36 Γ B → Tm36 Γ (prod36 A B); pair36
  = λ t u Tm36 var36 lam36 app36 tt36 pair36 fst snd left right case zero suc rec →
-     pair36 (t Tm36 var36 lam36 app36 tt36 pair36 fst snd left right case zero suc rec)
+     pair36 _ _ _ (t Tm36 var36 lam36 app36 tt36 pair36 fst snd left right case zero suc rec)
           (u Tm36 var36 lam36 app36 tt36 pair36 fst snd left right case zero suc rec)
 
 fst36 : ∀{Γ A B} → Tm36 Γ (prod36 A B) → Tm36 Γ A; fst36
  = λ t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd left right case zero suc rec →
-     fst36 (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd left right case zero suc rec)
+     fst36 _ _ _ (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd left right case zero suc rec)
 
 snd36 : ∀{Γ A B} → Tm36 Γ (prod36 A B) → Tm36 Γ B; snd36
  = λ t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left right case zero suc rec →
-     snd36 (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left right case zero suc rec)
+     snd36 _ _ _ (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left right case zero suc rec)
 
 left36 : ∀{Γ A B} → Tm36 Γ A → Tm36 Γ (sum36 A B); left36
  = λ t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right case zero suc rec →
-     left36 (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right case zero suc rec)
+     left36 _ _ _ (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right case zero suc rec)
 
 right36 : ∀{Γ A B} → Tm36 Γ B → Tm36 Γ (sum36 A B); right36
  = λ t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case zero suc rec →
-     right36 (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case zero suc rec)
+     right36 _ _ _ (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case zero suc rec)
 
 case36 : ∀{Γ A B C} → Tm36 Γ (sum36 A B) → Tm36 Γ (arr36 A C) → Tm36 Γ (arr36 B C) → Tm36 Γ C; case36
  = λ t u v Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero suc rec →
-     case36 (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero suc rec)
+     case36 _ _ _ _
+           (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero suc rec)
            (u Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero suc rec)
            (v Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero suc rec)
 
 zero36  : ∀{Γ} → Tm36 Γ nat36; zero36
- = λ Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc rec → zero36
+ = λ Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc rec → zero36 _
 
 suc36 : ∀{Γ} → Tm36 Γ nat36 → Tm36 Γ nat36; suc36
  = λ t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc36 rec →
-   suc36 (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc36 rec)
+   suc36 _ (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc36 rec)
 
 rec36 : ∀{Γ A} → Tm36 Γ nat36 → Tm36 Γ (arr36 nat36 (arr36 A A)) → Tm36 Γ A → Tm36 Γ A; rec36
  = λ t u v Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc36 rec36 →
-     rec36 (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc36 rec36)
-         (u Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc36 rec36)
-         (v Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc36 rec36)
+     rec36 _ _
+          (t Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc36 rec36)
+          (u Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc36 rec36)
+          (v Tm36 var36 lam36 app36 tt36 pair36 fst36 snd36 left36 right36 case36 zero36 suc36 rec36)
 
 v036 : ∀{Γ A} → Tm36 (snoc36 Γ A) A; v036
  = var36 vz36
@@ -6106,89 +6180,91 @@ snoc37 : Con37 → Ty37 → Con37; snoc37
 Var37 : Con37 → Ty37 → Set; Var37
  = λ Γ A →
    (Var37 : Con37 → Ty37 → Set)
-   (vz  : ∀{Γ A} → Var37 (snoc37 Γ A) A)
-   (vs  : ∀{Γ B A} → Var37 Γ A → Var37 (snoc37 Γ B) A)
+   (vz  : ∀ Γ A → Var37 (snoc37 Γ A) A)
+   (vs  : ∀ Γ B A → Var37 Γ A → Var37 (snoc37 Γ B) A)
  → Var37 Γ A
 
 vz37 : ∀{Γ A} → Var37 (snoc37 Γ A) A; vz37
- = λ Var37 vz37 vs → vz37
+ = λ Var37 vz37 vs → vz37 _ _
 
 vs37 : ∀{Γ B A} → Var37 Γ A → Var37 (snoc37 Γ B) A; vs37
- = λ x Var37 vz37 vs37 → vs37 (x Var37 vz37 vs37)
+ = λ x Var37 vz37 vs37 → vs37 _ _ _ (x Var37 vz37 vs37)
 
 Tm37 : Con37 → Ty37 → Set; Tm37
  = λ Γ A →
    (Tm37  : Con37 → Ty37 → Set)
-   (var   : ∀{Γ A} → Var37 Γ A → Tm37 Γ A)
-   (lam   : ∀{Γ A B} → Tm37 (snoc37 Γ A) B → Tm37 Γ (arr37 A B))
-   (app   : ∀{Γ A B} → Tm37 Γ (arr37 A B) → Tm37 Γ A → Tm37 Γ B)
-   (tt    : ∀{Γ} → Tm37 Γ top37)
-   (pair  : ∀{Γ A B} → Tm37 Γ A → Tm37 Γ B → Tm37 Γ (prod37 A B))
-   (fst   : ∀{Γ A B} → Tm37 Γ (prod37 A B) → Tm37 Γ A)
-   (snd   : ∀{Γ A B} → Tm37 Γ (prod37 A B) → Tm37 Γ B)
-   (left  : ∀{Γ A B} → Tm37 Γ A → Tm37 Γ (sum37 A B))
-   (right : ∀{Γ A B} → Tm37 Γ B → Tm37 Γ (sum37 A B))
-   (case  : ∀{Γ A B C} → Tm37 Γ (sum37 A B) → Tm37 Γ (arr37 A C) → Tm37 Γ (arr37 B C) → Tm37 Γ C)
-   (zero  : ∀{Γ} → Tm37 Γ nat37)
-   (suc   : ∀{Γ} → Tm37 Γ nat37 → Tm37 Γ nat37)
-   (rec   : ∀{Γ A} → Tm37 Γ nat37 → Tm37 Γ (arr37 nat37 (arr37 A A)) → Tm37 Γ A → Tm37 Γ A)
+   (var   : ∀ Γ A      → Var37 Γ A → Tm37 Γ A)
+   (lam   : ∀ Γ A B    → Tm37 (snoc37 Γ A) B → Tm37 Γ (arr37 A B))
+   (app   : ∀ Γ A B    → Tm37 Γ (arr37 A B) → Tm37 Γ A → Tm37 Γ B)
+   (tt    : ∀ Γ        → Tm37 Γ top37)
+   (pair  : ∀ Γ A B    → Tm37 Γ A → Tm37 Γ B → Tm37 Γ (prod37 A B))
+   (fst   : ∀ Γ A B    → Tm37 Γ (prod37 A B) → Tm37 Γ A)
+   (snd   : ∀ Γ A B    → Tm37 Γ (prod37 A B) → Tm37 Γ B)
+   (left  : ∀ Γ A B    → Tm37 Γ A → Tm37 Γ (sum37 A B))
+   (right : ∀ Γ A B    → Tm37 Γ B → Tm37 Γ (sum37 A B))
+   (case  : ∀ Γ A B C  → Tm37 Γ (sum37 A B) → Tm37 Γ (arr37 A C) → Tm37 Γ (arr37 B C) → Tm37 Γ C)
+   (zero  : ∀ Γ        → Tm37 Γ nat37)
+   (suc   : ∀ Γ        → Tm37 Γ nat37 → Tm37 Γ nat37)
+   (rec   : ∀ Γ A      → Tm37 Γ nat37 → Tm37 Γ (arr37 nat37 (arr37 A A)) → Tm37 Γ A → Tm37 Γ A)
  → Tm37 Γ A
 
 var37 : ∀{Γ A} → Var37 Γ A → Tm37 Γ A; var37
  = λ x Tm37 var37 lam app tt pair fst snd left right case zero suc rec →
-     var37 x
+     var37 _ _ x
 
 lam37 : ∀{Γ A B} → Tm37 (snoc37 Γ A) B → Tm37 Γ (arr37 A B); lam37
  = λ t Tm37 var37 lam37 app tt pair fst snd left right case zero suc rec →
-     lam37 (t Tm37 var37 lam37 app tt pair fst snd left right case zero suc rec)
+     lam37 _ _ _ (t Tm37 var37 lam37 app tt pair fst snd left right case zero suc rec)
 
 app37 : ∀{Γ A B} → Tm37 Γ (arr37 A B) → Tm37 Γ A → Tm37 Γ B; app37
  = λ t u Tm37 var37 lam37 app37 tt pair fst snd left right case zero suc rec →
-     app37 (t Tm37 var37 lam37 app37 tt pair fst snd left right case zero suc rec)
+     app37 _ _ _ (t Tm37 var37 lam37 app37 tt pair fst snd left right case zero suc rec)
          (u Tm37 var37 lam37 app37 tt pair fst snd left right case zero suc rec)
 
 tt37 : ∀{Γ} → Tm37 Γ top37; tt37
- = λ Tm37 var37 lam37 app37 tt37 pair fst snd left right case zero suc rec → tt37
+ = λ Tm37 var37 lam37 app37 tt37 pair fst snd left right case zero suc rec → tt37 _
 
 pair37 : ∀{Γ A B} → Tm37 Γ A → Tm37 Γ B → Tm37 Γ (prod37 A B); pair37
  = λ t u Tm37 var37 lam37 app37 tt37 pair37 fst snd left right case zero suc rec →
-     pair37 (t Tm37 var37 lam37 app37 tt37 pair37 fst snd left right case zero suc rec)
+     pair37 _ _ _ (t Tm37 var37 lam37 app37 tt37 pair37 fst snd left right case zero suc rec)
           (u Tm37 var37 lam37 app37 tt37 pair37 fst snd left right case zero suc rec)
 
 fst37 : ∀{Γ A B} → Tm37 Γ (prod37 A B) → Tm37 Γ A; fst37
  = λ t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd left right case zero suc rec →
-     fst37 (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd left right case zero suc rec)
+     fst37 _ _ _ (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd left right case zero suc rec)
 
 snd37 : ∀{Γ A B} → Tm37 Γ (prod37 A B) → Tm37 Γ B; snd37
  = λ t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left right case zero suc rec →
-     snd37 (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left right case zero suc rec)
+     snd37 _ _ _ (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left right case zero suc rec)
 
 left37 : ∀{Γ A B} → Tm37 Γ A → Tm37 Γ (sum37 A B); left37
  = λ t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right case zero suc rec →
-     left37 (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right case zero suc rec)
+     left37 _ _ _ (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right case zero suc rec)
 
 right37 : ∀{Γ A B} → Tm37 Γ B → Tm37 Γ (sum37 A B); right37
  = λ t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case zero suc rec →
-     right37 (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case zero suc rec)
+     right37 _ _ _ (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case zero suc rec)
 
 case37 : ∀{Γ A B C} → Tm37 Γ (sum37 A B) → Tm37 Γ (arr37 A C) → Tm37 Γ (arr37 B C) → Tm37 Γ C; case37
  = λ t u v Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero suc rec →
-     case37 (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero suc rec)
+     case37 _ _ _ _
+           (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero suc rec)
            (u Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero suc rec)
            (v Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero suc rec)
 
 zero37  : ∀{Γ} → Tm37 Γ nat37; zero37
- = λ Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc rec → zero37
+ = λ Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc rec → zero37 _
 
 suc37 : ∀{Γ} → Tm37 Γ nat37 → Tm37 Γ nat37; suc37
  = λ t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc37 rec →
-   suc37 (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc37 rec)
+   suc37 _ (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc37 rec)
 
 rec37 : ∀{Γ A} → Tm37 Γ nat37 → Tm37 Γ (arr37 nat37 (arr37 A A)) → Tm37 Γ A → Tm37 Γ A; rec37
  = λ t u v Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc37 rec37 →
-     rec37 (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc37 rec37)
-         (u Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc37 rec37)
-         (v Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc37 rec37)
+     rec37 _ _
+          (t Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc37 rec37)
+          (u Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc37 rec37)
+          (v Tm37 var37 lam37 app37 tt37 pair37 fst37 snd37 left37 right37 case37 zero37 suc37 rec37)
 
 v037 : ∀{Γ A} → Tm37 (snoc37 Γ A) A; v037
  = var37 vz37
@@ -6270,89 +6346,91 @@ snoc38 : Con38 → Ty38 → Con38; snoc38
 Var38 : Con38 → Ty38 → Set; Var38
  = λ Γ A →
    (Var38 : Con38 → Ty38 → Set)
-   (vz  : ∀{Γ A} → Var38 (snoc38 Γ A) A)
-   (vs  : ∀{Γ B A} → Var38 Γ A → Var38 (snoc38 Γ B) A)
+   (vz  : ∀ Γ A → Var38 (snoc38 Γ A) A)
+   (vs  : ∀ Γ B A → Var38 Γ A → Var38 (snoc38 Γ B) A)
  → Var38 Γ A
 
 vz38 : ∀{Γ A} → Var38 (snoc38 Γ A) A; vz38
- = λ Var38 vz38 vs → vz38
+ = λ Var38 vz38 vs → vz38 _ _
 
 vs38 : ∀{Γ B A} → Var38 Γ A → Var38 (snoc38 Γ B) A; vs38
- = λ x Var38 vz38 vs38 → vs38 (x Var38 vz38 vs38)
+ = λ x Var38 vz38 vs38 → vs38 _ _ _ (x Var38 vz38 vs38)
 
 Tm38 : Con38 → Ty38 → Set; Tm38
  = λ Γ A →
    (Tm38  : Con38 → Ty38 → Set)
-   (var   : ∀{Γ A} → Var38 Γ A → Tm38 Γ A)
-   (lam   : ∀{Γ A B} → Tm38 (snoc38 Γ A) B → Tm38 Γ (arr38 A B))
-   (app   : ∀{Γ A B} → Tm38 Γ (arr38 A B) → Tm38 Γ A → Tm38 Γ B)
-   (tt    : ∀{Γ} → Tm38 Γ top38)
-   (pair  : ∀{Γ A B} → Tm38 Γ A → Tm38 Γ B → Tm38 Γ (prod38 A B))
-   (fst   : ∀{Γ A B} → Tm38 Γ (prod38 A B) → Tm38 Γ A)
-   (snd   : ∀{Γ A B} → Tm38 Γ (prod38 A B) → Tm38 Γ B)
-   (left  : ∀{Γ A B} → Tm38 Γ A → Tm38 Γ (sum38 A B))
-   (right : ∀{Γ A B} → Tm38 Γ B → Tm38 Γ (sum38 A B))
-   (case  : ∀{Γ A B C} → Tm38 Γ (sum38 A B) → Tm38 Γ (arr38 A C) → Tm38 Γ (arr38 B C) → Tm38 Γ C)
-   (zero  : ∀{Γ} → Tm38 Γ nat38)
-   (suc   : ∀{Γ} → Tm38 Γ nat38 → Tm38 Γ nat38)
-   (rec   : ∀{Γ A} → Tm38 Γ nat38 → Tm38 Γ (arr38 nat38 (arr38 A A)) → Tm38 Γ A → Tm38 Γ A)
+   (var   : ∀ Γ A      → Var38 Γ A → Tm38 Γ A)
+   (lam   : ∀ Γ A B    → Tm38 (snoc38 Γ A) B → Tm38 Γ (arr38 A B))
+   (app   : ∀ Γ A B    → Tm38 Γ (arr38 A B) → Tm38 Γ A → Tm38 Γ B)
+   (tt    : ∀ Γ        → Tm38 Γ top38)
+   (pair  : ∀ Γ A B    → Tm38 Γ A → Tm38 Γ B → Tm38 Γ (prod38 A B))
+   (fst   : ∀ Γ A B    → Tm38 Γ (prod38 A B) → Tm38 Γ A)
+   (snd   : ∀ Γ A B    → Tm38 Γ (prod38 A B) → Tm38 Γ B)
+   (left  : ∀ Γ A B    → Tm38 Γ A → Tm38 Γ (sum38 A B))
+   (right : ∀ Γ A B    → Tm38 Γ B → Tm38 Γ (sum38 A B))
+   (case  : ∀ Γ A B C  → Tm38 Γ (sum38 A B) → Tm38 Γ (arr38 A C) → Tm38 Γ (arr38 B C) → Tm38 Γ C)
+   (zero  : ∀ Γ        → Tm38 Γ nat38)
+   (suc   : ∀ Γ        → Tm38 Γ nat38 → Tm38 Γ nat38)
+   (rec   : ∀ Γ A      → Tm38 Γ nat38 → Tm38 Γ (arr38 nat38 (arr38 A A)) → Tm38 Γ A → Tm38 Γ A)
  → Tm38 Γ A
 
 var38 : ∀{Γ A} → Var38 Γ A → Tm38 Γ A; var38
  = λ x Tm38 var38 lam app tt pair fst snd left right case zero suc rec →
-     var38 x
+     var38 _ _ x
 
 lam38 : ∀{Γ A B} → Tm38 (snoc38 Γ A) B → Tm38 Γ (arr38 A B); lam38
  = λ t Tm38 var38 lam38 app tt pair fst snd left right case zero suc rec →
-     lam38 (t Tm38 var38 lam38 app tt pair fst snd left right case zero suc rec)
+     lam38 _ _ _ (t Tm38 var38 lam38 app tt pair fst snd left right case zero suc rec)
 
 app38 : ∀{Γ A B} → Tm38 Γ (arr38 A B) → Tm38 Γ A → Tm38 Γ B; app38
  = λ t u Tm38 var38 lam38 app38 tt pair fst snd left right case zero suc rec →
-     app38 (t Tm38 var38 lam38 app38 tt pair fst snd left right case zero suc rec)
+     app38 _ _ _ (t Tm38 var38 lam38 app38 tt pair fst snd left right case zero suc rec)
          (u Tm38 var38 lam38 app38 tt pair fst snd left right case zero suc rec)
 
 tt38 : ∀{Γ} → Tm38 Γ top38; tt38
- = λ Tm38 var38 lam38 app38 tt38 pair fst snd left right case zero suc rec → tt38
+ = λ Tm38 var38 lam38 app38 tt38 pair fst snd left right case zero suc rec → tt38 _
 
 pair38 : ∀{Γ A B} → Tm38 Γ A → Tm38 Γ B → Tm38 Γ (prod38 A B); pair38
  = λ t u Tm38 var38 lam38 app38 tt38 pair38 fst snd left right case zero suc rec →
-     pair38 (t Tm38 var38 lam38 app38 tt38 pair38 fst snd left right case zero suc rec)
+     pair38 _ _ _ (t Tm38 var38 lam38 app38 tt38 pair38 fst snd left right case zero suc rec)
           (u Tm38 var38 lam38 app38 tt38 pair38 fst snd left right case zero suc rec)
 
 fst38 : ∀{Γ A B} → Tm38 Γ (prod38 A B) → Tm38 Γ A; fst38
  = λ t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd left right case zero suc rec →
-     fst38 (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd left right case zero suc rec)
+     fst38 _ _ _ (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd left right case zero suc rec)
 
 snd38 : ∀{Γ A B} → Tm38 Γ (prod38 A B) → Tm38 Γ B; snd38
  = λ t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left right case zero suc rec →
-     snd38 (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left right case zero suc rec)
+     snd38 _ _ _ (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left right case zero suc rec)
 
 left38 : ∀{Γ A B} → Tm38 Γ A → Tm38 Γ (sum38 A B); left38
  = λ t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right case zero suc rec →
-     left38 (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right case zero suc rec)
+     left38 _ _ _ (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right case zero suc rec)
 
 right38 : ∀{Γ A B} → Tm38 Γ B → Tm38 Γ (sum38 A B); right38
  = λ t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case zero suc rec →
-     right38 (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case zero suc rec)
+     right38 _ _ _ (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case zero suc rec)
 
 case38 : ∀{Γ A B C} → Tm38 Γ (sum38 A B) → Tm38 Γ (arr38 A C) → Tm38 Γ (arr38 B C) → Tm38 Γ C; case38
  = λ t u v Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero suc rec →
-     case38 (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero suc rec)
+     case38 _ _ _ _
+           (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero suc rec)
            (u Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero suc rec)
            (v Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero suc rec)
 
 zero38  : ∀{Γ} → Tm38 Γ nat38; zero38
- = λ Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc rec → zero38
+ = λ Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc rec → zero38 _
 
 suc38 : ∀{Γ} → Tm38 Γ nat38 → Tm38 Γ nat38; suc38
  = λ t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc38 rec →
-   suc38 (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc38 rec)
+   suc38 _ (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc38 rec)
 
 rec38 : ∀{Γ A} → Tm38 Γ nat38 → Tm38 Γ (arr38 nat38 (arr38 A A)) → Tm38 Γ A → Tm38 Γ A; rec38
  = λ t u v Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc38 rec38 →
-     rec38 (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc38 rec38)
-         (u Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc38 rec38)
-         (v Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc38 rec38)
+     rec38 _ _
+          (t Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc38 rec38)
+          (u Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc38 rec38)
+          (v Tm38 var38 lam38 app38 tt38 pair38 fst38 snd38 left38 right38 case38 zero38 suc38 rec38)
 
 v038 : ∀{Γ A} → Tm38 (snoc38 Γ A) A; v038
  = var38 vz38
@@ -6434,89 +6512,91 @@ snoc39 : Con39 → Ty39 → Con39; snoc39
 Var39 : Con39 → Ty39 → Set; Var39
  = λ Γ A →
    (Var39 : Con39 → Ty39 → Set)
-   (vz  : ∀{Γ A} → Var39 (snoc39 Γ A) A)
-   (vs  : ∀{Γ B A} → Var39 Γ A → Var39 (snoc39 Γ B) A)
+   (vz  : ∀ Γ A → Var39 (snoc39 Γ A) A)
+   (vs  : ∀ Γ B A → Var39 Γ A → Var39 (snoc39 Γ B) A)
  → Var39 Γ A
 
 vz39 : ∀{Γ A} → Var39 (snoc39 Γ A) A; vz39
- = λ Var39 vz39 vs → vz39
+ = λ Var39 vz39 vs → vz39 _ _
 
 vs39 : ∀{Γ B A} → Var39 Γ A → Var39 (snoc39 Γ B) A; vs39
- = λ x Var39 vz39 vs39 → vs39 (x Var39 vz39 vs39)
+ = λ x Var39 vz39 vs39 → vs39 _ _ _ (x Var39 vz39 vs39)
 
 Tm39 : Con39 → Ty39 → Set; Tm39
  = λ Γ A →
    (Tm39  : Con39 → Ty39 → Set)
-   (var   : ∀{Γ A} → Var39 Γ A → Tm39 Γ A)
-   (lam   : ∀{Γ A B} → Tm39 (snoc39 Γ A) B → Tm39 Γ (arr39 A B))
-   (app   : ∀{Γ A B} → Tm39 Γ (arr39 A B) → Tm39 Γ A → Tm39 Γ B)
-   (tt    : ∀{Γ} → Tm39 Γ top39)
-   (pair  : ∀{Γ A B} → Tm39 Γ A → Tm39 Γ B → Tm39 Γ (prod39 A B))
-   (fst   : ∀{Γ A B} → Tm39 Γ (prod39 A B) → Tm39 Γ A)
-   (snd   : ∀{Γ A B} → Tm39 Γ (prod39 A B) → Tm39 Γ B)
-   (left  : ∀{Γ A B} → Tm39 Γ A → Tm39 Γ (sum39 A B))
-   (right : ∀{Γ A B} → Tm39 Γ B → Tm39 Γ (sum39 A B))
-   (case  : ∀{Γ A B C} → Tm39 Γ (sum39 A B) → Tm39 Γ (arr39 A C) → Tm39 Γ (arr39 B C) → Tm39 Γ C)
-   (zero  : ∀{Γ} → Tm39 Γ nat39)
-   (suc   : ∀{Γ} → Tm39 Γ nat39 → Tm39 Γ nat39)
-   (rec   : ∀{Γ A} → Tm39 Γ nat39 → Tm39 Γ (arr39 nat39 (arr39 A A)) → Tm39 Γ A → Tm39 Γ A)
+   (var   : ∀ Γ A      → Var39 Γ A → Tm39 Γ A)
+   (lam   : ∀ Γ A B    → Tm39 (snoc39 Γ A) B → Tm39 Γ (arr39 A B))
+   (app   : ∀ Γ A B    → Tm39 Γ (arr39 A B) → Tm39 Γ A → Tm39 Γ B)
+   (tt    : ∀ Γ        → Tm39 Γ top39)
+   (pair  : ∀ Γ A B    → Tm39 Γ A → Tm39 Γ B → Tm39 Γ (prod39 A B))
+   (fst   : ∀ Γ A B    → Tm39 Γ (prod39 A B) → Tm39 Γ A)
+   (snd   : ∀ Γ A B    → Tm39 Γ (prod39 A B) → Tm39 Γ B)
+   (left  : ∀ Γ A B    → Tm39 Γ A → Tm39 Γ (sum39 A B))
+   (right : ∀ Γ A B    → Tm39 Γ B → Tm39 Γ (sum39 A B))
+   (case  : ∀ Γ A B C  → Tm39 Γ (sum39 A B) → Tm39 Γ (arr39 A C) → Tm39 Γ (arr39 B C) → Tm39 Γ C)
+   (zero  : ∀ Γ        → Tm39 Γ nat39)
+   (suc   : ∀ Γ        → Tm39 Γ nat39 → Tm39 Γ nat39)
+   (rec   : ∀ Γ A      → Tm39 Γ nat39 → Tm39 Γ (arr39 nat39 (arr39 A A)) → Tm39 Γ A → Tm39 Γ A)
  → Tm39 Γ A
 
 var39 : ∀{Γ A} → Var39 Γ A → Tm39 Γ A; var39
  = λ x Tm39 var39 lam app tt pair fst snd left right case zero suc rec →
-     var39 x
+     var39 _ _ x
 
 lam39 : ∀{Γ A B} → Tm39 (snoc39 Γ A) B → Tm39 Γ (arr39 A B); lam39
  = λ t Tm39 var39 lam39 app tt pair fst snd left right case zero suc rec →
-     lam39 (t Tm39 var39 lam39 app tt pair fst snd left right case zero suc rec)
+     lam39 _ _ _ (t Tm39 var39 lam39 app tt pair fst snd left right case zero suc rec)
 
 app39 : ∀{Γ A B} → Tm39 Γ (arr39 A B) → Tm39 Γ A → Tm39 Γ B; app39
  = λ t u Tm39 var39 lam39 app39 tt pair fst snd left right case zero suc rec →
-     app39 (t Tm39 var39 lam39 app39 tt pair fst snd left right case zero suc rec)
+     app39 _ _ _ (t Tm39 var39 lam39 app39 tt pair fst snd left right case zero suc rec)
          (u Tm39 var39 lam39 app39 tt pair fst snd left right case zero suc rec)
 
 tt39 : ∀{Γ} → Tm39 Γ top39; tt39
- = λ Tm39 var39 lam39 app39 tt39 pair fst snd left right case zero suc rec → tt39
+ = λ Tm39 var39 lam39 app39 tt39 pair fst snd left right case zero suc rec → tt39 _
 
 pair39 : ∀{Γ A B} → Tm39 Γ A → Tm39 Γ B → Tm39 Γ (prod39 A B); pair39
  = λ t u Tm39 var39 lam39 app39 tt39 pair39 fst snd left right case zero suc rec →
-     pair39 (t Tm39 var39 lam39 app39 tt39 pair39 fst snd left right case zero suc rec)
+     pair39 _ _ _ (t Tm39 var39 lam39 app39 tt39 pair39 fst snd left right case zero suc rec)
           (u Tm39 var39 lam39 app39 tt39 pair39 fst snd left right case zero suc rec)
 
 fst39 : ∀{Γ A B} → Tm39 Γ (prod39 A B) → Tm39 Γ A; fst39
  = λ t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd left right case zero suc rec →
-     fst39 (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd left right case zero suc rec)
+     fst39 _ _ _ (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd left right case zero suc rec)
 
 snd39 : ∀{Γ A B} → Tm39 Γ (prod39 A B) → Tm39 Γ B; snd39
  = λ t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left right case zero suc rec →
-     snd39 (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left right case zero suc rec)
+     snd39 _ _ _ (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left right case zero suc rec)
 
 left39 : ∀{Γ A B} → Tm39 Γ A → Tm39 Γ (sum39 A B); left39
  = λ t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right case zero suc rec →
-     left39 (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right case zero suc rec)
+     left39 _ _ _ (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right case zero suc rec)
 
 right39 : ∀{Γ A B} → Tm39 Γ B → Tm39 Γ (sum39 A B); right39
  = λ t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case zero suc rec →
-     right39 (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case zero suc rec)
+     right39 _ _ _ (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case zero suc rec)
 
 case39 : ∀{Γ A B C} → Tm39 Γ (sum39 A B) → Tm39 Γ (arr39 A C) → Tm39 Γ (arr39 B C) → Tm39 Γ C; case39
  = λ t u v Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero suc rec →
-     case39 (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero suc rec)
+     case39 _ _ _ _
+           (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero suc rec)
            (u Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero suc rec)
            (v Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero suc rec)
 
 zero39  : ∀{Γ} → Tm39 Γ nat39; zero39
- = λ Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc rec → zero39
+ = λ Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc rec → zero39 _
 
 suc39 : ∀{Γ} → Tm39 Γ nat39 → Tm39 Γ nat39; suc39
  = λ t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc39 rec →
-   suc39 (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc39 rec)
+   suc39 _ (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc39 rec)
 
 rec39 : ∀{Γ A} → Tm39 Γ nat39 → Tm39 Γ (arr39 nat39 (arr39 A A)) → Tm39 Γ A → Tm39 Γ A; rec39
  = λ t u v Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc39 rec39 →
-     rec39 (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc39 rec39)
-         (u Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc39 rec39)
-         (v Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc39 rec39)
+     rec39 _ _
+          (t Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc39 rec39)
+          (u Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc39 rec39)
+          (v Tm39 var39 lam39 app39 tt39 pair39 fst39 snd39 left39 right39 case39 zero39 suc39 rec39)
 
 v039 : ∀{Γ A} → Tm39 (snoc39 Γ A) A; v039
  = var39 vz39
