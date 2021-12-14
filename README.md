@@ -44,8 +44,18 @@ intended to be as similar as possible across Agda, Lean, Coq and smalltt.
 
 You may skip to [benchmarks](#benchmarks) if you're interested in that.
 
-Work in progress. Code and documentation alike may be subject to change, cleanup
-or extension.
+Smalltt *is* fast, however:
+- Smalltt is not as nearly as fast as it could possibly be. A lot of tuning
+  based on real-world benchmarking data is missing here, because there isn't any
+  real-world code for smalltt besides the benchmarks that I wrote. A bunch of
+  plausible optimizations are also missing.
+- The primary motivation is to demonstrate designs that can plausibly scale up
+  to feature-complete languages, still yield great performance there, and
+  naturally support a lot more optimization and tuning than what's included
+  here.
+
+This project is not yet finalized. Code and documentation alike may be subject
+to change, cleanup, extension, or perhaps complete rewrite.
 
 ### Installation
 
@@ -709,20 +719,25 @@ Pull requests are welcome!
 - Agda 2.6.2 has a parsing blowup issue on large files:
   https://github.com/agda/agda/issues/5670. So only `stlc`, `stlcLessImpl`, and
   `stlcSmall` are really indicative of elaboration performance.
+- The different systems do somewhat different kinds of work. Smalltt and coqtop
+  only elaborate input, while Agda does module serialization, and Lean
+  apparently does some compilation according to its profiling output (maybe to
+  bytecode?). However, the numbers should be still indicative of how much we
+  have to wait to have the entire input available for interactive use.
 
 
-|                 | smalltt | Agda    | Coq    | Lean elab |  Lean total |
-|-----------------|---------|---------|--------|-----------|-------------|
-| stlc            | 0.014   | 0.573   | N/A    | 0.075     |  0.194      |
-| stlc5k          | 0.179   | 4.127   | N/A    | 2.97      |  6.049      |
-| stlc10k         | 0.306   | 16.160  | N/A    | 6.21      |  12.982     |
-| stlcLessImpl    | 0.008   | 0.358   | 0.151  | 0.052     |  0.166      |
-| stlcLessImpl5k  | 0.140   | 4.169   | 0.905  | 2.15      |  4.508      |
-| stlcLessImpl10k | 0.275   | 17.426  | 1.703  | 4.24      |  8.861      |
-| stlcSmall       | 0.003   | 0.106   | 0.128  | 0.015     |  0.073      |
-| stlcSmall5k     | 0.037   | 4.445   | 0.809  | 1.38      |  2.649      |
-| stlcSmall10k    | 0.072   | 22.8    | 1.470  | 2.76      |  5.244      |
-| stlcSmall1M     | 8.725   | TL      | 439.3  | 317       |  615        |
+|                 | smalltt | Agda    | Coq     |  Lean total |
+|-----------------|---------|---------|---------|-------------|
+| stlc            | 0.014   | 0.573   | N/A     |  0.194      |
+| stlc5k          | 0.179   | 4.127   | N/A     |  6.049      |
+| stlc10k         | 0.306   | 16.160  | N/A     |  12.982     |
+| stlcLessImpl    | 0.008   | 0.358   | 0.151   |  0.166      |
+| stlcLessImpl5k  | 0.140   | 4.169   | 0.905   |  4.508      |
+| stlcLessImpl10k | 0.275   | 17.426  | 1.703   |  8.861      |
+| stlcSmall       | 0.003   | 0.106   | 0.128   |  0.073      |
+| stlcSmall5k     | 0.037   | 4.445   | 0.809   |  2.649      |
+| stlcSmall10k    | 0.072   | 22.8    | 1.470   |  5.244      |
+| stlcSmall1M     | 8.725   | TL      | 439.3   |  615        |
 
 
 ### Elaboration asymptotics
