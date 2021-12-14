@@ -30,10 +30,10 @@ mostly in 2018-2019.
   * [Join-point friendly IO combinators](#join-point-friendly-io-combinators)
   * [Data structures and libraries](#data-structures-and-libraries)
 * [Benchmarks](#benchmarks)
-  * [Elaboration speed](elaboration-speed)
-  * [Elaboration asymptotics](elaboration-asymptotics)
-  * [Raw conversion checking](raw-conversion-checking)
-  * [Raw evaluation and normalization](raw-evaluation-and-normalization)
+  * [Elaboration speed](#elaboration-speed)
+  * [Elaboration asymptotics](#elaboration-asymptotics)
+  * [Raw conversion checking](#raw-conversion-checking)
+  * [Raw evaluation and normalization](#raw-evaluation-and-normalization)
 
 
 ### Overview
@@ -66,6 +66,9 @@ Using `cabal`:
 Also make sure that the executable is on the PATH. On Linux-es, the `stack`
 install directory is `$HOME/.local/bin`, and the `cabal` one is
 `$HOME/.cabal/bin`.
+
+Installation gets you the `smalltt` executable. You can find usage information
+after starting `smalltt`.
 
 ### Language overview
 
