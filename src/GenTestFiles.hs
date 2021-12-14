@@ -18,26 +18,40 @@ times n f = concatMap f [0..n-1]
 
 smallttStlc10k       = writeFile "bench/stlc10k.stt"         $ times 80 smallttStlc
 smallttStlc5k        = writeFile "bench/stlc5k.stt"          $ times 40 smallttStlc
-smallttStlcNoImpl10k = writeFile "bench/stlc_noimpl10k.stt"  $ times 80 smallttStlcNoImpl
-smallttStlcNoImpl5k = writeFile "bench/stlc_noimpl5k.stt"  $ times 40 smallttStlcNoImpl
+smallttStlcLessImpl10k = writeFile "bench/stlc_noimpl10k.stt"  $ times 80 smallttStlcLessImpl
+smallttStlcLessImpl5k = writeFile "bench/stlc_noimpl5k.stt"  $ times 40 smallttStlcLessImpl
 smallttStlc100k      = writeFile "bench/stlc100k.stt"        $ times 800 smallttStlc
 
 leanStlc1k           = writeFile "bench/stlc1k.lean"         $ times 8 leanStlc
 leanStlc5k           = writeFile "bench/stlc5k.lean"         $ times 40 leanStlc
 leanStlc10k          = writeFile "bench/stlc10k.lean"        $ times 80 leanStlc
-leanStlcNoImpl10k    = writeFile "bench/stlc_noimpl10k.lean" $ times 80 leanStlcNoImpl
-leanStlcNoImpl5k     = writeFile "bench/stlc_noimpl5k.lean"  $ times 40 leanStlcNoImpl
+leanStlcLessImpl10k    = writeFile "bench/stlc_noimpl10k.lean" $ times 80 leanStlcLessImpl
+leanStlcLessImpl5k     = writeFile "bench/stlc_noimpl5k.lean"  $ times 40 leanStlcLessImpl
 leanStlc100k         = writeFile "bench/stlc100k.lean"       $ times 800 leanStlc
 
-agdaStlcNoImpl10k    = writeFile "bench/stlc_noimpl10k.agda" $ times 80 agdaStlcNoImpl
-agdaStlcNoImpl5k    = writeFile "bench/stlc_noimpl5k.agda" $ times 40 agdaStlcNoImpl
+agdaStlcLessImpl10k    = writeFile "bench/stlc_noimpl10k.agda" $ times 80 agdaStlcLessImpl
+agdaStlcLessImpl5k    = writeFile "bench/stlc_noimpl5k.agda" $ times 40 agdaStlcLessImpl
 agdaStlc1k           = writeFile "bench/stlc1k.agda"         $ times 8 agdaStlc
 agdaStlc5k           = writeFile "bench/stlc5k.agda"         $ times 40 agdaStlc
 agdaStlc10k          = writeFile "bench/stlc10k.agda"        $ times 80 agdaStlc
 agdaStlc100k         = writeFile "bench/stlc100k.agda"       $ times 800 agdaStlc
 
-coqStlcNoImpl10k     = writeFile "bench/stlc_noimpl10k.v"    $ times 80 coqStlcNoImpl
-coqStlcNoImpl5k      = writeFile "bench/stlc_noimpl5k.v"    $ times 40 coqStlcNoImpl
+coqStlcLessImpl10k     = writeFile "bench/stlc_noimpl10k.v"    $ times 80 coqStlcLessImpl
+coqStlcLessImpl5k      = writeFile "bench/stlc_noimpl5k.v"    $ times 40 coqStlcLessImpl
+
+smallttStlcSmall10k = writeFile "bench/stlc_small10k.stt" $ times 192 smallttStlcSmall
+smallttStlcSmall5k  = writeFile "bench/stlc_small5k.stt"  $ times 96 smallttStlcSmall
+agdaStlcSmall10k = writeFile "bench/stlc_small10k.agda" $ times 192 agdaStlcSmall
+agdaStlcSmall5k  = writeFile "bench/stlc_small5k.agda"  $ times 96 agdaStlcSmall
+coqStlcSmall10k = writeFile "bench/stlc_small10k.v" $ times 192 coqStlcSmall
+coqStlcSmall5k  = writeFile "bench/stlc_small5k.v"  $ times 96 coqStlcSmall
+leanStlcSmall10k = writeFile "bench/stlc_small10k.lean" $ times 192 leanStlcSmall
+leanStlcSmall5k  = writeFile "bench/stlc_small5k.lean"  $ times 96 leanStlcSmall
+
+agdaStlcSmall1M     = writeFile "bench/stlc_small1M.agda" $ times 19200 agdaStlcSmall
+coqStlcSmall1M      = writeFile "bench/stlc_small1M.v"    $ times 19200 coqStlcSmall
+leanStlcSmall1M     = writeFile "bench/stlc_small1M.lean" $ times 19200 leanStlcSmall
+smallttStlcSmall1M  = writeFile "bench/stlc_small1M.stt"  $ times 19200 smallttStlcSmall
 
 test1 :: Int -> String
 test1 = render [
@@ -707,8 +721,8 @@ agdaStlc = render [
   "        (suc% zero%))"
   ]
 
-smallttStlcNoImpl :: Int -> String
-smallttStlcNoImpl = render [
+smallttStlcLessImpl :: Int -> String
+smallttStlcLessImpl = render [
   "",
   "Ty% : U",
   " = (Ty%           : U)",
@@ -875,7 +889,7 @@ smallttStlcNoImpl = render [
   "           (suc% zero%))"
   ]
 
-leanStlcNoImpl = render [
+leanStlcLessImpl = render [
 
   "def Ty% : Type 1",
   " := ∀ (Ty%           : Type)",
@@ -1048,7 +1062,7 @@ leanStlcNoImpl = render [
   "(suc% zero%))"
   ]
 
-agdaStlcNoImpl = render [
+agdaStlcLessImpl = render [
 
   "{-# OPTIONS --type-in-type #-}",
   "",
@@ -1218,7 +1232,7 @@ agdaStlcNoImpl = render [
   "        (suc% zero%))"
   ]
 
-coqStlcNoImpl = render [
+coqStlcLessImpl = render [
   "Require Import Coq.Unicode.Utf8.",
   "",
   "Definition Ty% : Set",
@@ -1390,5 +1404,315 @@ coqStlcNoImpl = render [
   "Definition fact% {Γ} : Tm% Γ (arr% nat% nat%)",
   " := lam% (rec% v0% (lam% (lam% (app% (app% mul% (suc% v1%)) v0%)))",
   "        (suc% zero%)).",
+  ""
+  ]
+
+agdaStlcSmall = render [
+  "{-# OPTIONS --type-in-type #-}",
+  "",
+  "Ty% : Set; Ty%",
+  " = (Ty  : Set)",
+  "   (ι   : Ty)",
+  "   (arr : Ty → Ty → Ty)",
+  " → Ty",
+  "",
+  "ι%   : Ty%; ι% = λ _ ι% _ → ι%",
+  "arr% : Ty% → Ty% → Ty%; arr% = λ A B Ty% ι% arr% → arr% (A Ty% ι% arr%) (B Ty% ι% arr%)",
+  "",
+  "Con% : Set;Con%",
+  " = (Con% : Set)",
+  "   (nil  : Con%)",
+  "   (snoc : Con% → Ty% → Con%)",
+  " → Con%",
+  "",
+  "nil% : Con%;nil%",
+  " = λ Con% nil% snoc → nil%",
+  "",
+  "snoc% : Con% → Ty% → Con%;snoc%",
+  " = λ Γ A Con% nil% snoc% → snoc% (Γ Con% nil% snoc%) A",
+  "",
+  "Var% : Con% → Ty% → Set;Var%",
+  " = λ Γ A →",
+  "   (Var% : Con% → Ty% → Set)",
+  "   (vz  : (Γ : _)(A : _) → Var% (snoc% Γ A) A)",
+  "   (vs  : (Γ : _)(B A : _) → Var% Γ A → Var% (snoc% Γ B) A)",
+  " → Var% Γ A",
+  "",
+  "vz% : ∀{Γ A} → Var% (snoc% Γ A) A;vz%",
+  " = λ Var% vz% vs → vz% _ _",
+  "",
+  "vs% : ∀{Γ B A} → Var% Γ A → Var% (snoc% Γ B) A;vs%",
+  " = λ x Var% vz% vs% → vs% _ _ _ (x Var% vz% vs%)",
+  "",
+  "Tm% : Con% → Ty% → Set;Tm%",
+  " = λ Γ A →",
+  "   (Tm%    : Con% → Ty% → Set)",
+  "   (var   : (Γ : _) (A : _) → Var% Γ A → Tm% Γ A)",
+  "   (lam   : (Γ : _) (A B : _) → Tm% (snoc% Γ A) B → Tm% Γ (arr% A B))",
+  "   (app   : (Γ : _) (A B : _) → Tm% Γ (arr% A B) → Tm% Γ A → Tm% Γ B)",
+  " → Tm% Γ A",
+  "",
+  "var% : ∀{Γ A} → Var% Γ A → Tm% Γ A;var%",
+  " = λ x Tm% var% lam app → var% _ _ x",
+  "",
+  "lam% : ∀{Γ A B} → Tm% (snoc% Γ A) B → Tm% Γ (arr% A B);lam%",
+  " = λ t Tm% var% lam% app → lam% _ _ _ (t Tm% var% lam% app)",
+  "",
+  "app% : ∀{Γ A B} → Tm% Γ (arr% A B) → Tm% Γ A → Tm% Γ B;app%",
+  " = λ t u Tm% var% lam% app% →",
+  "     app% _ _ _ (t Tm% var% lam% app%) (u Tm% var% lam% app%)",
+  "",
+  "v0% : ∀{Γ A} → Tm% (snoc% Γ A) A;v0%",
+  " = var% vz%",
+  "",
+  "v1% : ∀{Γ A B} → Tm% (snoc% (snoc% Γ A) B) A;v1%",
+  " = var% (vs% vz%)",
+  "",
+  "v2% : ∀{Γ A B C} → Tm% (snoc% (snoc% (snoc% Γ A) B) C) A;v2%",
+  " = var% (vs% (vs% vz%))",
+  "",
+  "v3% : ∀{Γ A B C D} → Tm% (snoc% (snoc% (snoc% (snoc% Γ A) B) C) D) A;v3%",
+  " = var% (vs% (vs% (vs% vz%)))",
+  "",
+  "v4% : ∀{Γ A B C D E} → Tm% (snoc% (snoc% (snoc% (snoc% (snoc% Γ A) B) C) D) E) A;v4%",
+  " = var% (vs% (vs% (vs% (vs% vz%))))",
+  "",
+  "test% : ∀{Γ A} → Tm% Γ (arr% (arr% A A) (arr% A A));test%",
+  "  = lam% (lam% (app% v1% (app% v1% (app% v1% (app% v1% (app% v1% (app% v1% v0%)))))))"
+  ]
+
+smallttStlcSmall = render [
+  "Ty% : U",
+  " = (Ty  : U)",
+  "   (ι   : Ty)",
+  "   (arr : Ty → Ty → Ty)",
+  " → Ty",
+  "",
+  "ι%   : Ty% = λ _ ι% _. ι%",
+  "arr% : Ty% → Ty% → Ty% = λ A B Ty% ι% arr%. arr% (A Ty% ι% arr%) (B Ty% ι% arr%)",
+  "",
+  "Con% : U",
+  " = (Con% : U)",
+  "   (nil  : Con%)",
+  "   (snoc : Con% → Ty% → Con%)",
+  " → Con%",
+  "",
+  "nil% : Con%",
+  " = λ Con% nil% snoc. nil%",
+  "",
+  "snoc% : Con% → Ty% → Con%",
+  " = λ Γ A Con% nil% snoc%. snoc% (Γ Con% nil% snoc%) A",
+  "",
+  "Var% : Con% → Ty% → U",
+  " = λ Γ A.",
+  "   (Var% : Con% → Ty% → U)",
+  "   (vz  : (Γ : _)(A : _) → Var% (snoc% Γ A) A)",
+  "   (vs  : (Γ : _)(B A : _) → Var% Γ A → Var% (snoc% Γ B) A)",
+  " → Var% Γ A",
+  "",
+  "vz% : {Γ A} → Var% (snoc% Γ A) A",
+  " = λ Var% vz% vs. vz% _ _",
+  "",
+  "vs% : {Γ B A} → Var% Γ A → Var% (snoc% Γ B) A",
+  " = λ x Var% vz% vs%. vs% _ _ _ (x Var% vz% vs%)",
+  "",
+  "Tm% : Con% → Ty% → U",
+  " = λ Γ A.",
+  "   (Tm%    : Con% → Ty% → U)",
+  "   (var   : (Γ : _) (A : _) → Var% Γ A → Tm% Γ A)",
+  "   (lam   : (Γ : _) (A B : _) → Tm% (snoc% Γ A) B → Tm% Γ (arr% A B))",
+  "   (app   : (Γ : _) (A B : _) → Tm% Γ (arr% A B) → Tm% Γ A → Tm% Γ B)",
+  " → Tm% Γ A",
+  "",
+  "var% : {Γ A} → Var% Γ A → Tm% Γ A",
+  " = λ x Tm% var% lam app. var% _ _ x",
+  "",
+  "lam% : {Γ A B} → Tm% (snoc% Γ A) B → Tm% Γ (arr% A B)",
+  " = λ t Tm% var% lam% app. lam% _ _ _ (t Tm% var% lam% app)",
+  "",
+  "app% : {Γ A B} → Tm% Γ (arr% A B) → Tm% Γ A → Tm% Γ B",
+  " = λ t u Tm% var% lam% app%. ",
+  "     app% _ _ _ (t Tm% var% lam% app%) (u Tm% var% lam% app%)",
+  "",
+  "v0% : {Γ A} → Tm% (snoc% Γ A) A",
+  " = var% vz%",
+  "",
+  "v1% : {Γ A B} → Tm% (snoc% (snoc% Γ A) B) A",
+  " = var% (vs% vz%)",
+  "",
+  "v2% : {Γ A B C} → Tm% (snoc% (snoc% (snoc% Γ A) B) C) A",
+  " = var% (vs% (vs% vz%))",
+  "",
+  "v3% : {Γ A B C D} → Tm% (snoc% (snoc% (snoc% (snoc% Γ A) B) C) D) A",
+  " = var% (vs% (vs% (vs% vz%)))",
+  "",
+  "v4% : {Γ A B C D E} → Tm% (snoc% (snoc% (snoc% (snoc% (snoc% Γ A) B) C) D) E) A",
+  " = var% (vs% (vs% (vs% (vs% vz%))))",
+  "",
+  "test% : {Γ A} → Tm% Γ (arr% (arr% A A) (arr% A A))",
+  "  = lam% (lam% (app% v1% (app% v1% (app% v1% (app% v1% (app% v1% (app% v1% v0%)))))))  "
+  ]
+
+
+coqStlcSmall = render [
+  "Require Import Coq.Unicode.Utf8.",
+  "",
+  "Definition Ty% : Set",
+  " := ∀ (Ty% : Set)",
+  "      (ι   : Ty%)",
+  "      (arr : Ty% → Ty% → Ty%)",
+  "    , Ty%.",
+  "",
+  "Definition ι% : Ty% := λ _ ι% _, ι%.",
+  "",
+  "Definition arr% : Ty% → Ty% → Ty%",
+  " := λ A B Ty% ι% arr%,",
+  "     arr% (A Ty% ι% arr%) (B Ty% ι% arr%).",
+  "",
+  "Definition Con% : Set",
+  " := ∀ (Con%  : Set)",
+  "      (nil  : Con%)",
+  "      (snoc : Con% → Ty% → Con%)",
+  "    , Con%.",
+  "",
+  "Definition nil% : Con%",
+  " := λ Con% nil% snoc , nil%.",
+  "",
+  "Definition snoc% : Con% → Ty% → Con%",
+  " := λ Γ A Con% nil% snoc% , snoc% (Γ Con% nil% snoc%) A.",
+  "",
+  "Definition Var% : Con% → Ty% → Set",
+  " := λ Γ A ,",
+  "   ∀ (Var% : Con% → Ty% → Set)",
+  "     (vz  : ∀ Γ A, Var% (snoc% Γ A) A)",
+  "     (vs  : ∀ Γ B A, Var% Γ A → Var% (snoc% Γ B) A)",
+  "   , Var% Γ A.",
+  "",
+  "Definition vz% {Γ A} : Var% (snoc% Γ A) A",
+  " := λ Var% vz% vs , vz% _ _.",
+  "",
+  "Definition vs% {Γ B A} : Var% Γ A → Var% (snoc% Γ B) A",
+  " := λ x Var% vz% vs% , vs% _ _ _ (x Var% vz% vs%).",
+  "",
+  "Definition Tm% : Con% → Ty% → Set",
+  " := λ Γ A ,",
+  "   ∀ (Tm%  : Con% → Ty% → Set)",
+  "     (var   : ∀ Γ A     , Var% Γ A → Tm% Γ A)",
+  "     (lam   : ∀ Γ A B   , Tm% (snoc% Γ A) B → Tm% Γ (arr% A B))",
+  "     (app   : ∀ Γ A B   , Tm% Γ (arr% A B) → Tm% Γ A → Tm% Γ B)",
+  "   , Tm% Γ A.",
+  "",
+  "Definition var% {Γ A} : Var% Γ A → Tm% Γ A",
+  " := λ x Tm% var% lam app,",
+  "     var% _ _ x.",
+  "",
+  "Definition lam% {Γ A B} : Tm% (snoc% Γ A) B → Tm% Γ (arr% A B)",
+  " := λ t Tm% var% lam% app,",
+  "     lam% _ _ _ (t Tm% var% lam% app).",
+  "",
+  "Definition app% {Γ A B} : Tm% Γ (arr% A B) → Tm% Γ A → Tm% Γ B",
+  " := λ t u Tm% var% lam% app%,",
+  "     app% _ _ _",
+  "         (t Tm% var% lam% app%)",
+  "         (u Tm% var% lam% app%).",
+  "",
+  "Definition v0% {Γ A} : Tm% (snoc% Γ A) A",
+  " := var% vz%.",
+  "",
+  "Definition v1% {Γ A B} : Tm% (snoc% (snoc% Γ A) B) A",
+  " := var% (vs% vz%).",
+  "",
+  "Definition v2% {Γ A B C} : Tm% (snoc% (snoc% (snoc% Γ A) B) C) A",
+  " := var% (vs% (vs% vz%)).",
+  "",
+  "Definition v3% {Γ A B C D} : Tm% (snoc% (snoc% (snoc% (snoc% Γ A) B) C) D) A",
+  " := var% (vs% (vs% (vs% vz%))).",
+  "",
+  "Definition v4% {Γ A B C D E} : Tm% (snoc% (snoc% (snoc% (snoc% (snoc% Γ A) B) C) D) E) A",
+  " := var% (vs% (vs% (vs% (vs% vz%)))).",
+  "",
+  "Definition test% {Γ A} : Tm% Γ (arr% (arr% A A) (arr% A A))",
+  " := lam% (lam% (app% v1% (app% v1% (app% v1% (app% v1% (app% v1% (app% v1% v0%))))))).",
+  ""
+  ]
+
+leanStlcSmall = render [
+  "",
+  "def Ty% : Type 1",
+  " := ∀ (Ty% : Type)",
+  "      (ι   : Ty%)",
+  "      (arr : Ty% → Ty% → Ty%)",
+  "    , Ty%",
+  "",
+  "def ι% : Ty% := λ _ ι% _ => ι%",
+  "",
+  "def arr% : Ty% → Ty% → Ty%",
+  " := λ A B Ty% ι% arr% =>",
+  "     arr% (A Ty% ι% arr%) (B Ty% ι% arr%)",
+  "",
+  "def Con% : Type 1",
+  " := ∀ (Con%  : Type)",
+  "      (nil  : Con%)",
+  "      (snoc : Con% → Ty% → Con%)",
+  "    , Con%",
+  "",
+  "def nil% : Con%",
+  " := λ Con% nil% snoc => nil%",
+  "",
+  "def snoc% : Con% → Ty% → Con%",
+  " := λ Γ A Con% nil% snoc% => snoc% (Γ Con% nil% snoc%) A",
+  "",
+  "def Var% : Con% → Ty% → Type 1",
+  " := λ Γ A =>",
+  "   ∀ (Var% : Con% → Ty% → Type)",
+  "     (vz  : ∀ Γ A, Var% (snoc% Γ A) A)",
+  "     (vs  : ∀ Γ B A, Var% Γ A → Var% (snoc% Γ B) A)",
+  "   , Var% Γ A",
+  "",
+  "def vz% {Γ A} : Var% (snoc% Γ A) A",
+  " := λ Var% vz% vs => vz% _ _",
+  "",
+  "def vs% {Γ B A} : Var% Γ A → Var% (snoc% Γ B) A",
+  " := λ x Var% vz% vs% => vs% _ _ _ (x Var% vz% vs%)",
+  "",
+  "def Tm% : Con% → Ty% → Type 1",
+  " := λ Γ A =>",
+  "   ∀ (Tm%  : Con% → Ty% → Type)",
+  "     (var   : ∀ Γ A     , Var% Γ A → Tm% Γ A)",
+  "     (lam   : ∀ Γ A B   , Tm% (snoc% Γ A) B → Tm% Γ (arr% A B))",
+  "     (app   : ∀ Γ A B   , Tm% Γ (arr% A B) → Tm% Γ A → Tm% Γ B)",
+  "   , Tm% Γ A",
+  "",
+  "def var% {Γ A} : Var% Γ A → Tm% Γ A",
+  " := λ x Tm% var% lam app =>",
+  "     var% _ _ x",
+  "",
+  "def lam% {Γ A B} : Tm% (snoc% Γ A) B → Tm% Γ (arr% A B)",
+  " := λ t Tm% var% lam% app =>",
+  "     lam% _ _ _ (t Tm% var% lam% app)",
+  "",
+  "def app% {Γ A B} : Tm% Γ (arr% A B) → Tm% Γ A → Tm% Γ B",
+  " := λ t u Tm% var% lam% app% =>",
+  "     app% _ _ _",
+  "         (t Tm% var% lam% app%)",
+  "         (u Tm% var% lam% app%)",
+  "",
+  "def v0% {Γ A} : Tm% (snoc% Γ A) A",
+  " := var% vz%",
+  "",
+  "def v1% {Γ A B} : Tm% (snoc% (snoc% Γ A) B) A",
+  " := var% (vs% vz%)",
+  "",
+  "def v2% {Γ A B C} : Tm% (snoc% (snoc% (snoc% Γ A) B) C) A",
+  " := var% (vs% (vs% vz%))",
+  "",
+  "def v3% {Γ A B C D} : Tm% (snoc% (snoc% (snoc% (snoc% Γ A) B) C) D) A",
+  " := var% (vs% (vs% (vs% vz%)))",
+  "",
+  "def v4% {Γ A B C D E} : Tm% (snoc% (snoc% (snoc% (snoc% (snoc% Γ A) B) C) D) E) A",
+  " := var% (vs% (vs% (vs% (vs% vz%))))",
+  "",
+  "def test% {Γ A} : Tm% Γ (arr% (arr% A A) (arr% A A))",
+  " := lam% (lam% (app% v1% (app% v1% (app% v1% (app% v1% (app% v1% (app% v1% v0%)))))))",
   ""
   ]
