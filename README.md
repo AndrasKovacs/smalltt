@@ -16,10 +16,10 @@ mostly in 2018-2019.
 * [Design](#design)
   * [Basics](#basics)
     * [NbE vs. naive evaluation](#nbe-vs-naive-evaluation)
-  * [Strict vs. lazy evaluation](#strict-vs-lazy-evaluation)
   * [Contextual metavariables](#contextual-metavariables)
   * [Glued evaluation](#glued-evaluation)
     * [On hash consing](#on-hash-consing)
+  * [Strict vs. lazy evaluation](#strict-vs-lazy-evaluation)
   * [Approximate conversion checking](#approximate-conversion-checking)
   * [Paired values](#paired-values)
   * [Eta-short meta solutions](#eta-short-meta-solutions)
@@ -177,37 +177,6 @@ without one.
 the get go. It's an open research problem how to get rid of naive substitution
 there).
 
-### Strict vs lazy evaluation
-
-In dependently typed elaboration, at least some laziness is essential, because
-some parts of the program may need to be evaluated, but we don't know anything
-about *which parts*, until we actually do the elaboration.
-
-At the same time, laziness has significant overhead, so we should limit it to
-the necessary amount.
-
-Smalltt has the following approach:
-- Top-level and local definitions are lazy.
-- We instantiate Pi types during elaboration with lazy values.
-- Applications headed by top-level variables are lazy.
-- Any other function application is call-by-value during evaluation.
-
-The reasoning is the following. First, it does not make sense to have strict
-evaluation during infer/check, because that would cause the *entire* program to
-be evaluated during elaboration. Hence the laziness of definitions and Pi
-instantiation.
-
-On the other hand, evaluation is really only forced by conversion checking. The
-bulk of the program is never forced by conversion checking, so we might as well
-make evaluation a bit stricter when it is actually forced, to make it faster.
-
-However, glued evaluation mandates that top-level spines are lazily evaluated.
-So we keep that lazy, and otherwise have call-by-value function applications.
-
-This seems to work well in practice. While there are some cases where it does
-superfluous work, in realistic code we still get plenty of laziness through
-let-definitions and top-level variables.
-
 ### Contextual metavariables
 
 Smalltt uses **contextual metavariables**. This means that every metavariable
@@ -323,6 +292,37 @@ Hash consing is better suited to more static data, like literals, or types in
 systems without type-level beta rules, such as simple type theory,
 Hindley-Milner or System F. In those cases, hash consing fully captures the
 compression which is possible by rewriting along conversion rules.
+
+### Strict vs lazy evaluation
+
+In dependently typed elaboration, at least some laziness is essential, because
+some parts of the program may need to be evaluated, but we don't know anything
+about *which parts*, until we actually do the elaboration.
+
+At the same time, laziness has significant overhead, so we should limit it to
+the necessary amount.
+
+Smalltt has the following approach:
+- Top-level and local definitions are lazy.
+- We instantiate Pi types during elaboration with lazy values.
+- Applications headed by top-level variables are lazy.
+- Any other function application is call-by-value during evaluation.
+
+The reasoning is the following. First, it does not make sense to have strict
+evaluation during infer/check, because that would cause the *entire* program to
+be evaluated during elaboration. Hence the laziness of definitions and Pi
+instantiation.
+
+On the other hand, evaluation is really only forced by conversion checking. The
+bulk of the program is never forced by conversion checking, so we might as well
+make evaluation a bit stricter when it is actually forced, to make it faster.
+
+However, glued evaluation mandates that top-level spines are lazily evaluated.
+So we keep that lazy, and otherwise have call-by-value function applications.
+
+This seems to work well in practice. While there are some cases where it does
+superfluous work, in realistic code we still get plenty of laziness through
+let-definitions and top-level variables.
 
 ### Approximate conversion checking
 
