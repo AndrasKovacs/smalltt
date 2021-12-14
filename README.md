@@ -42,7 +42,7 @@ This project serves as a demo for several techniques for high-performance
 elaboration with dependent types. I also include some benchmarks, which are
 intended to be as similar as possible across Agda, Lean, Coq and smalltt.
 
-You may skip to [benchmarks](#benchmarks) if you're interested in that.
+You can skip to [benchmarks](#benchmarks) if that's what you're after.
 
 Smalltt *is* fast, however:
 - Smalltt is not as nearly as fast as it could possibly be. A lot of tuning
