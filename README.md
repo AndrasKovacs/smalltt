@@ -1,8 +1,8 @@
 
 # smalltt
 
-Demo project for several techniques for high-performance elaboration
-with dependent types.
+Demo project for several techniques for high-performance elaboration with
+dependent types.
 
 It is a complete rewrite of the [old smalltt
 version](https://github.com/AndrasKovacs/smalltt/tree/old-master) which I wrote
@@ -72,11 +72,11 @@ after starting `smalltt`.
 
 ### Language overview
 
-smalltt is a minimal dependent type theory implementation. Features:
+Smalltt is a minimal dependent type theory implementation. Features:
 
 - Type-in-type.
 - Dependent functions.
-- Agda-style implicit functions.
+- Agda-style implicit functions with named implicit arguments.
 - Basic pattern unification.
 - A distinguished top-level scope and local let-definitions.
 - An executable which can load a single file at once, and lets us
@@ -117,9 +117,9 @@ and indeed they represent function values as closures.
 Evaluation and runtime values have to support a somewhat richer feature set than
 what is typical in functional languages. They must support **open evaluation**,
 that is, evaluation of programs which may contain free variables. This makes it
-possible, for instance, to evaluate a function body. In such code, free variables
-cause evaluation to **get stuck**, so we there are special values corresponding to
-stuck computations; these are called **neutral** values.
+possible to evaluate code under binders. In such code, free variables cause
+evaluation to **get stuck**. There are special values corresponding to stuck
+computations, which are called **neutral** values.
 
 Neutral values make it possible to convert runtime values back to core syntax.
 This is called **quoting**. Quoting is used in elaboration whenever we need to
@@ -127,15 +127,15 @@ serialize or store values. For example, since elaboration outputs core syntax,
 whenever we need to fill a hole in raw syntax, we plug the hole by converting a
 value to a core term by quoting.
 
-**Normalization by evaluation (NbE)** is normalizing terms by first evaluating
-then quoting them. The kind of normal forms that we get can vary depending on
-the details of evaluation and quoting. In particular, it is not mandatory that
-NbE yields beta-normal terms.
+**Normalization by evaluation (NbE)** means normalizing terms by first
+evaluating then quoting them. The kind of normal forms that we get can vary
+depending on the details of evaluation and quoting. In particular, it is not
+mandatory that NbE yields beta-normal terms.
 
 Moreover, values support **conversion checking**. Type equality checking is
 required in pretty much any type checker. In dependently typed languages, types
 may include arbitrary programs, and equality checking becomes
-beta-eta-conversion checking of values. At its simplest, this is implemented by
+beta-eta conversion checking of values. At its simplest, this is implemented by
 recursively walking values. The "open" evaluation makes it possible to get
 inside closures during conversion checking, so we can check if two functions
 have beta-eta-convertible bodies.
@@ -143,7 +143,7 @@ have beta-eta-convertible bodies.
 #### NbE vs. naive evaluation
 
 Elaboration with NbE can be contrasted to elaboration with "naive"
-evaluation. In this style, compile-time evaluation is performed by naive term
+evaluation. In this style, compile-time evaluation is performed by term
 substitution, which is far less efficient than NbE. In some implementations,
 naive substitution is still used because of its perceived simplicity. However,
 my experience is that NbE is significantly simpler to implement, and also easier
@@ -153,13 +153,14 @@ optimizations, which add more complexity.
 
 For example, Lean uses naive substitution in its kernel, but to recover
 acceptable performance it has to add extra machinery (memoization, free variable
-annotations on terms for skipping traversals during substitutions). The ends up
-being slower and more complicated than an NbE implementation.
+annotations on terms for skipping traversals during substitutions). This ends up
+being slower and more complicated than a straightforward NbE implementation.
 
-In summary, capture-avoiding substitution should be avoided whenever possible in
-elaboration implementations. Sometimes it's necessary, but only for niche,
-non-performance-critical purposes, in more feature-rich systems. Smalltt uses
-no substitution operation whatsoever, and we can go pretty far without one.
+In summary, term substitution should be avoided whenever possible in elaboration
+implementations. Sometimes it's necessary, but AFAIK only for more niche
+purposes in more feature-rich systems, and not in performance-critical tasks.
+Smalltt uses no substitution operation whatsoever, and we can go pretty far
+without one.
 
 (Remark: *cubical type theories* are notorious for requiring substitution from
 the get go. It's an open research problem how to get rid of naive substitution
@@ -200,17 +201,18 @@ for a tutorial on the basics of contextual metavariables and pattern
 unification.
 
 Smalltt does not try very hard to optimize the representation of contextual
-metas, it just reuses plain lambdas to abstract over scopes. See this for a
-discussion in Coq: https://github.com/coq/coq/issues/12526. As a result, basic
-operations involving metas are usually linear in the size of the local scope.
-My benchmarking showed that this is not a significant bottleneck in realistic
-user-written code, and we don't really have machine-generated code (e.g. by
-tactics) that could introduce pathological cases.
+metas, it just reuses plain lambdas to abstract over scopes. For potential
+optimizations, see this Coq discussion:
+https://github.com/coq/coq/issues/12526. As a result, basic operations involving
+metas are usually linear in the size of the local scope. My benchmarking showed
+that this is not a significant bottleneck in realistic user-written code, and we
+don't really have machine-generated code (e.g. by tactics) that could introduce
+pathologically sized local scopes.
 
 ### Glued evaluation
 
-The most basic NbE setup is not adequate for performance. The problem is that
-we need different features in conversion checking and in quoting:
+The most basic NbE setup is not adequate for performance. The problem is that we
+need different features in conversion checking and in quoting:
 
 - In basic conversion checking, we want to evaluate as efficiently as possible.
 - In quoting, we want to output terms which are *as small as possible*. The
@@ -220,7 +222,7 @@ we need different features in conversion checking and in quoting:
   tend to be extremely large.
 
 The solution is to add control over **definition unfolding** to evaluation and
-quotation. We call the implementation **glued evaluation**, as the evaluator
+quotation. We call the implementation **glued evaluation**, where the evaluator
 lazily computes two different values on each unfolding choice. In smalltt we
 have unfolding control only for top-level definitions. This simplifies
 implementation, and usually top-level scopes are vastly larger than local
@@ -256,12 +258,14 @@ bytecode VM depending on workloads.
 
 #### On hash consing
 
-Hash consing means memoization for certain classes of objects. It is frequently
-mentioned as an optimization technique in typechecking. However, specifically
-in the context of dependent elaboration, it's not obviously desirable.
+Usually by "hash consing" we mean a pervasive form of memoization, where certain
+objects are stored at most once in memory, and any new object construction goes
+through a table lookup to check if the object already exists. It is frequently
+mentioned as an optimization technique in typechecking. However, specifically in
+the context of dependent elaboration, it's not obviously desirable.
 
 Hash consing alone is inadequate for eliminating size explosions. Hash consing
-merges duplicate expressions to a single copy. But it does not handle
+merges duplicate objects to a single copy. But it does not handle
 *beta-reduction* at all, which is a major source of size explosion! For a simple
 example, using Peano naturals, it is easy to give a compact definition for
 `oneMillion`, involving arithmetic operations. But if I normalize `oneMillion`,
@@ -273,7 +277,7 @@ potentially explosive behavior, and it isn't hard to produce size explosions
 even in the presence of full hash-consing. Considering this, and the performance
 and complexity overhead of hash consing, I decide to skip it in smalltt.
 
-Hash consing is better suited to more static data, like literals or types in
+Hash consing is better suited to more static data, like literals, or types in
 systems without type-level beta rules, such as simple type theory,
 Hindley-Milner or System F. In those cases, hash consing fully captures the
 compression which is possible by rewriting along conversion rules.
@@ -310,14 +314,14 @@ See `unify` in [src/Unification.hs](src/Unification.hs) for details.
 
 - "Rigid": this is the starting state. In this state we can solve metas, and can
   initiate speculation. Whenever we have the same top-level head symbol on both
-  sides, we try unify the spines in "flex" mode, if that fails, we unfold and
+  sides, we try to unify the spines in "flex" mode, if that fails, we unfold and
   evaluate the sides, and unify them in "full" mode. We stay in "rigid" mode
   when we recurse under canonical type and term formers.
 - "Flex": in this state we cannot solve metas, every situation which requires
   a meta solution fails. Moreover, we cannot unfold any top-level definition;
   if we have identical defined head symbols, we can recurse into spines, but
   any situation which requires unfolding also causes failure.
-- "Rigid": in this state we can solve metas, and we always immediately unfold
+- "Full": in this state we can solve metas, and we always immediately unfold
   any defined symbol.
 
 **Example**. We unify `cons oneMillion (cons oneMillion nil)` with
@@ -334,7 +338,7 @@ false`. So we unfold the `const`-s, and unify sides in"full mode.
 In short, smalltt unification backtracks at most once on any path leading to a
 subterm ("sub-value" actually, since we recurse on values).
 
-We could have a huge number of different speculative algorithms. A natural
+We could have a large number of different speculative algorithms. A natural
 generalization to smalltt is to parametrize the "rigid" state with the number of
 shots we get at speculation (smalltt has just one shot). We start in "rigid N"
 state, and when a speculative (flex) spine unification fails, we continue in
@@ -353,9 +357,10 @@ computed.
 
 ### Paired values
 
-In infer/check and in unification, instead of using plain values, we use pairs
-of values, named `data G = G {g1 :: Val, g2 :: Val}` in the source. Hence,
-`unify` takes two `G`-s, and we `infer` returns a `G` for inferred type.
+In [infer/check](src/Elaboration.hs) and in [unification](src/Unification.hs),
+instead of using plain values, we use pairs of values, named `data G = G {g1 ::
+Val, g2 :: Val}` in the source. Hence, `unify` takes two `G`-s, and we `infer`
+returns a `G` for inferred type.
 
 In `G`, the two values are always convertible, but the first value is always the
 *least reduced* available version, and the second one is potentially more
@@ -363,11 +368,11 @@ reduced.
 
 For example, if we do `check`-ing, the checking type can be headed by a
 top-level definition, so we have to compute it until we hit a rigid head symbol,
-to see whether it's a Pi type or not. This computation yields a new value which
-is more reduced than what we started with. But we don't want to throw away
-either of these values! The original version is usually smaller, hence better
-for printing and meta solutions, the forced version is more efficient to compute
-with, since we don't want to redo the same forcing later.
+to see whether it's a Pi type. This computation yields a new value which is more
+reduced than what we started with. But we don't want to throw away either of
+these values! The original version is usually smaller, hence better for printing
+and meta solutions, the forced version is more efficient to compute with, since
+we don't want to redo the same forcing later.
 
 ### Eta-short meta solutions
 
@@ -398,7 +403,7 @@ contract meta spines, for example `?0 x y z = ?1 x y z` is contracted to `?0 =
 pattern conditions by contraction, e.g. not remove non-linear bound vars by
 contraction.
 
-Eta-short solutions are also important for preserving top-level unfoldings.  For
+Eta-short solutions are also important for preserving top-level unfoldings. For
 example, assume a function `f : Nat → Nat` defined as a lambda `λ x. t`, where
 `t` can be a large definition. If I unify `?0 = f`, the eta-long unification
 would solve `?0 := λ x. t x`, while the eta-short version can preserve the `f`
@@ -411,7 +416,7 @@ pattern unification, we have problems like `?m x₁ x₂ ... xₙ = rhs`, where 
 is a meta, `xᵢ` are distinct bound variables, and `rhs` is a value. We aim to
 quote `rhs` to a solution term, and at the same time check occurs & scoping
 conditions on it.
-- Scoping: `rhs` can only depend on `xᵢ` bound variables.
+- Scoping: the only bound vars `rhs` can depend on are the `xᵢ` vars in the spine.
 - Occurs: `?0` cannot occur in `rhs` (we assume that rhs is not headed by `?0`).
 
 If both conditions hold, then it is possible to quote `rhs` to some `t` term
@@ -427,7 +432,7 @@ straightforward, because the `rhs` conditions should be still checked modulo
 full beta-reductions.
 
 We have three different quotation modes, somewhat similarly to what we have seen
-in unification, see `flexQuote`, `rigidQuote` and `fullCheck` in
+in unification. See `flexQuote`, `rigidQuote` and `fullCheck` in
 [src/Unification.hs](src/Unification.hs).
 - "rigid": the starting mode. We stay in rigid mode when going under
   canonical type/term formers. Illegal var occurrences cause an error to be
@@ -438,7 +443,7 @@ in unification, see `flexQuote`, `rigidQuote` and `fullCheck` in
   that the term is definitely valid, a false means that it is possibly invalid.
   Illegal var occurrences cause a special `Irrelevant` term to be returned along
   with a false flag.
-- "full": this mode does not return any term, it just fully evaluates the value
+- "full": this mode does not return any term, it just fully traverses the value
   and throws an error on any illegal var occurrence.
 
 The overall result of this algorithm is that top definitions are *never*
@@ -450,18 +455,19 @@ disappears during evaluation.
 In unification, `Irrelevant` immediately unifies with anything, since it signals
 that we are in an irrelevant evaluation context.
 
-It would be better in this case to solve `?0` with `true`. Smalltt does not
-bother with performing unfolding for code optimization, but it certainly could;
-the primary goal is demonstrate the infrastructure where we have the freedom
-to unfold in different ways.
+It would be better in the previous example to solve `?0` with `true`. Smalltt
+does not bother with performing unfolding for code optimization, but it
+certainly could; the primary goal is demonstrate the infrastructure where we
+have the freedom to unfold in different ways. Additional optimization passes can
+take advantage of the preserved top-level unfoldings.
 
 ### Meta freezing and approximate occurs checking
 
-"Freezing" metas means that at certain points during elaboration we mark
+**Freezing** metas means that at certain points during elaboration we mark
 unsolved metas as unsolvable. This may be used as a performance optimization
 and/or a way to enforce meta scoping. All major systems use at least some meta
-freezing. No meta freezing would mean that metas are solvable across the whole
-program, across module hierarchies.
+freezing. The absence of freezing would mean that metas are solvable across the
+whole program, across module hierarchies.
 
 Smalltt freezes metas like Agda does: a top-level definition together with its
 optional type annotation constitutes the elaboration unit where fresh metas are
@@ -480,17 +486,17 @@ A **frozen** meta is in a previous meta block. A frozen unsolved meta cannot be
 solved.
 
 This yields a major optimization opportunity in meta occurs checking: an active
-unsolved meta can only occur in the solution of an active meta, but
-no other top-level definition! We exploit this in rigid and flex solution
-quoting. There, we only look inside solutions of active metas, to do approximate
-occurs checking.
+unsolved meta can only occur in the solution of an active meta, but no other
+top-level definition! We exploit this in rigid and flex solution quoting. There,
+we only look inside solutions of active metas, to do approximate occurs
+checking.
 
 For example, assume we're checking for `?m` occurrences, and we hit `?n spine`,
 where `?n` is a solved active meta. It is not enough to check `spine`, we also
 need to look into the `?n` solution. We do this by simply recursively walking
 the *term* solution of `?n`, which may lead to looking into solutions of other
-active metas. Here we employ a very simple caching mechanism: we only visit
-each active solved meta at most once. So the amount of work done in approximate
+active metas. Here we employ a very simple caching mechanism: we only visit each
+active solved meta at most once. So the amount of work done in approximate
 occurs checking is limited by the total size of all active meta solutions.
 
 As a result, smalltt is able to very quickly check the classic nested pair
@@ -508,11 +514,12 @@ pairTest =
   x20
 ```
 
-At each `dup`, the normal form of the inferred `A` type doubles. In smalltt
-this benchmark is technically quadratic, since at each `dup` we search all
-previous active solved metas. But these meta solutions are all tiny, they
-are of the form `?n := Pair ?(n-1) ?(n-1)`. This takes exponential time
-in all tested systems besides smalltt.
+At each `dup`, the normal form of the inferred `A` type doubles. In smalltt this
+benchmark is technically quadratic, since at each `dup` we search all previous
+active solved metas. But these meta solutions are all tiny, they are of the form
+`?n := Pair ?(n-1) ?(n-1)`. This takes exponential time in Agda, Coq and Lean,
+although in Lean the profiling shows that "elaboration" is not exponential, only
+"compilation" is. See [elaboration asymptotics](#elaboration-asymptotics).
 
 More sophisticated caching mechanisms are plausible and probably desirable. For
 better UX, it could make sense to combine smarter caching with more relaxed meta
@@ -523,11 +530,11 @@ freezing behavior, like allowing metas to be active within a single module.
 Smalltt includes some low-level GHC-specific optimizations. These almost
 certainly make the code less readable. I included them because
 - A very important goal was to have an implementation in *any* language which
-  significantly beats all existing systems in elaboration speed. Having concise
-  code is *also* a goal, but I care more about the complexity of the underlying
-  algorithms, and less about the size of supporting code. The optimization
-  boilerplate in smalltt can be easily ignored when we want to look at the core
-  algorithms.
+  robustly beats all existing systems in elaboration speed. Hence I did not want
+  to leave too much performance on the table. Having concise code is *also* a
+  goal, but I care more about the complexity of the underlying algorithms, and
+  less about the size of supporting code. The optimization boilerplate in
+  smalltt can be easily ignored when we want to look at the core algorithms.
 - I wanted to at least try some GHC-specific optimizations, to get an idea about
   their impact in the first place. Some of these optimizations turned out to
   have modest impact, but all of them help to some degree.
@@ -539,14 +546,15 @@ Setting RTS options is important and often overlooked. The performance gains
 from the right settings can be easily 30-50%. The default arena size in GHC (1MB
 or 4MB starting from GHC 9.2) is very tiny compared to typical RAM sizes. In
 smalltt I set the default RTS options to be `-A64M -N8`. This means that
-effective arena size is 8 * 64 = 512MB, so smalltt allocates in 512MB chunks. Is
-this wasteful?  RAM sizes below 8GB are getting increasingly rare; 512MB is
-1/16th of that, and 1/32nd of 16GB. If we can trade RAM for performance, while
-still keeping the risk of running out of RAM very low, then we should do it. RAM
-exists to be used, not to just sit there.
+effective arena size is 8 * 64MB = 512MB, so smalltt allocates in 512MB
+chunks. Is this wasteful? RAM sizes below 8GB are getting increasingly rare;
+512MB is 1/16th of that, and 1/32nd of 16GB. If we can trade RAM for
+performance, while still keeping the risk of running out of RAM very low, then
+we should do it. RAM exists to be used, not to just sit there.
 
-One of the main reasons why smalltt is compiled with GHC is the RTS performance,
-which is overall great. I plan to update my old [normalization
+One of the main reasons why smalltt is implemented in GHC Haskell is the RTS
+performance, which is overall great (the other reason is my prior experience in
+GHC optimization). I plan to update my old [normalization
 benchmarks](https://github.com/AndrasKovacs/normalization-bench) at some point;
 even there GHC performs well, but my newer unstructured benchmarking with newer
 GHC versions indicates yet more GHC advantage.
@@ -563,26 +571,26 @@ workaround of my own which works in GHC 9.0 and 9.2.
 
 [UIO.hs](src/UIO.hs) contains the basic machinery. There's a new `IO` definition
 whose operations all require a `CanIO a` constraint on the return value. The
-`CanIO` methods use a bunch of levity-polymorphic magic to make this
-work. Unfortunately I haven't yet written nicer TH code to derive `CanIO`.
-There are only some CPP macros in [src/deriveCanIO.h](src/deriveCanIO.h).
+`CanIO` methods use levity-polymorphic magic to make this work. I haven't yet
+written nicer TH code to derive `CanIO`. There are only some CPP macros in
+[src/deriveCanIO.h](src/deriveCanIO.h).
 
 Unboxed `IO` is not a monad but a constrained monad, so I use
 [`QualifiedDo`](https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/qualified_do.html)
-to write `do`-blocks for it. I don't want to wholesale rebind my `do` notation
-to constrained monads.
+to write `do`-blocks for it. I like this solution much better than globally
+rebinding my `do` notation to constrained monads.
 
 ### Custom exceptions
 
 This is the dirtiest trick here. I use custom catching and throwing functions,
-to avoid the overhead of the standard type fingerprint mechanism.  See
-`Exception#` in [`src/Exceptions.hs`](src/Exceptions.hs). The idea is that My
-own primitive `Exception#` type includes the standard typesafe `SomeException`
+to avoid the overhead of the standard fingerprint mechanism which ensures type
+safety. See `Exception#` in [`src/Exceptions.hs`](src/Exceptions.hs). The idea
+is that my own primitive `Exception#` type includes the standard `SomeException`
 constructor, but has another one for my own custom exceptions. As a result, I
 can catch and throw standard exceptions, but also custom exceptions which have
 zero fingerprint overhead. This relies on the ability to silently and unsafely
 cast the `SomeException` constructor between the standard `Exception` type and
-my `Exception#` type. The memory representation is the same so it works.
+my `Exception#` type. It works because the memory representation is the same.
 
 I had an old benchmark where custom exceptions had roughly 1/5 the overhead of
 standard exceptions. I haven't yet benchmarked both versions in smalltt, I
@@ -630,15 +638,15 @@ several examples for their usage in [`src/Elaboration.hs`](src/Elaboration.hs).
 [src/SymTable.hs](src/SymTable.hs) is a custom mutable hash table
 implementation, keyed by source position spans. The reason for writing this is
 that I have had performance problems with `hashtables`, the primary mutable
-hashtable package, where it was outperformed by the immutable `Data.HashMap`,
-which should not really happen. However, this was a few years ago, so I should
-benchmark my version against alternatives.
+hashtable package, where it was even outperformed by the immutable
+`Data.HashMap`. However, this was a few years ago, so I should benchmark my
+version against alternatives.
 
 I'm also using a custom hash function on bytestrings, which is mostly based on
 the non-AES "fallback" hasher in [ahash](https://github.com/tkaitchuck/aHash).
 
-I indent to release in the future a generic variant of my hashtable (which is
-not specialized to source span keys) along with my hash function.
+I intend to release in the future a generic variant of my hashtable (which is
+not specialized to source span keys) along with my hash functions.
 
 #### Libraries
 
@@ -647,9 +655,9 @@ I use the following:
   minimum-overhead array & mutable reference library. It can be viewed as a
   replacement for [`primitive`](https://hackage.haskell.org/package/primitive)
   with a significantly different API.
-- [`dynamic-array`](https://github.com/AndrasKovacs/dynamic-array) a small
-  dynamic array library, built on the top of `primdata`.
-- [`flatparse`](https://github.com/AndrasKovacs/flatparse) a high-performance
+- [`dynamic-array`](https://github.com/AndrasKovacs/dynamic-array): a small
+  dynamic array library, built on top of `primdata`.
+- [`flatparse`](https://github.com/AndrasKovacs/flatparse): a high-performance
   parser combinator library. It is ridiculously faster than all of the parsec
   libraries. The old smalltt versions before the rewrite used `megaparsec`, which
   was about 40 times slower. Parsing speed is now typically 2-3 million LOC/s
@@ -659,13 +667,17 @@ I use the following:
 ## Benchmarks
 
 All files used in benchmarking are available in [bench](bench). The following
-programs were used besides smalltt:
+programs were used.
 - `agda` 2.6.2 with options `-vprofile:7 +RTS -M10G`.
 - `coq` 8.13.2, used as `time coqtop -l FILE -batch -type-in-type -time`, or
   dropping the last `-time` options when benchmarking elaboration of large
   files.
 - `Lean` 4.0.0 nightly 2021-11-20, commit babcd3563d28. Used as `time lean FILE
   --profile`.
+- `smalltt`: in elaboration benchmarks I use timings for `:r` instead of `:l`;
+  reloading tends to be 20-30% faster, presumably because the RTS is "warmed up"
+  by previous heap allocations. I find this to be more representative of typical
+  usage where we mostly reload files we're actively working on.
 
 System: Intel 1165G7 CPU, 16GB 3200 MT/s RAM, CPU set to run at 28 W power draw.
 
@@ -678,16 +690,17 @@ plan to have nicer graphs here.
 There are many benchmark entries marked as N/A. In these cases I haven't yet
 been able to reproduce the exact benchmarks in a given system. I expect that
 many of these are doable, and I just don't know the right commands or options.
-
+Pull requests are welcome!
 
 ### Elaboration speed
 
-- stlc: Church-coded simply-typed lambda calculus plus some internal definitions.
-  Fairly heavy in terms of sizes of types and number of metavariables. Comes
-  in 5k and 10k LOC versions, where everything is renamed and copied many times.
+- stlc: Church-coded simply-typed lambda calculus plus some internal
+  definitions. Fairly heavy in terms of sizes of types and the number of
+  metavariables. Comes in 5k and 10k LOC versions, where everything is renamed
+  and copied many times.
 - stlcLessImpl: a lighter version, with no implicit arguments inside stlc algebras.
   This works in Coq, while the heavier version does not, because Coq does not support
-	  higher-order implicit arguments.
+  higher-order implicit arguments (implicit function types are not first-class).
 - stlcSmall: an even lighter version which only includes variables, lambdas and
   applications in the object language. For fun, I also test files with one million
   lines of code. I don't include these files in the repo, because they're around
@@ -695,7 +708,7 @@ many of these are doable, and I just don't know the right commands or options.
   [src/GenTestFiles.hs](src/GenTestFiles.hs).
 - Agda 2.6.2 has a parsing blowup issue on large files:
   https://github.com/agda/agda/issues/5670. So only `stlc`, `stlcLessImpl`, and
-  `stlcSmall` are indicative of elaboration performance.
+  `stlcSmall` are really indicative of elaboration performance.
 
 
 |                 | smalltt | Agda    | Coq    | Lean elab |  Lean total |

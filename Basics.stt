@@ -53,7 +53,7 @@ test = id {{A B} → A → B → A} (λ x y. x) {B = U} U
 const : {A B} → A → B → A
  = λ {B = foo} x (y : foo). x
 
--- We can use underscope anywhere to request an inferred term
+-- We can use underscore anywhere to request an inferred term
 test = id {_} (U → U)
 test : _ = U
 
