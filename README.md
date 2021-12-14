@@ -16,6 +16,7 @@ mostly in 2018-2019.
 * [Design](#design)
   * [Basics](#basics)
     * [NbE vs. naive evaluation](#nbe-vs-naive-evaluation)
+  * [Strict vs. lazy evaluation](#strict-vs-lazy-evaluation)
   * [Contextual metavariables](#contextual-metavariables)
   * [Glued evaluation](#glued-evaluation)
     * [On hash consing](#on-hash-consing)
