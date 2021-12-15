@@ -1,6 +1,4 @@
 
--- Notes: some kind of memoization is likely up to tree 1M conversion
---        at 2M it slows down 100x
 
 set_option maxHeartbeats 10000000
 set_option maxRecDepth   10000000
