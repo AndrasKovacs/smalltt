@@ -375,7 +375,7 @@ symbols match and `oneMillion` is applied to zero arguments.
 **Example**. We unify `const ?0 true` with `const false false`, where `const` is
 a top-level definition. We start in rigid mode, and since we have `const` head
 on both sides, we try to unify spines in flex mode. This fails, since `true /=
-false`. So we unfold the `const`-s, and unify sides in"full mode.
+false`. So we unfold the `const`-s, and unify sides in full mode.
 
 In short, smalltt unification backtracks at most once on any path leading to a
 subterm ("sub-value" actually, since we recurse on values).
