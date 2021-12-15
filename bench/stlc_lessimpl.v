@@ -1,171 +1,169 @@
-Require Import Coq.Unicode.Utf8.
+Definition Ty : Set
+ := forall (Ty : Set)
+      (nat top bot  : Ty)
+      (arr prod sum : Ty -> Ty -> Ty)
+    , Ty.
 
-Definition Ty6 : Set
- := ∀ (Ty6           : Set)
-      (nat top bot  : Ty6)
-      (arr prod sum : Ty6 → Ty6 → Ty6)
-    , Ty6.
+Definition nat : Ty := fun _ nat _ _ _ _ _ => nat.
+Definition top : Ty := fun _ _ top _ _ _ _ => top.
+Definition bot : Ty := fun _ _ _ bot _ _ _ => bot.
 
-Definition nat6 : Ty6 := λ _ nat6 _ _ _ _ _ , nat6.
-Definition top6 : Ty6 := λ _ _ top6 _ _ _ _ , top6.
-Definition bot6 : Ty6 := λ _ _ _ bot6 _ _ _ , bot6.
+Definition arr : Ty -> Ty -> Ty
+ := fun A B Ty nat top bot arr prod sum =>
+     arr (A Ty nat top bot arr prod sum) (B Ty nat top bot arr prod sum).
 
-Definition arr6 : Ty6 → Ty6 → Ty6
- := λ A B Ty6 nat6 top6 bot6 arr6 prod sum ,
-     arr6 (A Ty6 nat6 top6 bot6 arr6 prod sum) (B Ty6 nat6 top6 bot6 arr6 prod sum).
+Definition prod : Ty -> Ty -> Ty
+ := fun A B Ty nat top bot arr prod sum =>
+     prod (A Ty nat top bot arr prod sum) (B Ty nat top bot arr prod sum).
 
-Definition prod6 : Ty6 → Ty6 → Ty6
- := λ A B Ty6 nat6 top6 bot6 arr6 prod6 sum ,
-     prod6 (A Ty6 nat6 top6 bot6 arr6 prod6 sum) (B Ty6 nat6 top6 bot6 arr6 prod6 sum).
+Definition sum : Ty -> Ty -> Ty
+ := fun A B Ty nat top bot arr prod sum =>
+     sum (A Ty nat top bot arr prod sum) (B Ty nat top bot arr prod sum).
 
-Definition sum6 : Ty6 → Ty6 → Ty6
- := λ A B Ty6 nat6 top6 bot6 arr6 prod6 sum6 ,
-     sum6 (A Ty6 nat6 top6 bot6 arr6 prod6 sum6) (B Ty6 nat6 top6 bot6 arr6 prod6 sum6).
+Definition Con : Set
+ := forall (Con  : Set)
+      (nil  : Con)
+      (snoc : Con -> Ty -> Con)
+    , Con.
 
-Definition Con6 : Set
- := ∀ (Con6  : Set)
-      (nil  : Con6)
-      (snoc : Con6 → Ty6 → Con6)
-    , Con6.
+Definition nil : Con
+ := fun Con nil snoc => nil.
 
-Definition nil6 : Con6
- := λ Con6 nil6 snoc , nil6.
+Definition snoc : Con -> Ty -> Con
+ := fun Γ A Con nil snoc => snoc (Γ Con nil snoc) A.
 
-Definition snoc6 : Con6 → Ty6 → Con6
- := λ Γ A Con6 nil6 snoc6 , snoc6 (Γ Con6 nil6 snoc6) A.
+Definition Var : Con -> Ty -> Set
+ := fun Γ A =>
+   forall (Var : Con -> Ty -> Set)
+     (vz  : forall Γ A, Var (snoc Γ A) A)
+     (vs  : forall Γ B A, Var Γ A -> Var (snoc Γ B) A)
+   , Var Γ A.
 
-Definition Var6 : Con6 → Ty6 → Set
- := λ Γ A ,
-   ∀ (Var6 : Con6 → Ty6 → Set)
-     (vz  : ∀ Γ A, Var6 (snoc6 Γ A) A)
-     (vs  : ∀ Γ B A, Var6 Γ A → Var6 (snoc6 Γ B) A)
-   , Var6 Γ A.
+Definition vz {Γ A} : Var (snoc Γ A) A
+ := fun Var vz vs => vz _ _.
 
-Definition vz6 {Γ A} : Var6 (snoc6 Γ A) A
- := λ Var6 vz6 vs , vz6 _ _.
+Definition vs {Γ B A} : Var Γ A -> Var (snoc Γ B) A
+ := fun x Var vz vs => vs _ _ _ (x Var vz vs).
 
-Definition vs6 {Γ B A} : Var6 Γ A → Var6 (snoc6 Γ B) A
- := λ x Var6 vz6 vs6 , vs6 _ _ _ (x Var6 vz6 vs6).
+Definition Tm : Con -> Ty -> Set
+ := fun Γ A =>
+   forall (Tm  : Con -> Ty -> Set)
+     (var   : forall Γ A     , Var Γ A -> Tm Γ A)
+     (lam   : forall Γ A B   , Tm (snoc Γ A) B -> Tm Γ (arr A B))
+     (app   : forall Γ A B   , Tm Γ (arr A B) -> Tm Γ A -> Tm Γ B)
+     (tt    : forall Γ       , Tm Γ top)
+     (pair  : forall Γ A B   , Tm Γ A -> Tm Γ B -> Tm Γ (prod A B))
+     (fst   : forall Γ A B   , Tm Γ (prod A B) -> Tm Γ A)
+     (snd   : forall Γ A B   , Tm Γ (prod A B) -> Tm Γ B)
+     (left  : forall Γ A B   , Tm Γ A -> Tm Γ (sum A B))
+     (right : forall Γ A B   , Tm Γ B -> Tm Γ (sum A B))
+     (case  : forall Γ A B C , Tm Γ (sum A B) -> Tm Γ (arr A C) -> Tm Γ (arr B C) -> Tm Γ C)
+     (zero  : forall Γ       , Tm Γ nat)
+     (suc   : forall Γ       , Tm Γ nat -> Tm Γ nat)
+     (rec   : forall Γ A     , Tm Γ nat -> Tm Γ (arr nat (arr A A)) -> Tm Γ A -> Tm Γ A)
+   , Tm Γ A.
 
-Definition Tm6 : Con6 → Ty6 → Set
- := λ Γ A ,
-   ∀ (Tm6  : Con6 → Ty6 → Set)
-     (var   : ∀ Γ A     , Var6 Γ A → Tm6 Γ A)
-     (lam   : ∀ Γ A B   , Tm6 (snoc6 Γ A) B → Tm6 Γ (arr6 A B))
-     (app   : ∀ Γ A B   , Tm6 Γ (arr6 A B) → Tm6 Γ A → Tm6 Γ B)
-     (tt    : ∀ Γ       , Tm6 Γ top6)
-     (pair  : ∀ Γ A B   , Tm6 Γ A → Tm6 Γ B → Tm6 Γ (prod6 A B))
-     (fst   : ∀ Γ A B   , Tm6 Γ (prod6 A B) → Tm6 Γ A)
-     (snd   : ∀ Γ A B   , Tm6 Γ (prod6 A B) → Tm6 Γ B)
-     (left  : ∀ Γ A B   , Tm6 Γ A → Tm6 Γ (sum6 A B))
-     (right : ∀ Γ A B   , Tm6 Γ B → Tm6 Γ (sum6 A B))
-     (case  : ∀ Γ A B C , Tm6 Γ (sum6 A B) → Tm6 Γ (arr6 A C) → Tm6 Γ (arr6 B C) → Tm6 Γ C)
-     (zero  : ∀ Γ       , Tm6 Γ nat6)
-     (suc   : ∀ Γ       , Tm6 Γ nat6 → Tm6 Γ nat6)
-     (rec   : ∀ Γ A     , Tm6 Γ nat6 → Tm6 Γ (arr6 nat6 (arr6 A A)) → Tm6 Γ A → Tm6 Γ A)
-   , Tm6 Γ A.
+Definition var {Γ A} : Var Γ A -> Tm Γ A
+ := fun x Tm var lam app tt pair fst snd left right case zero suc rec =>
+     var _ _ x.
 
-Definition var6 {Γ A} : Var6 Γ A → Tm6 Γ A
- := λ x Tm6 var6 lam app tt pair fst snd left right case zero suc rec ,
-     var6 _ _ x.
+Definition lam {Γ A B} : Tm (snoc Γ A) B -> Tm Γ (arr A B)
+ := fun t Tm var lam app tt pair fst snd left right case zero suc rec =>
+     lam _ _ _ (t Tm var lam app tt pair fst snd left right case zero suc rec).
 
-Definition lam6 {Γ A B} : Tm6 (snoc6 Γ A) B → Tm6 Γ (arr6 A B)
- := λ t Tm6 var6 lam6 app tt pair fst snd left right case zero suc rec ,
-     lam6 _ _ _ (t Tm6 var6 lam6 app tt pair fst snd left right case zero suc rec).
+Definition app {Γ A B} : Tm Γ (arr A B) -> Tm Γ A -> Tm Γ B
+ := fun t u Tm var lam app tt pair fst snd left right case zero suc rec =>
+     app _ _ _
+         (t Tm var lam app tt pair fst snd left right case zero suc rec)
+         (u Tm var lam app tt pair fst snd left right case zero suc rec).
 
-Definition app6 {Γ A B} : Tm6 Γ (arr6 A B) → Tm6 Γ A → Tm6 Γ B
- := λ t u Tm6 var6 lam6 app6 tt pair fst snd left right case zero suc rec ,
-     app6 _ _ _
-         (t Tm6 var6 lam6 app6 tt pair fst snd left right case zero suc rec)
-         (u Tm6 var6 lam6 app6 tt pair fst snd left right case zero suc rec).
+Definition tt {Γ} : Tm Γ top
+ := fun Tm var lam app tt pair fst snd left right case zero suc rec => tt _.
 
-Definition tt6 {Γ} : Tm6 Γ top6
- := λ Tm6 var6 lam6 app6 tt6 pair fst snd left right case zero suc rec , tt6 _.
+Definition pair {Γ A B} : Tm Γ A -> Tm Γ B -> Tm Γ (prod A B)
+ := fun t u Tm var lam app tt pair fst snd left right case zero suc rec =>
+     pair _ _ _
+          (t Tm var lam app tt pair fst snd left right case zero suc rec)
+          (u Tm var lam app tt pair fst snd left right case zero suc rec).
 
-Definition pair6 {Γ A B} : Tm6 Γ A → Tm6 Γ B → Tm6 Γ (prod6 A B)
- := λ t u Tm6 var6 lam6 app6 tt6 pair6 fst snd left right case zero suc rec ,
-     pair6 _ _ _
-          (t Tm6 var6 lam6 app6 tt6 pair6 fst snd left right case zero suc rec)
-          (u Tm6 var6 lam6 app6 tt6 pair6 fst snd left right case zero suc rec).
+Definition fst {Γ A B} : Tm Γ (prod A B) -> Tm Γ A
+ := fun t Tm var lam app tt pair fst snd left right case zero suc rec =>
+     fst _ _ _
+         (t Tm var lam app tt pair fst snd left right case zero suc rec).
 
-Definition fst6 {Γ A B} : Tm6 Γ (prod6 A B) → Tm6 Γ A
- := λ t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd left right case zero suc rec ,
-     fst6 _ _ _
-         (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd left right case zero suc rec).
+Definition snd {Γ A B} : Tm Γ (prod A B) -> Tm Γ B
+ := fun t Tm var lam app tt pair fst snd left right case zero suc rec =>
+     snd _ _ _
+          (t Tm var lam app tt pair fst snd left right case zero suc rec).
 
-Definition snd6 {Γ A B} : Tm6 Γ (prod6 A B) → Tm6 Γ B
- := λ t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left right case zero suc rec ,
-     snd6 _ _ _
-          (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left right case zero suc rec).
+Definition left {Γ A B} : Tm Γ A -> Tm Γ (sum A B)
+ := fun t Tm var lam app tt pair fst snd left right case zero suc rec =>
+     left _ _ _
+          (t Tm var lam app tt pair fst snd left right case zero suc rec).
 
-Definition left6 {Γ A B} : Tm6 Γ A → Tm6 Γ (sum6 A B)
- := λ t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right case zero suc rec ,
-     left6 _ _ _
-          (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right case zero suc rec).
+Definition right {Γ A B} : Tm Γ B -> Tm Γ (sum A B)
+ := fun t Tm var lam app tt pair fst snd left right case zero suc rec =>
+     right _ _ _
+            (t Tm var lam app tt pair fst snd left right case zero suc rec).
 
-Definition right6 {Γ A B} : Tm6 Γ B → Tm6 Γ (sum6 A B)
- := λ t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case zero suc rec ,
-     right6 _ _ _
-            (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case zero suc rec).
+Definition case {Γ A B C} : Tm Γ (sum A B) -> Tm Γ (arr A C) -> Tm Γ (arr B C) -> Tm Γ C
+ := fun t u v Tm var lam app tt pair fst snd left right case zero suc rec =>
+     case _ _ _ _
+           (t Tm var lam app tt pair fst snd left right case zero suc rec)
+           (u Tm var lam app tt pair fst snd left right case zero suc rec)
+           (v Tm var lam app tt pair fst snd left right case zero suc rec).
 
-Definition case6 {Γ A B C} : Tm6 Γ (sum6 A B) → Tm6 Γ (arr6 A C) → Tm6 Γ (arr6 B C) → Tm6 Γ C
- := λ t u v Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero suc rec ,
-     case6 _ _ _ _
-           (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero suc rec)
-           (u Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero suc rec)
-           (v Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero suc rec).
+Definition zero  {Γ} : Tm Γ nat
+ := fun Tm var lam app tt pair fst snd left right case zero suc rec => zero _.
 
-Definition zero6  {Γ} : Tm6 Γ nat6
- := λ Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc rec , zero6 _.
+Definition suc {Γ} : Tm Γ nat -> Tm Γ nat
+ := fun t Tm var lam app tt pair fst snd left right case zero suc rec =>
+   suc _ (t Tm var lam app tt pair fst snd left right case zero suc rec).
 
-Definition suc6 {Γ} : Tm6 Γ nat6 → Tm6 Γ nat6
- := λ t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec ,
-   suc6 _ (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec).
+Definition rec {Γ A} : Tm Γ nat -> Tm Γ (arr nat (arr A A)) -> Tm Γ A -> Tm Γ A
+ := fun t u v Tm var lam app tt pair fst snd left right case zero suc rec =>
+     rec _ _
+         (t Tm var lam app tt pair fst snd left right case zero suc rec)
+         (u Tm var lam app tt pair fst snd left right case zero suc rec)
+         (v Tm var lam app tt pair fst snd left right case zero suc rec).
 
-Definition rec6 {Γ A} : Tm6 Γ nat6 → Tm6 Γ (arr6 nat6 (arr6 A A)) → Tm6 Γ A → Tm6 Γ A
- := λ t u v Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec6 ,
-     rec6 _ _
-         (t Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec6)
-         (u Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec6)
-         (v Tm6 var6 lam6 app6 tt6 pair6 fst6 snd6 left6 right6 case6 zero6 suc6 rec6).
+Definition v0 {Γ A} : Tm (snoc Γ A) A
+ := var vz.
 
-Definition v06 {Γ A} : Tm6 (snoc6 Γ A) A
- := var6 vz6.
+Definition v1 {Γ A B} : Tm (snoc (snoc Γ A) B) A
+ := var (vs vz).
 
-Definition v16 {Γ A B} : Tm6 (snoc6 (snoc6 Γ A) B) A
- := var6 (vs6 vz6).
+Definition v2 {Γ A B C} : Tm (snoc (snoc (snoc Γ A) B) C) A
+ := var (vs (vs vz)).
 
-Definition v26 {Γ A B C} : Tm6 (snoc6 (snoc6 (snoc6 Γ A) B) C) A
- := var6 (vs6 (vs6 vz6)).
+Definition v3 {Γ A B C D} : Tm (snoc (snoc (snoc (snoc Γ A) B) C) D) A
+ := var (vs (vs (vs vz))).
 
-Definition v36 {Γ A B C D} : Tm6 (snoc6 (snoc6 (snoc6 (snoc6 Γ A) B) C) D) A
- := var6 (vs6 (vs6 (vs6 vz6))).
+Definition tbool : Ty
+ := sum top top.
 
-Definition tbool6 : Ty6
- := sum6 top6 top6.
+Definition ttrue {Γ} : Tm Γ tbool
+ := left tt.
 
-Definition ttrue6 {Γ} : Tm6 Γ tbool6
- := left6 tt6.
+Definition tfalse {Γ} : Tm Γ tbool
+ := right tt.
 
-Definition tfalse6 {Γ} : Tm6 Γ tbool6
- := right6 tt6.
+Definition ifthenelse {Γ A} : Tm Γ (arr tbool (arr A (arr A A)))
+ := lam (lam (lam (case v2 (lam v2) (lam v1)))).
 
-Definition ifthenelse6 {Γ A} : Tm6 Γ (arr6 tbool6 (arr6 A (arr6 A A)))
- := lam6 (lam6 (lam6 (case6 v26 (lam6 v26) (lam6 v16)))).
+Definition times4 {Γ A} : Tm Γ (arr (arr A A) (arr A A))
+  := lam (lam (app v1 (app v1 (app v1 (app v1 v0))))).
 
-Definition times46 {Γ A} : Tm6 Γ (arr6 (arr6 A A) (arr6 A A))
-  := lam6 (lam6 (app6 v16 (app6 v16 (app6 v16 (app6 v16 v06))))).
+Definition add {Γ} : Tm Γ (arr nat (arr nat nat))
+ := lam (rec v0
+      (lam (lam (lam (suc (app v1 v0)))))
+      (lam v0)).
 
-Definition add6 {Γ} : Tm6 Γ (arr6 nat6 (arr6 nat6 nat6))
- := lam6 (rec6 v06
-      (lam6 (lam6 (lam6 (suc6 (app6 v16 v06)))))
-      (lam6 v06)).
+Definition mul {Γ} : Tm Γ (arr nat (arr nat nat))
+ := lam (rec v0
+     (lam (lam (lam (app (app add (app v1 v0)) v0))))
+     (lam zero)).
 
-Definition mul6 {Γ} : Tm6 Γ (arr6 nat6 (arr6 nat6 nat6))
- := lam6 (rec6 v06
-     (lam6 (lam6 (lam6 (app6 (app6 add6 (app6 v16 v06)) v06))))
-     (lam6 zero6)).
-
-Definition fact6 {Γ} : Tm6 Γ (arr6 nat6 nat6)
- := lam6 (rec6 v06 (lam6 (lam6 (app6 (app6 mul6 (suc6 v16)) v06)))
-        (suc6 zero6)).
+Definition fact {Γ} : Tm Γ (arr nat nat)
+ := lam (rec v0 (lam (lam (app (app mul (suc v1)) v0)))
+        (suc zero)).

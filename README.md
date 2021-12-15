@@ -763,13 +763,13 @@ Pull requests are welcome!
 | stlc            | 0.014   | 0.573   | N/A     |  0.194      |
 | stlc5k          | 0.179   | 4.127   | N/A     |  6.049      |
 | stlc10k         | 0.306   | 16.160  | N/A     |  12.982     |
-| stlcLessImpl    | 0.008   | 0.358   | 0.151   |  0.166      |
+| stlcLessImpl    | 0.008   | 0.358   | 0.145   |  0.166      |
 | stlcLessImpl5k  | 0.140   | 4.169   | 0.905   |  4.508      |
-| stlcLessImpl10k | 0.275   | 17.426  | 1.703   |  8.861      |
+| stlcLessImpl10k | 0.275   | 17.426  | 1.685   |  8.861      |
 | stlcSmall       | 0.003   | 0.106   | 0.128   |  0.073      |
-| stlcSmall5k     | 0.037   | 4.445   | 0.809   |  2.649      |
-| stlcSmall10k    | 0.072   | 22.8    | 1.470   |  5.244      |
-| stlcSmall1M     | 8.725   | TL      | 439.3   |  615        |
+| stlcSmall5k     | 0.037   | 4.445   | 0.762   |  2.649      |
+| stlcSmall10k    | 0.072   | 22.8    | 1.388   |  5.244      |
+| stlcSmall1M     | 8.725   | TL      | 149     |  615        |
 
 
 ### Elaboration asymptotics
