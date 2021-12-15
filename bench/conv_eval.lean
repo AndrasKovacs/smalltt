@@ -1,7 +1,4 @@
 
--- Notes: some kind of memoization is likely up to tree 1M conversion
---        at 2M it slows down 100x
-
 set_option maxHeartbeats 10000000
 set_option maxRecDepth   10000000
 
@@ -10,6 +7,7 @@ universe u v
 def CBool := ∀ (B : Type u), B → B → B
 def ctrue : CBool := λ B t f => t
 def cand  : CBool → CBool → CBool := λ a b B t f => a B (b B t f) f
+def the (A : Type u) (x : A) := x
 
 def CEq {A : Type u}(x y : A) := ∀ (P : A → Type v), P x → P y
 def crefl {A}{x:A} : CEq x x := λ P px => px
@@ -87,13 +85,17 @@ def t23b := fullTree n23b
 
 -- not enough stack space
 
+-- def convn1M  : CEq n1M n1Mb   := crefl
+-- def convn5M  : CEq n5M n5Mb   := crefl
+-- def convn10M : CEq n10M n10Mb := crefl
+
 -- Full tree conversion
 --------------------------------------------------------------------------------
 
 -- def convt15  : CEq t15 t15b  := crefl
 -- def convt18  : CEq t18 t18b  := crefl
 -- def convt19  : CEq t19 t19b  := crefl
--- def convt20  : CEq t20 t20b  := crefl
+def convt20  : CEq t20 t20b  := crefl
 -- def convt21  : CEq t21 t21b  := crefl
 -- def convt22  : CEq t22 t22b  := crefl
 -- def convt23  : CEq t23 t23b  := crefl
@@ -101,17 +103,18 @@ def t23b := fullTree n23b
 -- Full meta-containing tree conversion
 --------------------------------------------------------------------------------
 
--- * does not elaborate! "can't synthesize placeholder"
--- def convmt15 : t15 = (fullTreeWithLeaf _ n15 ) := rfl
--- def convmt18 : t18 = (fullTreeWithLeaf _ n18 ) := rfl
--- def convmt19 : t19 = (fullTreeWithLeaf _ n19 ) := rfl
--- def convmt20 : t20 = (fullTreeWithLeaf _ n20 ) := rfl
--- def convmt21 : t21 = (fullTreeWithLeaf _ n21 ) := rfl
--- def convmt22 : t22 = (fullTreeWithLeaf _ n22 ) := rfl
--- def convmt23 : t23 = (fullTreeWithLeaf _ n23 ) := rfl
+-- def convmt15 := the (CEq t15b (fullTreeWithLeaf _ n15)) crefl
+-- def convmt18 := the (CEq t18b (fullTreeWithLeaf _ n18)) crefl
+-- def convmt19 := the (CEq t19b (fullTreeWithLeaf _ n19)) crefl
+-- def convmt20 := the (CEq t20b (fullTreeWithLeaf _ n20)) crefl
+-- def convmt21 := the (CEq t21b (fullTreeWithLeaf _ n21)) crefl
+-- def convmt22 := the (CEq t22b (fullTreeWithLeaf _ n22)) crefl
+-- def convmt23 := the (CEq t23b (fullTreeWithLeaf _ n23)) crefl
 
 -- Full tree forcing
 --------------------------------------------------------------------------------
+
+-- -- not enough stack space
 
 -- #reduce forceTree t15
 -- #reduce forceTree t18
@@ -121,7 +124,7 @@ def t23b := fullTree n23b
 -- #reduce forceTree t22
 -- #reduce forceTree t23
 
-#eval t15
+-- #reduce t15
 -- #reduce t18
 -- #reduce t19
 -- #reduce t20

@@ -811,17 +811,17 @@ See the `conv_eval` files.
 |TreeConv15     |0.055    | 0.016  | 0.005  | 0.020   |
 |TreeConv18     |0.088    | 0.02   | 0.007  | 0.020   |
 |TreeConv19     |0.161    | 0.03   | 0.009  | 0.020   |
-|TreeConv20     |0.408    | 1.7    | 0.618  | 20.7    |
-|TreeConv21     |0.834    | 3.4    | 1.161  | 29.3    |
-|TreeConv22     |1.722    | 6.4    | 2.315  | 29.8    |
-|TreeConv23     |3.325    | 13.7   | 4.699  | 28.8    |
-|TreeConvM15    |0.010    | 0.770  | 0.003  | N/A     |
-|TreeConvM18    |0.092    | 6.35   | 0.003  | N/A     |
-|TreeConvM19    |0.169    | 12.8   | 0.004  | N/A     |
-|TreeConvM20    |0.361    | 26.6   | 0.605  | N/A     |
-|TreeConvM21    |0.835    | 50.8   | 1.273  | N/A     |
-|TreeConvM22    |1.694    | TL     | 2.703  | N/A     |
-|TreeConvM23    |3.453    | TL     | 5.472  | N/A     |
+|TreeConv20     |0.408    | 1.7    | 0.618  | 21.5    |
+|TreeConv21     |0.834    | 3.4    | 1.161  | 43.5    |
+|TreeConv22     |1.722    | 6.4    | 2.315  | 88.8    |
+|TreeConv23     |3.325    | 13.7   | 4.699  | 177s    |
+|TreeConvM15    |0.010    | 0.770  | 0.003  | 0.020   |
+|TreeConvM18    |0.092    | 6.35   | 0.003  | 0.020   |
+|TreeConvM19    |0.169    | 12.8   | 0.004  | 0.020   |
+|TreeConvM20    |0.361    | 26.6   | 0.605  | 20.2    |
+|TreeConvM21    |0.835    | 50.8   | 1.273  | 19.6    |
+|TreeConvM22    |1.694    | TL     | 2.703  | 39.6    |
+|TreeConvM23    |3.453    | TL     | 5.472  | 81.8    |
 
 - The TreeConvM benchmarks fail to elaborate in Lean, for some reason we get
   "can't synthesize placeholder" errors, although the metas should be solvable.
@@ -829,7 +829,6 @@ See the `conv_eval` files.
   checking than smalltt, since they can shortcut the task up to TreeConv19. Coq
   can even do this up for TreeConvM15-19; this requires *approximate meta
   solutions*. It's apparent that Agda does not do such solutions.
-- Lean performance is puzzling, there seems to be a large constant overhead.
 - Agda performance degrades sharply when we throw metas in the mix.
 
 ### Raw evaluation and normalization
