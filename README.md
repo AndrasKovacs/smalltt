@@ -725,7 +725,7 @@ System: Intel 1165G7 CPU, 16GB 3200 MT/s RAM, CPU set to run at 28 W power draw.
 
 Abbreviations:
 - **SO**: stack overflow
-- **TL**: "too long", for which did not have patience
+- **TL**: "too long", I did not have enough patience
 - **OOM**: out of memory.
 
 All time figures are in **seconds**.
