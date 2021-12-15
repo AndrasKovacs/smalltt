@@ -1,6 +1,6 @@
 
-set_option maxHeartbeats 10000000
-set_option maxRecDepth   10000000
+set_option maxHeartbeats 10000000000
+set_option maxRecDepth   10000000000
 
 universe u v
 
@@ -83,8 +83,6 @@ def t23b := fullTree n23b
 -- Nat conversion
 --------------------------------------------------------------------------------
 
--- not enough stack space
-
 -- def convn1M  : CEq n1M n1Mb   := crefl
 -- def convn5M  : CEq n5M n5Mb   := crefl
 -- def convn10M : CEq n10M n10Mb := crefl
@@ -95,7 +93,7 @@ def t23b := fullTree n23b
 -- def convt15  : CEq t15 t15b  := crefl
 -- def convt18  : CEq t18 t18b  := crefl
 -- def convt19  : CEq t19 t19b  := crefl
-def convt20  : CEq t20 t20b  := crefl
+-- def convt20  : CEq t20 t20b  := crefl
 -- def convt21  : CEq t21 t21b  := crefl
 -- def convt22  : CEq t22 t22b  := crefl
 -- def convt23  : CEq t23 t23b  := crefl
@@ -114,15 +112,13 @@ def convt20  : CEq t20 t20b  := crefl
 -- Full tree forcing
 --------------------------------------------------------------------------------
 
--- -- not enough stack space
-
 -- #reduce forceTree t15
 -- #reduce forceTree t18
 -- #reduce forceTree t19
 -- #reduce forceTree t20
 -- #reduce forceTree t21
 -- #reduce forceTree t22
--- #reduce forceTree t23
+#reduce forceTree t23
 
 -- #reduce t15
 -- #reduce t18
