@@ -723,8 +723,12 @@ programs were used.
 
 System: Intel 1165G7 CPU, 16GB 3200 MT/s RAM, CPU set to run at 28 W power draw.
 
-**SO** means "stack overflow", and **TL** means "too long". All time figures
-are in **seconds**.
+Abbreviations:
+- **SO**: stack overflow
+- **TL**: "too long", for which did not have patience
+- **OOM**: out of memory.
+
+All time figures are in **seconds**.
 
 Benchmark results are currently in rather crappy hand-pasted markdown tables, I
 plan to have nicer graphs here.
@@ -806,8 +810,8 @@ See the `conv_eval` files.
 |               | smalltt | Agda    | Coq    | Lean    |
 |---------------|---------|---------|--------|---------|
 |NatConv1M      |0.045    | 1.8     | SO     | 126     |
-|NatConv5M      |0.188    | 9.6     | SO     | SO      |
-|NatConv10M     |0.712    | 19.7    | SO     | SO      |
+|NatConv5M      |0.188    | 9.6     | SO     | OOM     |
+|NatConv10M     |0.712    | 19.7    | SO     | OOM     |
 |TreeConv15     |0.055    | 0.016   | 0.005  | 0.020   |
 |TreeConv18     |0.088    | 0.02    | 0.007  | 0.020   |
 |TreeConv19     |0.161    | 0.03    | 0.009  | 0.020   |
