@@ -758,7 +758,7 @@ Pull requests are welcome!
   have to wait to have the entire input available for interactive use.
 
 
-|                 | smalltt | Agda    | Coq     |  Lean total |
+|                 | smalltt | Agda    | Coq     |  Lean       |
 |-----------------|---------|---------|---------|-------------|
 | stlc            | 0.014   | 0.573   | N/A     |  0.194      |
 | stlc5k          | 0.179   | 4.127   | N/A     |  6.049      |
