@@ -808,20 +808,20 @@ See the `conv_eval` files.
 |NatConv1M      |0.045    | 1.8    | SO     | SO      |
 |NatConv5M      |0.188    | 9.6    | SO     | SO      |
 |NatConv10M     |0.712    | 19.7   | SO     | SO      |
-|TreeConv15     |0.055    | 0.016  | 0.006  | 0.020   |
-|TreeConv18     |0.088    | 0.02   | 0.008  | 0.020   |
-|TreeConv19     |0.161    | 0.03   | 0.007  | 0.020   |
-|TreeConv20     |0.408    | 1.7    | 0.612  | 20.7    |
-|TreeConv21     |0.834    | 3.4    | 1.168  | 29.3    |
-|TreeConv22     |1.722    | 6.4    | 2.347  | 29.8    |
-|TreeConv23     |3.325    | 13.7   | 4.731  | 28.8    |
-|TreeConvM15    |0.010    | 0.770  | 0.006  | N/A     |
-|TreeConvM18    |0.092    | 6.35   | 0.007  | N/A     |
-|TreeConvM19    |0.169    | 12.8   | 0.005  | N/A     |
-|TreeConvM20    |0.361    | 26.6   | 0.549  | N/A     |
-|TreeConvM21    |0.835    | 50.8   | 1.248  | N/A     |
-|TreeConvM22    |1.694    | TL     | 2.704  | N/A     |
-|TreeConvM23    |3.453    | TL     | 5.515  | N/A     |
+|TreeConv15     |0.055    | 0.016  | 0.005  | 0.020   |
+|TreeConv18     |0.088    | 0.02   | 0.007  | 0.020   |
+|TreeConv19     |0.161    | 0.03   | 0.009  | 0.020   |
+|TreeConv20     |0.408    | 1.7    | 0.618  | 20.7    |
+|TreeConv21     |0.834    | 3.4    | 1.161  | 29.3    |
+|TreeConv22     |1.722    | 6.4    | 2.315  | 29.8    |
+|TreeConv23     |3.325    | 13.7   | 4.699  | 28.8    |
+|TreeConvM15    |0.010    | 0.770  | 0.003  | N/A     |
+|TreeConvM18    |0.092    | 6.35   | 0.003  | N/A     |
+|TreeConvM19    |0.169    | 12.8   | 0.004  | N/A     |
+|TreeConvM20    |0.361    | 26.6   | 0.605  | N/A     |
+|TreeConvM21    |0.835    | 50.8   | 1.273  | N/A     |
+|TreeConvM22    |1.694    | TL     | 2.703  | N/A     |
+|TreeConvM23    |3.453    | TL     | 5.472  | N/A     |
 
 - The TreeConvM benchmarks fail to elaborate in Lean, for some reason we get
   "can't synthesize placeholder" errors, although the metas should be solvable.
@@ -840,20 +840,20 @@ See the `conv_eval` files again.
 
 |               | smalltt | Agda    | Coq vm_compute | Coq compute | Coq lazy    |Lean reduce | Lean eval |
 |---------------|---------|---------|----------------|-------------|-------------|------------|-----------|
-|ForceTree15    |0.011   | 0.070    | 0.002          | 0.023       | 0.053       | N/A        | 0.022     |
-|ForceTree18    |0.100   | 0.47     | 0.019          | 0.172       | 0.295       | N/A        | 0.172     |
-|ForceTree19    |0.240   | 0.92     | 0.041          | 0.308       | 0.74        | N/A        | 0.341     |
-|ForceTree20    |0.487   | 1.8      | 0.078          | 0.818       | 1.179       | N/A        | 0.681     |
-|ForceTree21    |1.070   | 3.58     | 0.152          | 1.237       | 2.293       | N/A        | 1.77      |
-|ForceTree22    |2.122   | 7.37     | 0.301          | 2.486       | 4.601       | N/A        | 2.72      |
-|ForceTree23    |4.372   | 15.93    | 0.747          | 5.544       | 9.658       | N/A        | 5.76      |
-|NfTree15       |0.005   | N/A      | 0.028          | 0.013       | 0.01        | N/A        | N/A       |
-|NfTree18       |0.064   | N/A      | 0.192          | 0.128       | 0.213       | N/A        | N/A       |
-|NfTree19       |0.111   | N/A      | 0.525          | 0.293       | 0.404       | N/A        | N/A       |
-|NfTree20       |0.259   | N/A      | 0.718          | 0.635       | 0.806       | N/A        | N/A       |
-|NfTree21       |0.552   | N/A      | 1.573          | 1.197       | 1.508       | N/A        | N/A       |
-|NfTree22       |1.286   | N/A      | 2.962          | 2.952       | 3.15        | N/A        | N/A       |
-|NfTree23       |3.023   | N/A      | 5.975          | 5.03        | 7.271       | N/A        | N/A       |
+|ForceTree15    |0.011   | 0.070    | 0.002          | 0.022       | 0.053       | N/A        | 0.022     |
+|ForceTree18    |0.100   | 0.47     | 0.019          | 0.169       | 0.299       | N/A        | 0.172     |
+|ForceTree19    |0.240   | 0.92     | 0.041          | 0.299       | 0.725       | N/A        | 0.341     |
+|ForceTree20    |0.487   | 1.8      | 0.076          | 0.805       | 1.164       | N/A        | 0.681     |
+|ForceTree21    |1.070   | 3.58     | 0.151          | 1.23        | 2.2662      | N/A        | 1.77      |
+|ForceTree22    |2.122   | 7.37     | 0.299          | 2.492       | 4.55        | N/A        | 2.72      |
+|ForceTree23    |4.372   | 15.93    | 0.731          | 5.407       | 9.664       | N/A        | 5.76      |
+|NfTree15       |0.005   | N/A      | 0.018          | 0.013       | 0.01        | N/A        | N/A       |
+|NfTree18       |0.064   | N/A      | 0.192          | 0.127       | 0.213       | N/A        | N/A       |
+|NfTree19       |0.111   | N/A      | 0.523          | 0.289       | 0.402       | N/A        | N/A       |
+|NfTree20       |0.259   | N/A      | 0.716          | 0.632       | 0.88        | N/A        | N/A       |
+|NfTree21       |0.552   | N/A      | 1.559          | 1.195       | 1.572       | N/A        | N/A       |
+|NfTree22       |1.286   | N/A      | 2.971          | 2.94        | 3.143       | N/A        | N/A       |
+|NfTree23       |3.023   | N/A      | 5.996          | 4.99        | 7.187       | N/A        | N/A       |
 
 - Agda NfTree is N/A because there is no way to force normal forms in Agda
   without printing them.

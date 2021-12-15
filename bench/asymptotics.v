@@ -1,25 +1,24 @@
-Require Import Coq.Unicode.Utf8.
 
-Definition id {A:Set} : A → A := λ x, x.
-Definition Pair : Set → Set → Set := λ A B, ∀ (P : Set), (A → B → P) → P.
-Definition dup {A:Set} : A → Pair A A := λ a P p, p a a.
-Definition CNat : Set := ∀ (N : Set), (N → N) → N → N.
-Definition czero : CNat := λ n s z, z.
-Definition csuc : CNat → CNat := λ a n s z, s (a n s z).
+Definition id {A:Set} : A -> A := fun x => x.
+Definition Pair : Set -> Set -> Set := fun A B => forall (P : Set), (A -> B -> P) -> P.
+Definition dup {A:Set} : A -> Pair A A := fun a P p => p a a.
+Definition CNat : Set := forall (N : Set), (N -> N) -> N -> N.
+Definition czero : CNat := fun n s z => z.
+Definition csuc : CNat -> CNat := fun a n s z => s (a n s z).
 
-Definition Vec : Set → CNat → Set
-  := λ A n, ∀ (V : CNat → Set), (∀ n, A → V n → V (csuc n)) → V czero → V n.
+Definition Vec : Set -> CNat -> Set
+  := fun A n => forall (V : CNat -> Set), (forall n, A -> V n -> V (csuc n)) -> V czero -> V n.
 
 Definition nil {A:Set} : Vec A czero
- := λ V c n, n.
+ := fun V c n => n.
 
-Definition cons {A:Set} {n:CNat} : A → Vec A n → Vec A (csuc n)
-  := λ x xs V c nil, c n x (xs V c nil).
+Definition cons {A:Set} {n:CNat} : A -> Vec A n -> Vec A (csuc n)
+  := fun x xs V c nil => c n x (xs V c nil).
 
 --------------------------------------------------------------------------------
 
 (* Fails *)
-(* Definition idTest {A : Set} : A → A *)
+(* Definition idTest {A : Set} : A -> A *)
 (*   := id id id id id id id id id id id id id id id id id id id id *)
 (*      id id id id id id id id id id id id id id id id id id id id. *)
 
