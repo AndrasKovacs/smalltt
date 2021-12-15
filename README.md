@@ -814,7 +814,7 @@ See the `conv_eval` files.
 |TreeConv20     |0.408    | 1.7    | 0.618  | 21.5    |
 |TreeConv21     |0.834    | 3.4    | 1.161  | 43.5    |
 |TreeConv22     |1.722    | 6.4    | 2.315  | 88.8    |
-|TreeConv23     |3.325    | 13.7   | 4.699  | 177s    |
+|TreeConv23     |3.325    | 13.7   | 4.699  | 177     |
 |TreeConvM15    |0.010    | 0.770  | 0.003  | 0.020   |
 |TreeConvM18    |0.092    | 6.35   | 0.003  | 0.020   |
 |TreeConvM19    |0.169    | 12.8   | 0.004  | 0.020   |
@@ -823,8 +823,6 @@ See the `conv_eval` files.
 |TreeConvM22    |1.694    | TL     | 2.703  | 39.6    |
 |TreeConvM23    |3.453    | TL     | 5.472  | 81.8    |
 
-- The TreeConvM benchmarks fail to elaborate in Lean, for some reason we get
-  "can't synthesize placeholder" errors, although the metas should be solvable.
 - Note that Agda, Coq and Lean all have more aggressive approximate conversion
   checking than smalltt, since they can shortcut the task up to TreeConv19. Coq
   can even do this up for TreeConvM15-19; this requires *approximate meta
