@@ -229,7 +229,7 @@ need different features in conversion checking and in quoting:
 - In quoting, we want to output terms which are *as small as possible*. The
   reason is that, through metavariable solutions, the output of quoting is
   included in the overall elaboration output. So, if quoting returns full
-  beta-normal terms, that reliably destroys performance, as normal forms are
+  beta-normal terms, that reliably destroys performance, as normal forms
   tend to be extremely large.
 
 The solution is to add control over **definition unfolding** to evaluation and
