@@ -230,7 +230,7 @@ need different features in conversion checking and in quoting:
 - In quoting, we want to output terms which are *as small as possible*. The
   reason is that, through metavariable solutions, the output of quoting is
   included in the overall elaboration output. So, if quoting returns full
-  beta-normal terms, that reliably destroys performance, as normal forms are
+  beta-normal terms, that reliably destroys performance, as normal forms
   tend to be extremely large.
 
 The solution is to add control over **definition unfolding** to evaluation and
@@ -376,7 +376,7 @@ symbols match and `oneMillion` is applied to zero arguments.
 **Example**. We unify `const ?0 true` with `const false false`, where `const` is
 a top-level definition. We start in rigid mode, and since we have `const` head
 on both sides, we try to unify spines in flex mode. This fails, since `true /=
-false`. So we unfold the `const`-s, and unify sides in"full mode.
+false`. So we unfold the `const`-s, and unify sides in full mode.
 
 In short, smalltt unification backtracks at most once on any path leading to a
 subterm ("sub-value" actually, since we recurse on values).
@@ -842,7 +842,7 @@ See the `conv_eval` files again.
 - ForceTree : fold over a binary tree with Boolean conjunction
 - NfTree    : normalize a tree
 
-|               | smalltt | Agda    | Coq vm_compute | Coq compute | Coq lazy    |Lean reduce | Lean eval |  Idris2 |
+|               | smalltt | Agda    | Coq vm_compute | Coq compute | Coq lazy    |Lean reduce | Lean eval | Idris 2 |
 |---------------|---------|---------|----------------|-------------|-------------|------------|-----------|---------|
 |ForceTree15    |0.011    | 0.070   | 0.002          | 0.022       | 0.053       | 0.280      | 0.022     | 0.3     |
 |ForceTree18    |0.100    | 0.47    | 0.019          | 0.169       | 0.299       | 2.36       | 0.172     | 3.3     |
@@ -859,13 +859,11 @@ See the `conv_eval` files again.
 |NfTree22       |1.286    | N/A     | 2.971          | 2.94        | 3.143       | N/A        | N/A       | N/A     |
 |NfTree23       |3.023    | N/A     | 5.996          | 4.99        | 7.187       | N/A        | N/A       | N/A     |
 
-- Agda NfTree is N/A because there is no way to force just the normal forms in
-  Agda without printing them. Same goes for Lean.
-- On performance:
-  - Coq vm_compute is extremely strong in ForceTree, which is a fairly lightly
-    allocating workload. I note that smalltt with glued evaluation disabled
-    would be 2x faster here, but that would be still just the third of Coq VM
-    performance.
-  - On the other hand, smalltt is faster in normalization, a more
-    allocation-heavy task. I attribute this to superior RTS performance.
-  - Coq compute and lazy are always behind smalltt.
+- Agda, Lean and Idris 2 NfTree is N/A because there is no way to only force
+  the normal forms, without doing printing or conversion checking.
+- Coq vm_compute is extremely strong in ForceTree, which is a fairly lightly
+  allocating workload. I note that smalltt with glued evaluation disabled
+  would be 2x faster here, but that would be still just the third of Coq VM
+  performance.
+- On the other hand, smalltt is faster in normalization, a more
+  allocation-heavy task. I attribute this to superior RTS performance.

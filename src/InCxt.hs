@@ -2,7 +2,7 @@
 module InCxt where
 
 {-|
-Variants of function which take a local elaboration context as argument.
+Variants of functions which take a local elaboration context as argument.
 -}
 
 import GHC.Exts
