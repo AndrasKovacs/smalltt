@@ -1,5 +1,5 @@
 
-# build commands
+# commands
 
 - agda: `agda FILE -vprofile:7 +RTS -M10G`
 - coq:  `time coqtop -l FILE -batch -type-in-type -time` or without `-time` if we're benchmarking elaboration.
