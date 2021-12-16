@@ -8,3 +8,4 @@
   - `su`
   - `ulimit -s unlimited`
   - `lean FILE --profile` where `lean` is the path we got
+- idris2: `time idris2 -c FILE`
