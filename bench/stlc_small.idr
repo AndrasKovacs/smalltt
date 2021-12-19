@@ -1,4 +1,3 @@
-
 Ty : Type
 Ty = (Ty    : Type)
    ->(empty : Ty)
