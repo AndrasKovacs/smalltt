@@ -370,8 +370,8 @@ unify ms l frz cs (G topt ftopt) (G topt' ftopt') = let
 
       (VUnfold h sp t, VUnfold h' sp' t') -> case cs of
         Rigid | eqUH h h' -> unifySp ms l frz Flex sp sp'
-                                `catch` \_ -> unify ms l frz Full (gjoin t) (gjoin t')
-              | otherwise -> unify ms l frz Rigid (gjoin t) (gjoin t')
+                                `catch` \_ -> unify ms l frz Full (G topt t) (G topt' t')
+              | otherwise -> unify ms l frz Rigid (G topt t) (G topt' t')
         Flex  | eqUH h h' -> unifySp ms l frz Flex sp sp'
               | otherwise -> err
         _                 -> impossible
