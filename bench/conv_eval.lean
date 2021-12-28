@@ -84,7 +84,7 @@ def t23b := fullTree n23b
 --------------------------------------------------------------------------------
 
 -- def convn1M  : CEq n1M n1Mb   := crefl
-def convn5M  : CEq n5M n5Mb   := crefl
+-- def convn5M  : CEq n5M n5Mb   := crefl
 -- def convn10M : CEq n10M n10Mb := crefl
 
 -- Full tree conversion

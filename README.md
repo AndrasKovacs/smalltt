@@ -813,30 +813,30 @@ See the `conv_eval` files.
 
 |               | smalltt | Agda    | Coq    | Lean    | Idris 2  |
 |---------------|---------|---------|--------|---------|----------|
-|NatConv1M      |0.045    | 1.8     | SO     | 126     | 3.22     |
-|NatConv5M      |0.188    | 9.6     | SO     | OOM     | 29.65    |
-|NatConv10M     |0.712    | 19.7    | SO     | OOM     | 173.88   |
-|TreeConv15     |0.055    | 0.016   | 0.005  | 0.020   | 0.105    |
-|TreeConv18     |0.088    | 0.02    | 0.007  | 0.020   | 3.75     |
-|TreeConv19     |0.161    | 0.03    | 0.009  | 0.020   | 4        |
-|TreeConv20     |0.408    | 1.7     | 0.618  | 21.5    | 16.65    |
-|TreeConv21     |0.834    | 3.4     | 1.161  | 43.5    | 5.8      |
-|TreeConv22     |1.722    | 6.4     | 2.315  | 88.8    | 12.1     |
-|TreeConv23     |3.325    | 13.7    | 4.699  | 177     | 25.38    |
-|TreeConvM15    |0.010    | 0.770   | 0.003  | 0.020   | 0.1      |
-|TreeConvM18    |0.092    | 6.35    | 0.003  | 0.020   | 2        |
-|TreeConvM19    |0.169    | 12.8    | 0.004  | 0.020   | 2.67     |
-|TreeConvM20    |0.361    | 26.6    | 0.605  | 20.2    | 8.9      |
-|TreeConvM21    |0.835    | 50.8    | 1.273  | 19.6    | 10.83    |
-|TreeConvM22    |1.694    | TL      | 2.703  | 39.6    | 22.23    |
-|TreeConvM23    |3.453    | TL      | 5.472  | 81.8    | 45.9     |
+|NatConv1M      |0.045    | 1.8     | SO     | 16.4    | 3.22     |
+|NatConv5M      |0.188    | 9.6     | SO     | 34.6    | 29.65    |
+|NatConv10M     |0.712    | 19.7    | SO     | 61.1    | 173.88   |
+|TreeConv15     |0.055    | 0.016   | 0.005  | 0.001   | 0.105    |
+|TreeConv18     |0.088    | 0.02    | 0.007  | 0.001   | 3.75     |
+|TreeConv19     |0.161    | 0.03    | 0.009  | 0.001   | 4        |
+|TreeConv20     |0.408    | 1.7     | 0.618  | 0.001   | 16.65    |
+|TreeConv21     |0.834    | 3.4     | 1.161  | 0.001   | 5.8      |
+|TreeConv22     |1.722    | 6.4     | 2.315  | 0.001   | 12.1     |
+|TreeConv23     |3.325    | 13.7    | 4.699  | 0.001   | 25.38    |
+|TreeConvM15    |0.010    | 0.770   | 0.003  | 0.001   | 0.1      |
+|TreeConvM18    |0.092    | 6.35    | 0.003  | 0.001   | 2        |
+|TreeConvM19    |0.169    | 12.8    | 0.004  | 0.001   | 2.67     |
+|TreeConvM20    |0.361    | 26.6    | 0.605  | 0.001   | 8.9      |
+|TreeConvM21    |0.835    | 50.8    | 1.273  | 0.001   | 10.83    |
+|TreeConvM22    |1.694    | TL      | 2.703  | 0.001   | 22.23    |
+|TreeConvM23    |3.453    | TL      | 5.472  | 0.001   | 45.9     |
 
 - I Coq I haven't yet been able to find a way to increase stack sizes enough, for
   the Nat benchmark.
-- Note that Agda, Coq and Lean all have more aggressive approximate conversion
-  checking than smalltt, since they can shortcut the task up to TreeConv19. Coq
-  can even do this up for TreeConvM15-19; this requires *approximate meta
-  solutions*. It's apparent that Agda does not do such solutions.
+- Agda, Coq and Lean all have more aggressive approximate conversion checking
+  than smalltt. Lean can shortcut *all* tree conversion tasks. For the TreeConvM
+  tasks, this requires *approximate meta solutions*. It's apparent that Agda
+  does not do such solutions.
 - Agda performance degrades sharply when we throw metas in the mix.
 
 ### Raw evaluation and normalization
@@ -847,13 +847,13 @@ See the `conv_eval` files again.
 
 |               | smalltt | Agda    | Coq vm_compute | Coq compute | Coq lazy    |Lean reduce | Lean eval | Idris 2 |
 |---------------|---------|---------|----------------|-------------|-------------|------------|-----------|---------|
-|ForceTree15    |0.011    | 0.070   | 0.002          | 0.022       | 0.053       | 0.280      | 0.022     | 0.3     |
-|ForceTree18    |0.100    | 0.47    | 0.019          | 0.169       | 0.299       | 2.36       | 0.172     | 3.3     |
-|ForceTree19    |0.240    | 0.92    | 0.041          | 0.299       | 0.725       | 4.7        | 0.341     | 7.5     |
-|ForceTree20    |0.487    | 1.8     | 0.076          | 0.805       | 1.164       | 9.54       | 0.681     | 17.8    |
-|ForceTree21    |1.070    | 3.58    | 0.151          | 1.23        | 2.2662      | 20.4       | 1.77      | 49.4    |
-|ForceTree22    |2.122    | 7.37    | 0.299          | 2.492       | 4.55        | 39.8       | 2.72      | OOM     |
-|ForceTree23    |4.372    | 15.93   | 0.731          | 5.407       | 9.664       | 81.4       | 5.76      | OOM     |
+|ForceTree15    |0.011    | 0.070   | 0.002          | 0.022       | 0.053       | 0.213      | 0.022     | 0.3     |
+|ForceTree18    |0.100    | 0.47    | 0.019          | 0.169       | 0.299       | 1.80       | 0.170     | 3.3     |
+|ForceTree19    |0.240    | 0.92    | 0.041          | 0.299       | 0.725       | 3.5        | 0.345     | 7.5     |
+|ForceTree20    |0.487    | 1.8     | 0.076          | 0.805       | 1.164       | 6.8        | 0.695     | 17.8    |
+|ForceTree21    |1.070    | 3.58    | 0.151          | 1.23        | 2.2662      | 14.6       | 1.38      | 49.4    |
+|ForceTree22    |2.122    | 7.37    | 0.299          | 2.492       | 4.55        | 29.4       | 2.75      | OOM     |
+|ForceTree23    |4.372    | 15.93   | 0.731          | 5.407       | 9.664       | 62.7       | 5.52      | OOM     |
 |NfTree15       |0.005    | N/A     | 0.018          | 0.013       | 0.01        | N/A        | N/A       | N/A     |
 |NfTree18       |0.064    | N/A     | 0.192          | 0.127       | 0.213       | N/A        | N/A       | N/A     |
 |NfTree19       |0.111    | N/A     | 0.523          | 0.289       | 0.402       | N/A        | N/A       | N/A     |
