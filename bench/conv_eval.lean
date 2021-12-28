@@ -4,7 +4,7 @@ set_option maxRecDepth   10000000000
 
 universe u v
 
-def CBool := ∀ (B : Type u), B → B → B
+def CBool := ∀ (B : Type), B → B → B
 def ctrue : CBool := λ B t f => t
 def cand  : CBool → CBool → CBool := λ a b B t f => a B (b B t f) f
 def the (A : Type u) (x : A) := x
@@ -12,7 +12,7 @@ def the (A : Type u) (x : A) := x
 def CEq {A : Type u}(x y : A) := ∀ (P : A → Type v), P x → P y
 def crefl {A}{x:A} : CEq x x := λ P px => px
 
-def CNat := ∀ (N : Type u), (N → N) → N → N
+def CNat := ∀ (N : Type 2), (N → N) → N → N
 def add : CNat → CNat → CNat := λ a b n s z => a n s (b n s z)
 def mul : CNat → CNat → CNat := λ a b N s z => a N (b N s) z
 def suc : CNat → CNat := λ a N s z => s (a N s z)
@@ -49,7 +49,7 @@ def n5Mb   := mul n1Mb  n5
 def n10M   := mul n5M   n2
 def n10Mb  := mul n5Mb  n2
 
-def Tree := ∀ (T : Type u), (T → T → T) → T → T
+def Tree := ∀ (T : Type 1), (T → T → T) → T → T
 def leaf : Tree := λ T n l => l
 def node (t1 t2 : Tree) : Tree := λ T n l => n (t1 T n l) (t2 T n l)
 def fullTree (n : CNat) : Tree := n Tree (λ t => node t t) leaf
