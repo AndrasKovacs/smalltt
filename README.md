@@ -373,7 +373,7 @@ in rigid mode, which recurses under the `cons`-es, and tries to unify
 `oneMillion` with itself twice. Both cases succeed speculatively, because head
 symbols match and `oneMillion` is applied to zero arguments.
 
-**Example**. We unify `const ?0 true` with `const false false`, where `const` is
+**Example**. We unify `const true true` with `const true false`, where `const` is
 a top-level definition. We start in rigid mode, and since we have `const` head
 on both sides, we try to unify spines in flex mode. This fails, since `true /=
 false`. So we unfold the `const`-s, and unify sides in full mode.
