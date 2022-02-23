@@ -402,7 +402,7 @@ computed.
 
 In [infer/check](src/Elaboration.hs) and in [unification](src/Unification.hs),
 instead of using plain values, we use pairs of values, named `data G = G {g1 ::
-Val, g2 :: Val}` in the source. Hence, `unify` takes two `G`-s, and we `infer`
+Val, g2 :: Val}` in the source. Hence, `unify` takes two `G`-s, and `infer`
 returns a `G` for inferred type.
 
 In `G`, the two values are always convertible, but the first value is always the
