@@ -500,7 +500,7 @@ that we are in an irrelevant evaluation context.
 
 It would be better in the previous example to solve `?0` with `true`. Smalltt
 does not bother with performing unfolding for code optimization, but it
-certainly could; the primary goal is demonstrate the infrastructure where we
+certainly could; the primary goal is to demonstrate the infrastructure where we
 have the freedom to unfold in different ways. Additional optimization passes can
 take advantage of the preserved top-level unfoldings.
 
