@@ -1,3 +1,5 @@
+-- Church-coded STLC + interpreter + some example code
+
 Ty : U
  = (Ty  : U)
    (ι   : Ty)

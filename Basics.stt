@@ -1,4 +1,7 @@
 
+-- dependent function + type-in-type + Agda-style implicit arguments
+-- + top-level definition + local definitions + basic higher-order unification
+
 -- Comments are the same as in Haskell.
 
 -- There is a distinguished top level scope. Local definitions can be written
@@ -18,7 +21,7 @@ id : {A : U} → A → A
  = λ x. x
 
 -- The type of an implicit binder can be ommitted.
-id : {A} → A → A
+id : {A} → A → A   -- ∀ A → A → A
  = λ x. x
 
 -- Binders can be grouped, the same way as in Agda
@@ -62,3 +65,5 @@ id : (A : U) → A → A
 
 id2 : (A : U) → A → A
  = λ A x. id _ x
+
+-- Church-codings of GADTs are available because of type-in-type

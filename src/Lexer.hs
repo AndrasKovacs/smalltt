@@ -47,16 +47,16 @@ merge ~err@(Error p e) ~err'@(Error p' e')
      (Imprecise ss  , Imprecise ss' ) -> Error p (Imprecise (ss ++ ss'))
 {-# noinline merge #-}
 
-type Parser = FP.Parser Error
+type Parser = FP.Parser Int Error
 
-uoptioned :: FP.Parser e a -> (UMaybe a -> FP.Parser e b) -> FP.Parser e b
+uoptioned :: Parser a -> (UMaybe a -> Parser b) -> Parser b
 uoptioned (FP.Parser f) k = FP.Parser \ ~fp !r eob s n -> case f fp r eob s n of
   OK# a s n -> runParser# (k (UJust a)) fp r eob s n
   Fail#     -> runParser# (k UNothing)  fp r eob s n
   x         -> unsafeCoerce# x
 {-# inline uoptioned #-}
 
-uoptional :: FP.Parser e a -> FP.Parser e (UMaybe a)
+uoptional :: Parser a -> Parser (UMaybe a)
 uoptional p = (UJust <$> p) <|> pure UNothing
 {-# inline uoptional #-}
 
@@ -140,7 +140,7 @@ ws = $(switch [| case _ of
 -- | Parse a line comment.
 lineComment :: Parser ()
 lineComment =
-  optioned anyWord8
+  withOption anyWord8
     (\case 10 -> put 0 >> ws
            _  -> modify (+1) >> lineComment)
     (pure ())

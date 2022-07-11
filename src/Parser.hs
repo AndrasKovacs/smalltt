@@ -38,7 +38,7 @@ scanIdent :: Parser ()
 scanIdent = identStartChar >> manyIdentChars
 
 identBased :: (Span -> Parser a) -> Parser a
-identBased k = spanned scanIdent \_ x -> do
+identBased k = withSpan scanIdent \_ x -> do
   fails (isKeyword x)
   ws
   k x
@@ -99,7 +99,7 @@ goApp t = branch braceL
    (do u <- tm'
        braceR'
        goApp (App t u (NoName Impl))))
-  (optioned atom
+  (withOption atom
      (\u -> goApp (App t u (NoName Expl)))
      (pure t))
 
