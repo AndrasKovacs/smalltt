@@ -373,7 +373,7 @@ in rigid mode, which recurses under the `cons`-es, and tries to unify
 `oneMillion` with itself twice. Both cases succeed speculatively, because head
 symbols match and `oneMillion` is applied to zero arguments.
 
-**Example**. We unify `const ?0 true` with `const false false`, where `const` is
+**Example**. We unify `const true true` with `const true false`, where `const` is
 a top-level definition. We start in rigid mode, and since we have `const` head
 on both sides, we try to unify spines in flex mode. This fails, since `true /=
 false`. So we unfold the `const`-s, and unify sides in full mode.
@@ -392,7 +392,7 @@ of allowed unfoldings (currently unfolding is not allowed).
 
 I haven't yet done benchmarking on larger, more realistic codebases. The point
 is that the current system is compatible with a large number of approximate
-conversion checking algorithms, so we could adapt based it on more real-world
+conversion checking algorithms, so we could adapt it based on more real-world
 performance data. The main limitation is that we can only suspend top-level
 unfoldings, and local let-s and immediate local beta-redexes are always
 computed.
@@ -402,7 +402,7 @@ computed.
 
 In [infer/check](src/Elaboration.hs) and in [unification](src/Unification.hs),
 instead of using plain values, we use pairs of values, named `data G = G {g1 ::
-Val, g2 :: Val}` in the source. Hence, `unify` takes two `G`-s, and we `infer`
+Val, g2 :: Val}` in the source. Hence, `unify` takes two `G`-s, and `infer`
 returns a `G` for inferred type.
 
 In `G`, the two values are always convertible, but the first value is always the
@@ -500,7 +500,7 @@ that we are in an irrelevant evaluation context.
 
 It would be better in the previous example to solve `?0` with `true`. Smalltt
 does not bother with performing unfolding for code optimization, but it
-certainly could; the primary goal is demonstrate the infrastructure where we
+certainly could; the primary goal is to demonstrate the infrastructure where we
 have the freedom to unfold in different ways. Additional optimization passes can
 take advantage of the preserved top-level unfoldings.
 
