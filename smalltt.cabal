@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           smalltt
-version:        0.2.0.0
+version:        0.2.0.1
 description:    Demo for high-performance elaboration with dependent types
 category:       Language
 author:         András Kovács
