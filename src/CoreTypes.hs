@@ -1,40 +1,22 @@
-{-# language UnboxedTuples  #-}
+
 {-# options_ghc -funbox-strict-fields #-}
-
-{-|
-
-
-
--}
 
 module CoreTypes where
 
 import qualified Data.Array.LM        as ALM
 import qualified Data.Array.Dynamic.L as ADL
 import qualified Data.Ref.F           as RF
-import qualified Data.Array.UM        as AUM
-import qualified Data.Ref.UU          as RUU
-import IO (runIO)
 import GHC.Exts
 
-import qualified UIO as U
-import qualified UIO
 import qualified LvlSet as LS
 import Common
 import Data.Bits
-
-#include "deriveCanIO.h"
 
 -- Metacxt
 --------------------------------------------------------------------------------
 
 data MetaEntry = Unsolved LS.LvlSet | Solved (RF.Ref MetaVar) LS.LvlSet Tm ~Val
 type MetaCxt = ADL.Array MetaEntry
-
-CAN_IO(MetaEntry, LiftedRep, MetaEntry, x, CoeMetaEntry)
-
-CAN_IO(MetaCxt, UnliftedRep, MutableArrayArray# RealWorld,
-       ADL.Array (RUU.Ref (AUM.Array x)), CoeMetaCxt)
 
 --------------------------------------------------------------------------------
 
@@ -43,13 +25,9 @@ data Spine
   | SApp Spine Val Icit
   deriving Show
 
-CAN_IO(Spine, LiftedRep, Spine, x, CoeSpine)
-
 data Closure
   = Closure Env Tm
   deriving Show
-
-CAN_IO2(Closure, LiftedRep, LiftedRep, Env, Tm, Closure x y, CoeClosure)
 
 data Env
   = ENil
@@ -67,8 +45,6 @@ data Val
   | VU
   | VIrrelevant
   deriving Show
-
-CAN_IO(Val, LiftedRep, Val, x, CoeVal)
 
 type Ty = Tm
 
@@ -90,16 +66,12 @@ data Tm
   | U
   deriving Show
 
-CAN_IO(Tm, LiftedRep, Tm, x, CoeTm)
-
 data G   = G {g1, g2 :: ~Val}
 type GTy = G
 
 gjoin :: Val -> G
 gjoin ~v = G v v
 {-# inline gjoin #-}
-
-CAN_IO2(G, LiftedRep, LiftedRep, Val, Val, G x y, CoeG)
 
 ------------------------------------------------------------
 
@@ -137,8 +109,6 @@ instance Show UnfoldHead where
 data TopEntry
   -- ^ Name, type, definition, bound for frozen metas.
   = TopEntry {-# unpack #-} Span Tm Tm MetaVar
-
-CAN_IO(TopEntry, LiftedRep, TopEntry, x, CoeTopEntry)
 
 type TopInfo = ALM.Array TopEntry
 type TopVals = ALM.Array Val

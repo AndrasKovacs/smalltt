@@ -1,23 +1,15 @@
-{-# language UnboxedTuples #-}
 
 module TopCxt where
 
 import qualified Data.Array.LM        as ALM
 import qualified Data.Array.Dynamic.L as ADL
-import qualified Data.Array.UM        as AUM
-import qualified Data.Ref.UU          as RUU
-import qualified Data.Ref.UUU         as RUUU
 import GHC.Exts
 
-import qualified UIO
-import qualified UIO as U
 import qualified Evaluation as E
 import qualified SymTable as ST
 import qualified MetaCxt as MC
 import Common
 import CoreTypes
-
-#include "deriveCanIO.h"
 
 -- | Top-level elaboration context.
 data Cxt = Cxt {
@@ -25,38 +17,45 @@ data Cxt = Cxt {
   info   :: TopInfo,     -- ^ Span, term, type for each definition.
   tbl    :: ST.SymTable, -- ^ Symbol table.
   mcxt   :: MetaCxt,     -- ^ Metacontext.
-  frz    :: MetaVar      -- ^ All metavars small than frz are frozen.
+  frz    :: MetaVar      -- ^ All metavars smaller than frz are frozen.
   }
 
-CAN_IO5(
-  Cxt,
-
-  IntRep, UnliftedRep, UnliftedRep, UnliftedRep, IntRep,
-
-  Int#, MutableArray# RealWorld TopEntry,
-    MutableArrayArray# RealWorld, MutableArrayArray# RealWorld, Int#,
-
-  Cxt (Lvl (I# a)) (ALM.Array b) (ST.SymTable (RUUU.Ref (AUM.Array c)))
-      (ADL.Array (RUU.Ref (AUM.Array d))) (MkMetaVar (I# e)),
-
-  CoeTop)
+type WithCxt a =
+  (?lvl :: Lvl)          =>
+  (?info :: TopInfo)     =>
+  (?tbl  :: ST.SymTable) =>
+  (?mcxt :: MetaCxt)     =>
+  (?frz  :: MetaVar)     =>
+  a
 
 -- | New top context from a source file and the number of top defs.
-new :: Src -> Int -> U.IO Cxt
-new src len = U.do
-  info   <- U.io $ ALM.new len (error "undefined top entry")
+new :: Src -> Int -> WithCxt (IO a) -> IO a
+new src len act = do
+  info   <- ALM.new len (error "undefined top entry")
   tbl    <- ST.new src
-  ms     <- U.io $ ADL.empty
-  U.pure (Cxt 0 info tbl ms 0)
+  ms     <- ADL.empty
+  let ?info = info
+      ?tbl  = tbl
+      ?mcxt = ms
+      ?lvl  = 0
+      ?frz  = 0
+  act
 {-# inline new #-}
+
+cxt :: WithCxt Cxt
+cxt = Cxt ?lvl ?info ?tbl ?mcxt ?frz
+{-# inline cxt #-}
 
 -- | Extend cxt with a top-level definition. Updates destructively. Freezes all
 --   current metavariables.
-define :: Span -> Ty -> GTy -> Tm -> Cxt -> U.IO Cxt
-define x a ga t (Cxt len info tbl ms _) = U.do
-  let ~vt = E.eval ms ENil t
-  frz <- coerce U.<$> MC.size ms
-  U.io $ ALM.write info (coerce len) (TopEntry x a t frz)
-  ST.insert x (ST.Top a ga t (TopVar len (coerce vt))) tbl
-  U.pure (Cxt (len + 1) info tbl ms frz)
+define :: Span -> Ty -> GTy -> Tm -> WithCxt (IO a) -> WithCxt (IO a)
+define x a ga t act = do
+  let ~vt = E.eval ?mcxt ENil t
+  frz <- coerce <$> MC.size ?mcxt
+  ALM.write ?info (coerce ?lvl) (TopEntry x a t frz)
+  ST.insert x (ST.Top a ga t (TopVar ?lvl (coerce vt))) ?tbl
+  let lvl' = ?lvl + 1
+  let ?lvl = lvl'
+      ?frz = frz
+  act
 {-# inline define #-}

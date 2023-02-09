@@ -1,5 +1,4 @@
 {-# options_ghc -funbox-strict-fields #-}
-{-# language UnboxedSums, UnboxedTuples #-}
 
 {-|
 Presyntax as output by parsing. Like in `Common` and `CoreTypes`, we manually

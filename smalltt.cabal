@@ -1,11 +1,11 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.35.1.
 --
 -- see: https://github.com/sol/hpack
 
 name:           smalltt
-version:        0.2.0.1
+version:        0.2.0.2
 description:    Demo for high-performance elaboration with dependent types
 category:       Language
 author:         András Kovács
@@ -48,7 +48,6 @@ library
       Presyntax
       SymTable
       TopCxt
-      UIO
       Unification
   other-modules:
       Paths_smalltt
@@ -68,6 +67,7 @@ library
       FunctionalDependencies
       GADTs
       InstanceSigs
+      ImplicitParams
       KindSignatures
       LambdaCase
       MagicHash
@@ -86,8 +86,10 @@ library
       TypeFamilies
       TypeFamilyDependencies
       UndecidableInstances
+      UnboxedTuples
+      UnboxedSums
       ViewPatterns
-  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=20 -O2
+  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=20 -fworker-wrapper-cbv -fexpose-all-unfoldings -O2 -fplugin StrictImplParams
   build-depends:
       base >=4.7 && <5
     , bytestring
@@ -96,15 +98,16 @@ library
     , flatparse
     , ghc-prim
     , primdata
+    , strict-impl-params
     , template-haskell
     , time
+  default-language: Haskell2010
   if flag(dump)
     ghc-options: -ddump-simpl -ddump-stg-final -ddump-cmm -dsuppress-all -dno-suppress-type-signatures -ddump-to-file
   if flag(llvm)
     ghc-options: -fllvm
   if flag(debug)
     cpp-options: -DDEBUG
-  default-language: Haskell2010
 
 executable smalltt
   main-is: Main.hs
@@ -124,6 +127,7 @@ executable smalltt
       FunctionalDependencies
       GADTs
       InstanceSigs
+      ImplicitParams
       KindSignatures
       LambdaCase
       MagicHash
@@ -142,8 +146,10 @@ executable smalltt
       TypeFamilies
       TypeFamilyDependencies
       UndecidableInstances
+      UnboxedTuples
+      UnboxedSums
       ViewPatterns
-  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=20 -O2 -rtsopts -threaded -with-rtsopts= "-A64M -s -N8"
+  ghc-options: -Wall -Wno-name-shadowing -Wno-unused-binds -Wno-unused-matches -Wno-missing-signatures -Wno-unused-do-bind -Wno-unticked-promoted-constructors -fmax-worker-args=20 -fworker-wrapper-cbv -fexpose-all-unfoldings -O2 -fplugin StrictImplParams -rtsopts -threaded -with-rtsopts= "-A64M -s -N8"
   build-depends:
       base >=4.7 && <5
     , bytestring
@@ -151,10 +157,11 @@ executable smalltt
     , flatparse
     , primdata
     , smalltt
+    , strict-impl-params
+  default-language: Haskell2010
   if flag(dump)
     ghc-options: -ddump-simpl -ddump-stg-final -ddump-cmm -dsuppress-all -dno-suppress-type-signatures -ddump-to-file
   if flag(llvm)
     ghc-options: -fllvm
   if flag(debug)
     cpp-options: -DDEBUG
-  default-language: Haskell2010

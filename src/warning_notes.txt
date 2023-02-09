@@ -5,17 +5,3 @@ GHC bugs & performance issues that I've found
   sake of debug printing) causes mysterious segfaults! I instead changed to safe
   freezing, which works; but officially unsafeFreeze should never segafult! This
   I tested in ghc 9.0.1 and 9.2.1.
-
-- Consider
-
-  U.do
-    x <- case t of
-      C1 -> _
-      C2 -> _
-    ...
-
-  This sometimes yields crappy Core which fails to inline bind and pure for the U.IO!
-  The apparent workaround is to define the U.bindN functions in UIO.
-
-- Type family reduction routinely fails during type checking if we use type
-  families defined in a different module! See UIO.hs and deriveCanIO.h for workarounds.

@@ -1,4 +1,3 @@
-{-# language UnboxedTuples, UnboxedSums #-}
 
 module Lexer where
 
@@ -6,6 +5,7 @@ import FlatParse.Stateful hiding (Parser, runParser, string, char, cut, err)
 
 import qualified Data.Set as S
 import qualified FlatParse.Stateful as FP
+import qualified FlatParse.Common.Assorted as FP
 import Data.Char
 import Data.String
 import GHC.Exts
@@ -50,10 +50,10 @@ merge ~err@(Error p e) ~err'@(Error p' e')
 type Parser = FP.Parser Int Error
 
 uoptioned :: Parser a -> (UMaybe a -> Parser b) -> Parser b
-uoptioned (FP.Parser f) k = FP.Parser \ ~fp !r eob s n -> case f fp r eob s n of
-  OK# a s n -> runParser# (k (UJust a)) fp r eob s n
-  Fail#     -> runParser# (k UNothing)  fp r eob s n
-  x         -> unsafeCoerce# x
+uoptioned (FP.ParserT f) k = FP.ParserT \ ~fp !r eob s n st -> case f fp r eob s n st of
+  OK# st a s n -> FP.runParserT# (k (UJust a)) fp r eob s n st
+  Fail# st     -> FP.runParserT# (k UNothing)  fp r eob s n st
+  x            -> unsafeCoerce# x
 {-# inline uoptioned #-}
 
 uoptional :: Parser a -> Parser (UMaybe a)
@@ -64,7 +64,7 @@ prettyError :: Src -> Error -> String
 prettyError _ DontUnboxError = impossible
 prettyError b (Error pos e)  =
 
-  let ls     = FP.lines b
+  let ls     = FP.linesUtf8 b
       (l, c) = head $ posLineCols b [pos]
       line   = if 0 <= l && l < length ls then ls !! l else ""
       linum  = show l
@@ -116,7 +116,7 @@ runParser p = FP.runParser p 0 0
 
 -- | Run parser, print pretty error on failure.
 testParser :: Show a => Parser a -> String -> IO ()
-testParser p str = case packUTF8 str of
+testParser p str = case strToUtf8 str of
   b -> case runParser p b of
     Err e    -> putStrLn $ prettyError b e
     OK a _ _ -> print a
@@ -209,29 +209,29 @@ moreIndented pa k = do
 -- | Read a starting character of an identifier.
 identStartChar :: Parser Char
 identStartChar = fusedSatisfy
-  isLatinLetter
-  (\c -> isGreekLetter c || isLetter c)
+  FP.isLatinLetter
+  (\c -> FP.isGreekLetter c || isLetter c)
   isLetter
   isLetter
 
 -- | Read a non-starting character of an identifier.
 identChar :: Parser Char
 identChar = fusedSatisfy
-  (\c -> isLatinLetter c || FP.isDigit c)
-  (\c -> isGreekLetter c || isLetter c)
+  (\c -> FP.isLatinLetter c || FP.isDigit c)
+  (\c -> FP.isGreekLetter c || isLetter c)
   isLetter
   isLetter
 
 inlineIdentChar :: Parser Char
 inlineIdentChar = fusedSatisfy
-  (\c -> isLatinLetter c || FP.isDigit c)
-  (\c -> isGreekLetter c || isLetter c)
+  (\c -> FP.isLatinLetter c || FP.isDigit c)
+  (\c -> FP.isGreekLetter c || isLetter c)
   isLetter
   isLetter
 {-# inline inlineIdentChar #-}
 
 manyIdentChars :: Parser ()
-manyIdentChars = many_ inlineIdentChar
+manyIdentChars = FP.skipMany inlineIdentChar
 
 -- | Parse a non-keyword string.
 symbol :: String -> Q Exp

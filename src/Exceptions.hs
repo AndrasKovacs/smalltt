@@ -1,4 +1,3 @@
-{-# language UnboxedTuples #-}
 
 module Exceptions where
 
@@ -8,7 +7,6 @@ import GHC.Exts
 import Text.Printf
 
 import qualified Presyntax as P
-import qualified UIO as U
 import qualified SymTable as ST
 import Evaluation
 import Common
@@ -58,12 +56,12 @@ catchIO (IO f) k = IO (catch# f (\case e@(SomeException _) -> raiseIO# e
                                        Exception# e        -> unIO (k e)))
 {-# inline catchIO #-}
 
-catch :: forall a. U.CanIO a => U.IO a -> (Exception -> U.IO a) -> U.IO a
-catch ma k = U.io (catchIO (U.toIO ma) (\e -> U.toIO (k e)))
+catch :: IO a -> (Exception -> IO a) -> IO a
+catch ma k = catchIO ma k
 {-# inline catch #-}
 
-throw :: forall a. U.CanIO a => Exception -> U.IO a
-throw e = U.IO \s -> case raiseIO# (Exception# e) s of (# s, a #) -> U.pure# @a a s
+throw :: forall a. Exception -> IO a
+throw e = IO \s -> case raiseIO# (Exception# e) s of x -> unsafeCoerce# x
 {-# inline throw #-}
 
 -- | Converts all unhandled custom exceptions to standard exceptions. The main
@@ -72,8 +70,8 @@ standardize :: IO a -> IO a
 standardize ma = catchIO ma (\e -> uf)
 {-# inline standardize #-}
 
-try :: forall a. U.CanIO a => U.IO a -> U.IO (Either Exception a)
-try act = (Right U.<$> act) `catch` \e -> U.pure (Left e)
+try :: IO a -> IO (Either Exception a)
+try act = (Right <$> act) `catch` \e -> pure (Left e)
 {-# inline try #-}
 
 --------------------------------------------------------------------------------
@@ -82,7 +80,7 @@ try act = (Right U.<$> act) `catch` \e -> U.pure (Left e)
 --   the span.
 render :: Src -> Span -> String -> String
 render src (Span pos _) msg = let
-  ls     = FP.lines src
+  ls     = FP.linesUtf8 src
   (l, c) = head $ FP.posLineCols src [pos]
   line   = if l < length ls then ls !! l else ""
   linum  = show (l + 1)

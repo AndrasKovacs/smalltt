@@ -1,4 +1,4 @@
-{-# language UnboxedTuples, OverloadedStrings #-}
+{-# language OverloadedStrings #-}
 
 {-|
 A `SymTable` is a custom mutable hash table which is keyed by spans pointing to
@@ -36,7 +36,6 @@ module SymTable (
 
 import qualified Data.Array.LI            as ALI
 import qualified Data.Array.LM            as ALM
-import qualified Data.Array.UM            as AUM
 import qualified Data.ByteString          as B
 import qualified Data.ByteString.Internal as B
 import qualified Data.ByteString.Unsafe   as B
@@ -49,16 +48,11 @@ import Data.Word
 import GHC.Exts
 import GHC.ForeignPtr
 
-import qualified UIO
-import qualified UIO as U
-
 import Common
 import CoreTypes
-import IO
+
 
 --------------------------------------------------------------------------------
-
-#include "deriveCanIO.h"
 
 -- TODO: factor out all the shared reads from insert/delete for Cxt.Extension
 
@@ -80,8 +74,6 @@ instance Show Entry where
 
 newtype Hash = Hash {unHash :: Word}
   deriving (Eq, Show, Ord, Num, Bits) via Word
-
-CAN_IO(Hash, WordRep, Word#, Hash (W# x), CoeHash)
 
 hashToInt :: Hash -> Int
 hashToInt (Hash w) = fromIntegral w
@@ -131,14 +123,14 @@ hash# eob (Span (Pos (I# x)) (Pos (I# y))) = let
     _  -> Hash (W# (goHash (unW# salt) start len))
 {-# inline hash# #-}
 
-hash :: SymTable -> Span -> U.IO Hash
-hash (SymTable tbl) k = U.do
-  Ptr src  <- U.io $ RFFF.readSnd =<< RUUU.readFst tbl
-  U.pure (hash# src k)
+hash :: SymTable -> Span -> IO Hash
+hash (SymTable tbl) k = do
+  Ptr src  <- RFFF.readSnd =<< RUUU.readFst tbl
+  pure $! hash# src k
 {-# inline hash #-}
 
-hashByteString :: Src -> U.IO Hash
-hashByteString str = U.io $ B.unsafeUseAsCString str \(Ptr addr) -> do
+hashByteString :: Src -> IO Hash
+hashByteString str = B.unsafeUseAsCString str \(Ptr addr) -> do
   let !(I# l) = B.length str
   pure $! hash# (plusAddr# addr l) (Span (Pos (I# l)) (Pos 0))
 
@@ -147,8 +139,6 @@ hashByteString str = U.io $ B.unsafeUseAsCString str \(Ptr addr) -> do
 --------------------------------------------------------------------------------
 
 data Bucket = Empty | Cons Hash {-# unpack #-} Span Entry Bucket
-
-CAN_IO(Bucket, LiftedRep, Bucket, x, CoeBucket)
 
 foldlBucket :: (b -> Hash -> Span -> Entry -> b) -> b -> Bucket -> b
 foldlBucket f acc b = go acc b where
@@ -204,9 +194,6 @@ newtype SymTable = SymTable
             (ALM.Array Bucket)
             (RL.Ref ForeignPtrContents))
 
-CAN_IO(SymTable, UnliftedRep, MutableArrayArray# RealWorld,
-       SymTable (RUUU.Ref (AUM.Array x)), CoeSymTable)
-
 --------------------------------------------------------------------------------
 
 initSlotsBits :: Int
@@ -223,19 +210,19 @@ eob (SymTable tbl) = do
   RFFF.readSnd ref
 {-# inline eob #-}
 
-new'# :: Int -> Ptr Word8 -> Int -> ForeignPtrContents -> U.IO SymTable
-new'# slots eob len fpc = U.do
-  ref     <- U.io $ RFFF.new 0 eob len
-  fpcr    <- U.io $ RL.new fpc
-  buckets <- U.io $ ALM.new slots Empty
-  table   <- U.io $ RUUU.new ref buckets fpcr
-  U.pure $ SymTable table
+new'# :: Int -> Ptr Word8 -> Int -> ForeignPtrContents -> IO SymTable
+new'# slots eob len fpc = do
+  ref     <- RFFF.new 0 eob len
+  fpcr    <- RL.new fpc
+  buckets <- ALM.new slots Empty
+  table   <- RUUU.new ref buckets fpcr
+  pure $! SymTable table
 
-new# :: Ptr Word8 -> Int -> ForeignPtrContents -> U.IO SymTable
+new# :: Ptr Word8 -> Int -> ForeignPtrContents -> IO SymTable
 new# = new'# initSlots
 {-# inline new# #-}
 
-new :: Src -> U.IO SymTable
+new :: Src -> IO SymTable
 new (B.BS (ForeignPtr base ftc) (I# len)) =
   new# (Ptr (plusAddr# base len)) (I# len) ftc
 
@@ -243,7 +230,7 @@ lookupByteString :: Src -> SymTable -> IO (UMaybe Entry)
 lookupByteString k (SymTable tbl) = B.unsafeUseAsCString k \(Ptr base) -> do
   let !(I# len) = B.length k
   buckets  <- RUUU.readSnd tbl
-  h        <- U.toIO $ hashByteString k
+  h        <- hashByteString k
   Ptr src  <- RFFF.readSnd =<< RUUU.readFst tbl
   let bucketsSize = ALM.size buckets
       shift       = 64 - ctzInt bucketsSize
@@ -251,93 +238,94 @@ lookupByteString k (SymTable tbl) = B.unsafeUseAsCString k \(Ptr base) -> do
   b <- ALM.read buckets ix
   let end  = plusAddr# base len
   let span = Span (Pos (I# len)) (Pos 0)
-  pure (UMaybe# (lookupBSBucket src end span b))
+  let !bckt = lookupBSBucket src end span b
+  pure $! UMaybe# bckt
 
-lookup :: Span -> SymTable -> U.IO (UMaybe Entry)
-lookup k (SymTable tbl) = U.do
-  buckets  <- U.io $ RUUU.readSnd tbl
-  Ptr src  <- U.io $ RFFF.readSnd =<< RUUU.readFst tbl
+lookup :: Span -> SymTable -> IO (UMaybe Entry)
+lookup k (SymTable tbl) = do
+  buckets  <- RUUU.readSnd tbl
+  Ptr src  <- RFFF.readSnd =<< RUUU.readFst tbl
   let bucketsSize = ALM.size buckets
       shift       = 64 - ctzInt bucketsSize
       h           = hash# src k
       ix          = hashToInt (unsafeShiftR h shift)
-  b <- U.io $ ALM.read buckets ix
-  U.pure (UMaybe# (lookupBucket src k b))
+  b <- ALM.read buckets ix
+  pure $! UMaybe# (lookupBucket src k b)
 
-resize# :: Int -> SymTable -> U.IO ()
-resize# bucketsSize' (SymTable tbl) = U.do
-  buckets  <- U.io $ RUUU.readSnd tbl
-  buckets' <- U.io $ ALM.new bucketsSize' Empty
+resize# :: Int -> SymTable -> IO ()
+resize# bucketsSize' (SymTable tbl) = do
+  buckets  <- RUUU.readSnd tbl
+  buckets' <- ALM.new bucketsSize' Empty
   let shift = 64 - ctzInt bucketsSize'
-  U.io $ ALM.for buckets \b ->
+  ALM.for buckets \b ->
     let go Empty          =
           pure ()
         go (Cons h k v b) = do
           ALM.modify' buckets' (hashToInt (unsafeShiftR h shift)) (Cons h k v)
           go b
     in go b
-  U.io $ RUUU.writeSnd tbl buckets'
+  RUUU.writeSnd tbl buckets'
 {-# noinline resize# #-}
 
-deleteWithHash :: Span -> Hash -> SymTable -> U.IO (UMaybe Entry)
-deleteWithHash k h (SymTable tbl) = U.do
-  ref      <- U.io $ RUUU.readFst tbl
-  I# size  <- U.io $ RFFF.readFst ref
-  Ptr src  <- U.io $ RFFF.readSnd ref
-  buckets  <- U.io $ RUUU.readSnd tbl
+deleteWithHash :: Span -> Hash -> SymTable -> IO (UMaybe Entry)
+deleteWithHash k h (SymTable tbl) = do
+  ref      <- RUUU.readFst tbl
+  I# size  <- RFFF.readFst ref
+  Ptr src  <- RFFF.readSnd ref
+  buckets  <- RUUU.readSnd tbl
   let bucketsSize = ALM.size buckets
       shift       = 64 - ctzInt bucketsSize
       ix          = hashToInt (unsafeShiftR h shift)
-  b <- U.io $ ALM.read buckets ix
+  b <- ALM.read buckets ix
   let !(# !b', old #) = deleteFromBucket src k b
   let size' = I# size - (2 - tag (UMaybe# old))
-  U.io $ ALM.write buckets ix b'
-  U.io $ RFFF.writeFst ref size'
+  ALM.write buckets ix b'
+  RFFF.writeFst ref size'
   let downsize = unsafeShiftR bucketsSize 3
-  U.when (size' <= downsize && downsize >= initSlots) $
+  when (size' <= downsize && downsize >= initSlots) $
     resize# (unsafeShiftR bucketsSize 1) (SymTable tbl)
-  U.pure (UMaybe# old)
+  pure $! UMaybe# old
 
-insertWithHash :: Span -> Hash -> Entry -> SymTable -> U.IO (UMaybe Entry)
-insertWithHash k h v (SymTable tbl) = U.do
-  ref      <- U.io $ RUUU.readFst tbl
-  I# size  <- U.io $ RFFF.readFst ref
-  Ptr src  <- U.io $ RFFF.readSnd ref
-  buckets  <- U.io $ RUUU.readSnd tbl
+insertWithHash :: Span -> Hash -> Entry -> SymTable -> IO (UMaybe Entry)
+insertWithHash k h v (SymTable tbl) = do
+  ref      <- RUUU.readFst tbl
+  I# size  <- RFFF.readFst ref
+  Ptr src  <- RFFF.readSnd ref
+  buckets  <- RUUU.readSnd tbl
   let bucketsSize = ALM.size buckets
       shift       = 64 - ctzInt bucketsSize
       ix          = hashToInt (unsafeShiftR h shift)
-  b <- U.io $ ALM.read buckets ix
+  b <- ALM.read buckets ix
   let !(# b', old #) = insertToBucket src h k v b
   let size' = I# size + tag (UMaybe# old) - 1
-  U.io $ ALM.write buckets ix b'
-  U.io $ RFFF.writeFst ref size'
-  U.when (size' >= unsafeShiftR bucketsSize 1) $
+  ALM.write buckets ix b'
+  RFFF.writeFst ref size'
+  when (size' >= unsafeShiftR bucketsSize 1) $
     resize# (unsafeShiftL bucketsSize 1) (SymTable tbl)
-  U.pure (UMaybe# old)
+  pure $! UMaybe# old
 
-updateWithHash :: Span -> Hash -> UMaybe Entry -> SymTable -> U.IO (UMaybe Entry)
+updateWithHash :: Span -> Hash -> UMaybe Entry -> SymTable -> IO (UMaybe Entry)
 updateWithHash k h mv tbl = case mv of
-  UNothing -> U.do
+  UNothing -> do
     -- debug ["deletewithhash", showSpan (src tbl) k]
     deleteWithHash k h tbl
-  UJust v  -> U.do
+  UJust v  -> do
     -- debug ["insertwithhash", showSpan (src tbl) k]
     insertWithHash k h v tbl
 {-# inline updateWithHash #-}
 
-insert :: Span -> Entry -> SymTable -> U.IO (UMaybe Entry)
-insert k v tbl = U.do
+insert :: Span -> Entry -> SymTable -> IO (UMaybe Entry)
+insert k v tbl = do
   h <- hash tbl k
   insertWithHash k h v tbl
 
-delete :: Span -> SymTable -> U.IO (UMaybe Entry)
-delete k tbl = U.do
+delete :: Span -> SymTable -> IO (UMaybe Entry)
+delete k tbl = do
   h <- hash tbl k
   deleteWithHash k h tbl
 
-size :: SymTable -> U.IO Int
-size (SymTable tbl) = U.io $ RFFF.readFst =<< RUUU.readFst tbl
+size :: SymTable -> IO Int
+size (SymTable tbl) = RFFF.readFst =<< RUUU.readFst tbl
 {-# inline size #-}
 
 src :: SymTable -> Src
@@ -347,7 +335,7 @@ src (SymTable tbl) = runIO do
   I# len  <- RFFF.readThd ref
   fptr    <- RL.read =<< RUUU.readThd tbl
   let start = plusAddr# end (negateInt# len)
-  pure $ B.BS (ForeignPtr start fptr) (I# len)
+  pure $! B.BS (ForeignPtr start fptr) (I# len)
 
 -- testing
 --------------------------------------------------------------------------------
@@ -358,19 +346,19 @@ loadFactor (SymTable tbl) = do
   size     <- RFFF.readFst ref
   buckets  <- RUUU.readSnd tbl
   let bucketsSize = ALM.size buckets
-  pure (fromIntegral size / fromIntegral bucketsSize)
+  pure $! fromIntegral size / fromIntegral bucketsSize
 
 loadFactor' :: SymTable -> IO Double
 loadFactor' tbl = do
   bs <- buckets tbl
   let blen = length bs
   let size = length $ concat bs
-  pure (fromIntegral size / fromIntegral blen)
+  pure $! fromIntegral size / fromIntegral blen
 
 assocs :: SymTable -> IO [(String, Entry)]
 assocs stbl@(SymTable tbl) = do
   buckets <- ALM.freeze =<< RUUU.readSnd tbl
-  pure $ ALI.foldl'
+  pure $! ALI.foldl'
     (\acc b -> foldlBucket
       (\acc h k v -> (showSpan (src stbl) k, v):acc) acc b)
       [] buckets
@@ -378,7 +366,7 @@ assocs stbl@(SymTable tbl) = do
 buckets :: SymTable -> IO [[(Hash, String, Entry)]]
 buckets stbl@(SymTable tbl) = do
   buckets <- ALM.freeze =<< RUUU.readSnd tbl
-  pure $ ALI.foldl'
+  pure $! ALI.foldl'
     (\acc b -> foldlBucket
         (\acc h k v -> (h, showSpan (src stbl) k, v):acc) [] b : acc)
         [] buckets
@@ -387,20 +375,20 @@ testHash :: Src -> Span -> Hash
 testHash str s = runIO $ B.unsafeUseAsCString str \(Ptr addr) -> do
   let !(I# l) = B.length str
       eob = plusAddr# addr l
-  pure $ hash# eob s
+  pure $! hash# eob s
 
 testEqSpan :: Src -> Span -> Span -> Bool
 testEqSpan str s s' = runIO $ B.unsafeUseAsCString str \(Ptr addr) -> do
   let !(I# l) = B.length str
       eob = plusAddr# addr l
-  pure $ isTrue# (eqSpan# eob s s')
+  pure $! isTrue# (eqSpan# eob s s')
 
 -- test = do
---   tbl <- U.toIO $ new "EvalCon0EvalCon0        "
---   U.toIO $ insert (Span (Pos 24) (Pos 16)) (Local 10 (gjoin VU)) tbl
---   U.toIO $ insert (Span (Pos 16) (Pos 8)) (Local 10 (gjoin VU)) tbl
---   -- U.toIO $ insert (Span (Pos 8) (Pos 0)) (Local 10 (gjoin VU)) tbl
---   -- lk <- U.toIO $ SymTable.lookup (Span (Pos 16) (Pos 8)) tbl
+--   tbl <- new "EvalCon0EvalCon0        "
+--   insert (Span (Pos 24) (Pos 16)) (Local 10 (gjoin VU)) tbl
+--   insert (Span (Pos 16) (Pos 8)) (Local 10 (gjoin VU)) tbl
+--   -- insert (Span (Pos 8) (Pos 0)) (Local 10 (gjoin VU)) tbl
+--   -- lk <- SymTable.lookup (Span (Pos 16) (Pos 8)) tbl
 --   -- print lk
 
 --   mapM_ print =<< buckets tbl

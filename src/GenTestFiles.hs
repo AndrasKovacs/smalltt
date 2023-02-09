@@ -1,4 +1,3 @@
-{-# language UnboxedTuples #-}
 
 {-|
 Generating test files with code copied & renamed multiple times.

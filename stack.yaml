@@ -1,7 +1,5 @@
 
-# resolver: lts-16.25
-# resolver: lts-18.13
-resolver: nightly-2022-07-07
+resolver: nightly-2023-02-09
 
 packages:
 - .
@@ -11,8 +9,10 @@ ghc-options:
 
 extra-deps:
 - git: https://github.com/AndrasKovacs/flatparse.git
-  commit: f51ead69b568f73bb7d3b47f3bc7a2b2b6db259d
+  commit: 3dce207dcbff2daa8ad667dce1c3b823e9a25295
 - git: https://github.com/AndrasKovacs/dynamic-array.git
-  commit: c6eb41ea663c7a97c479e5536a8ef39ec848bcfa
+  commit: a9880641ddc174db68c7e4735742e763d910453e
 - git: https://github.com/AndrasKovacs/primdata.git
-  commit: 4a7ed6b807a367a90c8dffaf1e98c3a0d0c28c32
+  commit: 46b257c41a9eb0ad99ac1cd8c5dda029601089f5
+- git: https://github.com/AndrasKovacs/ghc-strict-implicit-params.git
+  commit: 215e0353374a61c0f8790371e4826b247c69580f

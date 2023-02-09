@@ -1,4 +1,3 @@
-{-# language UnboxedTuples #-}
 
 module Main where
 
@@ -11,7 +10,6 @@ import Control.Monad
 
 import qualified MetaCxt as MC
 import qualified SymTable as ST
-import qualified UIO as U
 import qualified TopCxt as Top
 import Common
 import CoreTypes
@@ -64,7 +62,7 @@ load path = do
                 pure Nothing
               (Right topCxt, time) -> do
                 putStrLn (path ++ " elaborated in " ++ show time)
-                metas <- U.toIO $ MC.size (Top.mcxt topCxt)
+                metas <- MC.size (Top.mcxt topCxt)
                 putStrLn ("created " ++ show metas ++ " metavariables")
                 putStrLn ("loaded " ++ show (Top.lvl topCxt) ++ " definitions")
                 pure (Just (State path src topCxt))
@@ -80,7 +78,7 @@ loop st = do
   let dropSp = dropWhile (==' ')
 
   let loadTopDef str act = whenLoaded \st -> do
-        let x = packUTF8 str
+        let x = strToUtf8 str
         ST.lookupByteString x (Top.tbl (topCxt st)) >>= \case
           UJust (ST.Top a ga t _) -> do
             act st a t

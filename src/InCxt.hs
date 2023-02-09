@@ -11,7 +11,6 @@ import IO
 import qualified Evaluation as E
 import qualified SymTable as ST
 import qualified Presyntax as P
-import qualified UIO as U
 import CoreTypes
 import Cxt.Types
 import Common
@@ -42,11 +41,11 @@ showValOpt :: Cxt -> Val -> QuoteOption -> String
 showValOpt cxt t opt = showTm cxt (quote cxt opt t)
 {-# inline showValOpt #-}
 
-force :: Cxt -> Val -> U.IO Val
+force :: Cxt -> Val -> IO Val
 force cxt t = E.force (mcxt cxt) t
 {-# inline force #-}
 
-forceAll :: Cxt -> Val -> U.IO Val
+forceAll :: Cxt -> Val -> IO Val
 forceAll cxt t = E.forceAll (mcxt cxt) t
 {-# inline forceAll #-}
 
@@ -55,7 +54,7 @@ app cxt t u i = E.app (mcxt cxt) t u i
 {-# inline app #-}
 
 appCl :: Cxt -> Closure -> Val -> Val
-appCl cxt t u = E.appCl (mcxt cxt) t u
+appCl cxt t ~u = E.appCl (mcxt cxt) t u
 {-# inline appCl #-}
 
 appCl' :: Cxt -> Closure -> Val -> Val

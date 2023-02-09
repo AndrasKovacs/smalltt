@@ -1,4 +1,3 @@
-{-# language UnboxedTuples #-}
 
 module MetaCxt where
 
@@ -6,30 +5,29 @@ import qualified Data.Array.Dynamic.L as ADL
 import qualified Data.Ref.F           as RF
 import GHC.Exts
 
-import qualified UIO as U
 import LvlSet
 import Common
 import CoreTypes
 
 --------------------------------------------------------------------------------
 
-size :: MetaCxt -> U.IO Lvl
-size ms = coerce U.<$> U.io (ADL.size ms)
+size :: MetaCxt -> IO Lvl
+size ms = coerce <$> ADL.size ms
 {-# inline size #-}
 
-fresh :: MetaCxt -> LvlSet -> U.IO Int
-fresh ms mask = U.do
-  x <- U.io $ ADL.size ms
-  U.io $ ADL.push ms (Unsolved mask)
-  U.pure x
+fresh :: MetaCxt -> LvlSet -> IO Int
+fresh ms mask = do
+  x <- ADL.size ms
+  ADL.push ms (Unsolved mask)
+  pure x
 {-# inlinable fresh #-}
 
-read :: MetaCxt -> MetaVar -> U.IO MetaEntry
-read ms x = U.io $ ADL.unsafeRead ms (coerce x)
+read :: MetaCxt -> MetaVar -> IO MetaEntry
+read ms x =  ADL.unsafeRead ms (coerce x)
 {-# inline read #-}
 
-solve :: MetaCxt -> MetaVar -> Tm -> Val -> U.IO ()
-solve ms x t ~v = U.io $ do
+solve :: MetaCxt -> MetaVar -> Tm -> Val -> IO ()
+solve ms x t ~v =  do
   ADL.unsafeRead ms (coerce x) >>= \case
     Solved{} -> impossible
     Unsolved mask -> do

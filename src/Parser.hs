@@ -1,4 +1,4 @@
-{-# language UnboxedTuples, UnboxedSums, OverloadedStrings #-}
+{-# language OverloadedStrings #-}
 
 module Parser (parse, parseString, parseFile) where
 
@@ -299,4 +299,4 @@ parseFile path = do
   pure (src, res)
 
 parseString :: String -> (Src, Result Error TopLevel)
-parseString  (packUTF8 -> str) = (str, parse str)
+parseString  (strToUtf8 -> str) = (str, parse str)

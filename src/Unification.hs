@@ -1,5 +1,3 @@
-{-# language UnboxedTuples #-}
-{-# options_ghc -Wno-orphans #-}
 
 module Unification (unify, solve, unifySp) where
 
@@ -9,20 +7,16 @@ import IO
 import GHC.Exts
 
 import qualified MetaCxt as MC
-import qualified UIO as U
-import qualified UIO
 import qualified LvlSet as LS
 import Common
 import CoreTypes
 import Evaluation
 import Exceptions
 
-#include "deriveCanIO.h"
-
 --------------------------------------------------------------------------------
 
 -- | Forcing depending on conversion state.
-forceCS :: MetaCxt -> ConvState -> Val -> U.IO Val
+forceCS :: MetaCxt -> ConvState -> Val -> IO Val
 forceCS cxt cs v = case cs of
   Full -> forceAll cxt v
   _    -> force    cxt v
@@ -44,13 +38,7 @@ data PartialRenaming = PRen {
 instance Show PartialRenaming where
   show (PRen occ dom cod ren) = runIO do
     ren <- AFM.unsafeFreeze ren
-    pure $ show (occ, dom, cod, ren)
-
-CAN_IO4(PartialRenaming
-     , IntRep, IntRep, IntRep, UnliftedRep
-     , Int#, Int#, Int#, MutableByteArray# RealWorld
-     , PRen (MkMetaVar (I# a)) (Lvl (I# b)) (Lvl (I# c)) (AFM.Array d)
-     , CoePartialRenaming)
+    pure $! show (occ, dom, cod, ren)
 
 -- | Lift a renaming over a bound variable. The new var is mapped to itself.
 lift :: PartialRenaming -> PartialRenaming
@@ -61,46 +49,44 @@ lift (PRen m dom cod ren) = PRen m (dom + 1) (cod + 1) ren
 -- SOLUTION QUOTATION
 --------------------------------------------------------------------------------
 
-CAN_IO2((Tm,UBool), LiftedRep, IntRep, Tm, Int#, (x, UBool# (I# y)), CoeTmUBool)
-
-approxOccursInSolution :: MetaCxt -> MetaVar -> MetaVar -> MetaVar -> U.IO UBool
+approxOccursInSolution :: MetaCxt -> MetaVar -> MetaVar -> MetaVar -> IO UBool
 approxOccursInSolution ms frz occ x
-  | x < frz   = U.pure UTrue
-  | otherwise = MC.read ms x U.>>= \case
-      Unsolved _ | occ == x  -> U.pure UFalse
-                 | otherwise -> U.pure UTrue
-      Solved cache _ t _ -> U.do
-        cached <- U.io $ RF.read cache
+  | x < frz   = pure UTrue
+  | otherwise = MC.read ms x >>= \case
+      Unsolved _ | occ == x  -> pure UFalse
+                 | otherwise -> pure UTrue
+      Solved cache _ t _ -> do
+        cached <- RF.read cache
         if cached == occ then
-          U.pure UTrue
-        else U.do
+          pure UTrue
+        else do
           res <- approxOccurs ms frz occ t
-          U.when (res == UTrue) (U.io $ RF.write cache occ)
-          U.pure res
+          when (res == UTrue) (RF.write cache occ)
+          pure res
 
-approxOccurs :: MetaCxt -> MetaVar -> MetaVar -> Tm -> U.IO UBool
+approxOccurs :: MetaCxt -> MetaVar -> MetaVar -> Tm -> IO UBool
 approxOccurs ms frz occ t = let
   go = approxOccurs ms frz occ; {-# inline go #-}
   in case t of
-    LocalVar x     -> U.pure UTrue
-    TopVar x _     -> U.pure UTrue
-    Let x a t u    -> (\x y z -> x &&# y &&# z) U.<$> go a U.<*> go t U.<*> go u
-    App t u i      -> (&&#) U.<$> go t U.<*> go u
+    LocalVar x     -> pure UTrue
+    TopVar x _     -> pure UTrue
+    Let x a t u    -> (\x y z -> x &&# y &&# z) <$> go a <*> go t <*> go u
+    App t u i      -> (&&#) <$> go t <*> go u
     Lam _ t        -> go t
     InsertedMeta x -> approxOccursInSolution ms frz occ x
     Meta x         -> approxOccursInSolution ms frz occ x
-    Pi _ a b       -> (&&#) U.<$> go a U.<*> go b
-    Irrelevant     -> U.pure UTrue
-    U              -> U.pure UTrue
+    Pi _ a b       -> (&&#) <$> go a <*> go b
+    Irrelevant     -> pure UTrue
+    U              -> pure UTrue
 
-rigidQuoteSp :: MetaCxt -> MetaVar -> PartialRenaming -> Tm -> Spine -> U.IO Tm
+rigidQuoteSp :: MetaCxt -> MetaVar -> PartialRenaming -> Tm -> Spine -> IO Tm
 rigidQuoteSp ms frz pren hd = \case
-  SId         -> U.pure hd
-  SApp sp t i -> App U.<$> rigidQuoteSp ms frz pren hd sp
-                     U.<*> rigidQuote ms frz pren t
-                     U.<*> U.pure i
+  SId         -> pure hd
+  SApp sp t i -> App <$> rigidQuoteSp ms frz pren hd sp
+                     <*> rigidQuote ms frz pren t
+                     <*> pure i
 
-rigidQuote :: MetaCxt -> MetaVar -> PartialRenaming -> Val -> U.IO Tm
+rigidQuote :: MetaCxt -> MetaVar -> PartialRenaming -> Val -> IO Tm
 rigidQuote ms frz pren t = let
   go       = rigidQuote ms frz pren; {-# inline go #-}
   goSp     = rigidQuoteSp ms frz pren; {-# inline goSp #-}
@@ -108,10 +94,10 @@ rigidQuote ms frz pren t = let
   goBind t = rigidQuote ms frz (lift pren) (appCl' ms t (VLocalVar (cod pren) SId))
   {-# inline goBind #-}
 
-  in force ms t U.>>= \case
+  in force ms t >>= \case
     VLocalVar x sp
       | x < coerce (AFM.size (ren pren)) ->
-        U.io (AFM.read (ren pren) (coerce x)) U.>>= \case
+        (AFM.read (ren pren) (coerce x)) >>= \case
           (-1) -> throw $ UnifyEx Conversion -- scope check
           y    -> goSp (LocalVar (lvlToIx (dom pren) y)) sp
       | otherwise ->
@@ -122,109 +108,109 @@ rigidQuote ms frz pren t = let
       | occ pren == x -> throw $ UnifyEx Conversion -- occurs check
       | otherwise     -> goSp (Meta x) sp
 
-    topt@(VUnfold h sp t) -> U.do
+    topt@(VUnfold h sp t) -> do
       (t, tValid) <- case h of    -- WARNING: Core was fine here, but should be checked on ghc change
-        UHTopVar x v -> U.do
+        UHTopVar x v -> do
           goSpFlex (TopVar x (coerce v) // UTrue) sp
-        UHSolved x -> U.do
+        UHSolved x -> do
           xValid <- approxOccursInSolution ms frz (occ pren) x
           goSpFlex (Meta x // xValid) sp
 
-      U.when (tValid == UFalse) $
+      when (tValid == UFalse) $
         fullCheckRhs ms frz pren topt
 
-      U.pure t
+      pure t
 
-    VLam xi t   -> Lam xi U.<$> goBind t
-    VPi xi a b  -> Pi xi U.<$> go a U.<*> goBind b
-    VU          -> U.pure U
-    VIrrelevant -> U.pure Irrelevant
+    VLam xi t   -> Lam xi <$> goBind t
+    VPi xi a b  -> Pi xi <$> go a <*> goBind b
+    VU          -> pure U
+    VIrrelevant -> pure Irrelevant
 
-flexQuoteSp :: MetaCxt -> MetaVar -> PartialRenaming -> (Tm, UBool) -> Spine -> U.IO (Tm, UBool)
+flexQuoteSp :: MetaCxt -> MetaVar -> PartialRenaming -> (Tm, UBool) -> Spine -> IO (Tm, UBool)
 flexQuoteSp ms frz pren hd@(t, !tValid) = \case
-  SId         -> U.pure hd
-  SApp sp t i -> U.do
+  SId         -> pure hd
+  SApp sp t i -> do
     (sp, spValid) <- flexQuoteSp ms frz pren hd sp
     (t, tValid)   <- flexQuote   ms frz pren t
-    U.pure (App sp t i // spValid &&# tValid)
+    pure $! (App sp t i // spValid &&# tValid)
 
-flexQuote :: MetaCxt -> MetaVar -> PartialRenaming -> Val -> U.IO (Tm, UBool)
+flexQuote :: MetaCxt -> MetaVar -> PartialRenaming -> Val -> IO (Tm, UBool)
 flexQuote ms frz pren t = let
   go       = flexQuote ms frz pren; {-# inline go #-}
   goSp     = flexQuoteSp ms frz pren; {-# inline goSp #-}
   goBind t = flexQuote ms frz (lift pren) (appCl' ms t (VLocalVar (cod pren) SId))
   {-# inline goBind #-}
 
-  in force ms t U.>>= \case
+  in force ms t >>= \case
     VLocalVar x sp
       | x < coerce (AFM.size (ren pren)) ->
-        U.io (AFM.read (ren pren) (coerce x)) U.>>= \case
-          (-1) -> U.pure (Irrelevant, UFalse)
+        (AFM.read (ren pren) (coerce x)) >>= \case
+          (-1) -> pure (Irrelevant, UFalse)
           y    -> goSp (LocalVar (lvlToIx (dom pren) y) // UTrue) sp
       | otherwise ->
         -- TODO: simplify arith expr here (LocalVar (cod pren - x - 1))
         goSp (LocalVar (lvlToIx (dom pren) (x - (cod pren - dom pren))) // UTrue) sp
 
     VFlex x sp
-      | occ pren == x -> U.pure (Irrelevant, UFalse)
+      | occ pren == x -> pure (Irrelevant, UFalse)
       | otherwise     -> goSp (Meta x // UTrue) sp
 
-    topt@(VUnfold h sp t) -> U.do
+    topt@(VUnfold h sp t) -> do
       (t, tf) <- case h of    -- WARNING: Core was fine here, but should be checked on ghc change
-        UHTopVar x v -> U.do
+        UHTopVar x v -> do
           goSp (TopVar x (coerce v) // UTrue) sp
-        UHSolved x -> U.do
+        UHSolved x -> do
           xf <- approxOccursInSolution ms frz (occ pren) x
           goSp (Meta x // xf) sp
 
-      U.when (tf == UFalse) $
+      when (tf == UFalse) $
         fullCheckRhs ms frz pren topt
 
-      U.pure (t // UTrue)
+      pure $! (t // UTrue)
 
-    VLam xi t -> U.do
-      (t, tValid) <- goBind t
-      U.pure (Lam xi t // tValid)
+    VLam xi t -> do
+      (!t, !tValid) <- goBind t
+      pure $! (Lam xi t // tValid)
 
-    VPi xi a b -> U.do
+    VPi xi a b -> do
       (a, aValid) <- go a
       (b, bValid) <- goBind b
-      U.pure (Pi xi a b // aValid &&# bValid)
+      pure $! (Pi xi a b // aValid &&# bValid)
 
-    VU          -> U.pure (U // UTrue)
-    VIrrelevant -> U.pure (Irrelevant // UTrue)
+    VU          -> pure (U // UTrue)
+    VIrrelevant -> pure (Irrelevant // UTrue)
 
-fullCheckSp :: MetaCxt -> MetaVar -> PartialRenaming -> Spine -> U.IO ()
+fullCheckSp :: MetaCxt -> MetaVar -> PartialRenaming -> Spine -> IO ()
 fullCheckSp ms frz pren = \case
-  SId         -> U.pure ()
-  SApp sp t i -> fullCheckSp ms frz pren sp U.>> fullCheckRhs ms frz pren t
+  SId         -> pure ()
+  SApp sp t i -> fullCheckSp ms frz pren sp >> fullCheckRhs ms frz pren t
 
-fullCheckRhs :: MetaCxt -> MetaVar -> PartialRenaming -> Val -> U.IO ()
-fullCheckRhs ms frz pren v = U.do
+fullCheckRhs :: MetaCxt -> MetaVar -> PartialRenaming -> Val -> IO ()
+fullCheckRhs ms frz pren v = do
   let go       = fullCheckRhs ms frz pren;  {-# inline go #-}
       goSp     = fullCheckSp ms frz pren;   {-# inline goSp #-}
       goBind t = fullCheckRhs ms frz (lift pren)
                     (appCl' ms t (VLocalVar (cod pren) SId))
       {-# inline goBind #-}
 
-  forceAll ms v U.>>= \case
+  forceAll ms v >>= \case
 
     VFlex m' sp | occ pren == m' -> throw $ UnifyEx Conversion -- occurs check
                 | otherwise      -> goSp sp
 
     VLocalVar x sp
       | x < coerce (AFM.size (ren pren)) ->
-        U.io (AFM.read (ren pren) (coerce x)) U.>>= \case
+        (AFM.read (ren pren) (coerce x)) >>= \case
           (-1) -> throw $ UnifyEx Conversion -- scope check
           y    -> goSp sp
       | otherwise ->
         goSp sp
 
     VLam _ t    -> goBind t
-    VPi _ a b   -> go a U.>> goBind b
+    VPi _ a b   -> go a >> goBind b
     VUnfold{}   -> impossible
-    VU          -> U.pure ()
-    VIrrelevant -> U.pure ()
+    VU          -> pure ()
+    VIrrelevant -> pure ()
 
 
 -- UNIFICATION
@@ -232,27 +218,27 @@ fullCheckRhs ms frz pren v = U.do
 
 -- | Invert a spine, producing a partial renaming. The "trim" argument is the
 --   set of vars that we already dropped by eta-contracting the two sides.
-invertSp :: MetaCxt -> Lvl -> MetaVar -> Spine -> LS.LvlSet -> U.IO PartialRenaming
-invertSp ms gamma m sp trim = U.do
-  ren <- U.io $ AFM.new @Lvl (coerce gamma)
-  U.io $ AFM.set ren (-1)
+invertSp :: MetaCxt -> Lvl -> MetaVar -> Spine -> LS.LvlSet -> IO PartialRenaming
+invertSp ms gamma m sp trim = do
+  ren <- AFM.new @Lvl (coerce gamma)
+  AFM.set ren (-1)
 
-  let go :: MetaCxt -> AFM.Array Lvl -> LS.LvlSet -> Spine -> U.IO Lvl
+  let go :: MetaCxt -> AFM.Array Lvl -> LS.LvlSet -> Spine -> IO Lvl
       go ms ren trim = \case
-        SId         -> U.pure 0
-        SApp sp t _ -> U.do
+        SId         -> pure 0
+        SApp sp t _ -> do
           dom <- go ms ren trim sp
-          forceAll ms t U.>>= \case
-            VLocalVar x SId -> U.do
+          forceAll ms t >>= \case
+            VLocalVar x SId -> do
 
               -- non-linear: variable was previously trimmed by eta-contraction
-              U.when (LS.member x trim) (throw $ UnifyEx Conversion)
+              when (LS.member x trim) (throw $ UnifyEx Conversion)
 
-              y <- U.io $ AFM.read ren (coerce x)
+              y <- AFM.read ren (coerce x)
               case y of
-                (-1) -> U.do
-                  U.io $ AFM.write ren (coerce x) dom
-                  U.pure (dom + 1)
+                (-1) -> do
+                  AFM.write ren (coerce x) dom
+                  pure $! (dom + 1)
 
                 -- non-linear: variable already mapped
                 y -> throw $ UnifyEx Conversion
@@ -260,60 +246,58 @@ invertSp ms gamma m sp trim = U.do
               throw $ UnifyEx Conversion -- non-var in spine
 
   dom <- go ms ren trim sp
-  U.pure (PRen m dom gamma ren)
+  pure (PRen m dom gamma ren)
 
 lams :: Spine -> Tm -> Tm
 lams SId           acc = acc
 lams (SApp sp t i) acc = lams sp (Lam (NI NX i) acc)
 
 data SSLS = SSLS Spine Spine LS.LvlSet
-CAN_IO3(SSLS, LiftedRep, LiftedRep, IntRep, Spine, Spine, Int#,
-        SSLS x y (LS.LvlSet (I# z)), CoeSSLS)
 
 -- | Try to eta contract both sides, bind trimmed lhs, rhs, and the set of
 --   variables that were trimmed.
-etaContract :: Spine -> Val -> (Spine -> Val -> LS.LvlSet -> U.IO a) -> U.IO a
+etaContract :: Spine -> Val -> (Spine -> Val -> LS.LvlSet -> IO a) -> IO a
 etaContract sp rhs cont = let
 
-  go :: Spine -> Spine -> LS.LvlSet -> U.IO SSLS
+  go :: Spine -> Spine -> LS.LvlSet -> IO SSLS
   go sp sp' trim = case (sp, sp') of
-    (left@(SApp sp (VLocalVar x SId) i), right@(SApp sp' (VLocalVar x' SId) i')) -> U.do
-      U.when (LS.member x trim) (throw $ UnifyEx Conversion) -- non-linear spine
+    (left@(SApp sp (VLocalVar x SId) i), right@(SApp sp' (VLocalVar x' SId) i')) -> do
+      when (LS.member x trim) (throw $ UnifyEx Conversion) -- non-linear spine
       if x == x' then go sp sp' (LS.insert x trim)
-                 else U.pure (SSLS left right trim)
-    (sp, sp') -> U.pure (SSLS sp sp' trim)
+                 else pure (SSLS left right trim)
+    (sp, sp') -> pure (SSLS sp sp' trim)
 
   in case rhs of
-    VFlex x sp'     -> go sp sp' mempty U.>>= \case
+    VFlex x sp'     -> go sp sp' mempty >>= \case
                          SSLS sp sp' trim -> cont sp (VFlex x sp') trim
-    VLocalVar x sp' -> go sp sp' mempty U.>>= \case
+    VLocalVar x sp' -> go sp sp' mempty >>= \case
                          SSLS sp sp' trim -> cont sp (VLocalVar x sp') trim
-    VUnfold h sp' v -> go sp sp' mempty U.>>= \case
+    VUnfold h sp' v -> go sp sp' mempty >>= \case
                          SSLS sp sp' trim -> cont sp (VUnfold h sp' v) trim
     _               -> cont sp rhs mempty
 {-# inline etaContract #-}
 
-solve :: MetaCxt -> Lvl -> MetaVar -> MetaVar -> Spine -> Val -> U.IO ()
-solve ms l frz x ~sp ~rhs = U.do
+solve :: MetaCxt -> Lvl -> MetaVar -> MetaVar -> Spine -> Val -> IO ()
+solve ms l frz x ~sp ~rhs = do
   -- debug ["attempt solve", show (VFlex x sp), show rhs]
-  U.when (x < frz) $ throw $ UnifyEx $ FrozenSolution x
+  when (x < frz) $ throw $ UnifyEx $ FrozenSolution x
 
   -- TURN OFF eta-contraction here
 
-  etaContract sp rhs \sp rhs trim -> U.do
+  etaContract sp rhs \sp rhs trim -> do
 
-  -- U.do
+  -- do
   --   let trim = mempty
 
     pren <- invertSp ms l x sp trim
-    rhs <- lams sp U.<$> rigidQuote ms frz pren rhs
+    rhs <- lams sp <$> rigidQuote ms frz pren rhs
     debug ["renamed", show rhs]
     debug ["solve", show x, show pren, show rhs]
     MC.solve ms x rhs (eval ms ENil rhs)
 
 -- | Try to solve a meta, but fully eta-expand sides.
-solveLong :: MetaCxt -> Lvl -> MetaVar -> MetaVar -> Spine -> Val -> U.IO ()
-solveLong ms l frz x sp rhs = forceAll ms rhs U.>>= \case
+solveLong :: MetaCxt -> Lvl -> MetaVar -> MetaVar -> Spine -> Val -> IO ()
+solveLong ms l frz x sp rhs = forceAll ms rhs >>= \case
   VLam (NI _ i) t ->
     let v = VLocalVar l SId
     in solveLong ms (l + 1) frz x (SApp sp v i) (appCl' ms t v)
@@ -322,19 +306,19 @@ solveLong ms l frz x sp rhs = forceAll ms rhs U.>>= \case
   _ ->
     solve ms l frz x sp rhs
 
-flexFlex :: MetaCxt -> Lvl -> MetaVar -> Val -> MetaVar -> Spine -> Val -> MetaVar -> Spine -> U.IO ()
+flexFlex :: MetaCxt -> Lvl -> MetaVar -> Val -> MetaVar -> Spine -> Val -> MetaVar -> Spine -> IO ()
 flexFlex ms l frz t x ~sp t' x' ~sp' =
   solve ms l frz x sp t' `catch` \_ ->
   solve ms l frz x' sp' t
 
-unifySp :: MetaCxt -> Lvl -> MetaVar -> ConvState -> Spine -> Spine -> U.IO ()
+unifySp :: MetaCxt -> Lvl -> MetaVar -> ConvState -> Spine -> Spine -> IO ()
 unifySp ms l frz cs sp sp' = case (sp, sp') of
-  (SId,         SId          ) -> U.pure ()
-  (SApp sp t _, SApp sp' t' _) -> unifySp ms l frz cs sp sp' U.>>
+  (SId,         SId          ) -> pure ()
+  (SApp sp t _, SApp sp' t' _) -> unifySp ms l frz cs sp sp' >>
                                   unify ms l frz cs (gjoin t) (gjoin t')
   _                            -> throw $ UnifyEx Conversion
 
-unify :: MetaCxt -> Lvl -> MetaVar -> ConvState -> G -> G -> U.IO ()
+unify :: MetaCxt -> Lvl -> MetaVar -> ConvState -> G -> G -> IO ()
 unify ms l frz cs (G topt ftopt) (G topt' ftopt') = let
   go       = unify ms l frz cs; {-# inline go #-}
   go' t t' = go (gjoin t) (gjoin t'); {-# inline go' #-}
@@ -346,10 +330,10 @@ unify ms l frz cs (G topt ftopt) (G topt' ftopt') = let
                                (gjoin $! appCl' ms t' v)
   {-# inline goBind #-}
 
-  guardCS cs = U.when (cs == Flex) $ throw $ UnifyEx FlexSolution
+  guardCS cs = when (cs == Flex) $ throw $ UnifyEx FlexSolution
   {-# inline guardCS #-}
 
-  in U.do
+  in do
     -- turn off speculative conversion here:
 
     -- t  <- forceAll ms ftopt
@@ -361,12 +345,12 @@ unify ms l frz cs (G topt ftopt) (G topt' ftopt') = let
       -- rigid, canonical
       (VLocalVar x sp  , VLocalVar x' sp'   ) | x == x' -> unifySp ms l frz cs sp sp'
       (VLam _ t        , VLam _ t'          )           -> goBind t t'
-      (VPi (NI _ i) a b, VPi (NI _ i') a' b') | i == i' -> go' a a' U.>> goBind b b'
-      (VU              , VU                 )           -> U.pure ()
+      (VPi (NI _ i) a b, VPi (NI _ i') a' b') | i == i' -> go' a a' >> goBind b b'
+      (VU              , VU                 )           -> pure ()
 
       (VFlex x sp, VFlex x' sp')
         | x == x'   -> unifySp ms l frz cs sp sp'
-        | otherwise -> guardCS cs U.>> flexFlex ms l frz topt x sp topt' x' sp'
+        | otherwise -> guardCS cs >> flexFlex ms l frz topt x sp topt' x' sp'
 
       (VUnfold h sp t, VUnfold h' sp' t') -> case cs of
         Rigid | eqUH h h' -> unifySp ms l frz Flex sp sp'
@@ -376,12 +360,12 @@ unify ms l frz cs (G topt ftopt) (G topt' ftopt') = let
               | otherwise -> err
         _                 -> impossible
 
-      (VFlex x sp, t') -> U.do
+      (VFlex x sp, t') -> do
         guardCS cs
         solve ms l frz x sp topt' `catch` \_ ->
           solveLong ms l frz x sp t'
 
-      (t, VFlex x' sp') -> U.do
+      (t, VFlex x' sp') -> do
         guardCS cs
         solve ms l frz x' sp' topt `catch` \_ ->
           solveLong ms l frz x' sp' t
@@ -401,11 +385,11 @@ unify ms l frz cs (G topt ftopt) (G topt' ftopt') = let
 -- | Function factored out to handle `Irrelevant` values and eta-conversion
 --   cases. These are quite rare, so it seems to be a good idea to remove them
 --   from hot code.
-unifyCold :: MetaCxt -> Lvl -> MetaVar -> ConvState -> Val -> Val -> U.IO ()
+unifyCold :: MetaCxt -> Lvl -> MetaVar -> ConvState -> Val -> Val -> IO ()
 unifyCold ms l frz cs ~t ~t' = case (t, t') of
 
-  (VIrrelevant, _          ) -> U.pure ()
-  (_          , VIrrelevant) -> U.pure ()
+  (VIrrelevant, _          ) -> pure ()
+  (_          , VIrrelevant) -> pure ()
 
   (VLocalVar x sp, VLam (NI _ i) t')  ->
     let v = VLocalVar l SId
@@ -417,10 +401,10 @@ unifyCold ms l frz cs ~t ~t' = case (t, t') of
     throw (UnifyEx Conversion)
 {-# noinline unifyCold #-}
 
-unifySpCold :: MetaCxt -> Lvl -> MetaVar -> ConvState -> Lvl -> Spine -> Val -> U.IO ()
-unifySpCold ms l frz cs x sp v = forceCS ms cs v U.>>= \case
+unifySpCold :: MetaCxt -> Lvl -> MetaVar -> ConvState -> Lvl -> Spine -> Val -> IO ()
+unifySpCold ms l frz cs x sp v = forceCS ms cs v >>= \case
   VIrrelevant ->
-    U.pure ()
+    pure ()
   VLam (NI _ i) t' ->
     let v = VLocalVar l SId
     in unifySpCold ms (l + 1) frz cs x (SApp sp v i) (appCl' ms t' v)

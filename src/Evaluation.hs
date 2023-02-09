@@ -1,4 +1,3 @@
-{-# language UnboxedTuples, UnboxedSums #-}
 
 module Evaluation (
   app, inlApp, appSp, eval, force, forceAll, forceMetas, appCl,
@@ -7,7 +6,6 @@ module Evaluation (
 
 import qualified LvlSet as LS
 import qualified MetaCxt as MC
-import qualified UIO as U
 import Common
 import CoreTypes
 
@@ -19,10 +17,10 @@ localVar (EDef e _) x = localVar e (x - 1)
 localVar _          _ = impossible
 
 meta :: MetaCxt -> MetaVar -> Val
-meta ms x = U.run U.do
-  MC.read ms x U.>>= \case
-    Unsolved _     -> U.pure (VFlex x SId)
-    Solved _ _ _ v -> U.pure (VUnfold (UHSolved x) SId v)
+meta ms x = runIO do
+  MC.read ms x >>= \case
+    Unsolved _     -> pure (VFlex x SId)
+    Solved _ _ _ v -> pure (VUnfold (UHSolved x) SId v)
 {-# inline meta #-}
 
 appCl' :: MetaCxt -> Closure -> Val -> Val
@@ -69,13 +67,13 @@ maskEnv e mask = (case go e mask of SpineLvl sp _ -> sp) where
                   | otherwise        -> SpineLvl sp (l + 1)
 
 insertedMeta :: MetaCxt -> Env -> MetaVar -> Val
-insertedMeta ms ~e x = U.run do
-  MC.read ms x U.>>= \case
+insertedMeta ms ~e x = runIO do
+  MC.read ms x >>= \case
     Unsolved mask     ->
-      U.pure (VFlex x (maskEnv e mask))
+      pure (VFlex x (maskEnv e mask))
     Solved _ mask t v ->
       let sp = maskEnv e mask
-      in U.pure (VUnfold (UHSolved x) sp (appSp ms v sp))
+      in pure (VUnfold (UHSolved x) sp (appSp ms v sp))
 {-# inline insertedMeta #-}
 
 eval' :: MetaCxt -> Env -> Tm -> Val
@@ -98,59 +96,59 @@ eval ms e t = eval' ms e t
 -- Forcing
 --------------------------------------------------------------------------------
 
--- | Eliminate newly solved VFlex-es from the head.
-force :: MetaCxt -> Val -> U.IO Val
+-- | Convert solved VFlex-es to Unfold in the head.
+force :: MetaCxt -> Val -> IO Val
 force ms = \case
   xsp@(VFlex x sp) -> force' ms x sp xsp
-  t                -> U.pure t
+  t                -> pure t
 {-# inline force #-}
 
-force' :: MetaCxt -> MetaVar -> Spine -> Val -> U.IO Val
+force' :: MetaCxt -> MetaVar -> Spine -> Val -> IO Val
 force' ms x sp ~xsp =
-  MC.read ms x U.>>= \case
-    Unsolved _     -> U.pure xsp
-    Solved _ _ _ v -> U.pure (VUnfold (UHSolved x) sp (appSp ms v sp))
+  MC.read ms x >>= \case
+    Unsolved _     -> pure xsp
+    Solved _ _ _ v -> pure (VUnfold (UHSolved x) sp (appSp ms v sp))
 {-# noinline force' #-}
 
--- | Force + eliminate all unfoldings from the head.
-forceAll :: MetaCxt -> Val -> U.IO Val
+-- | Eliminate all unfoldings from the head.
+forceAll :: MetaCxt -> Val -> IO Val
 forceAll ms = \case
   xsp@(VFlex x sp)-> forceAllFlex ms x sp xsp
   VUnfold _ sp v  -> forceAll' ms v
-  t               -> U.pure t
+  t               -> pure t
 {-# inline forceAll #-}
 
-forceAll' :: MetaCxt -> Val -> U.IO Val
+forceAll' :: MetaCxt -> Val -> IO Val
 forceAll' ms = \case
   xsp@(VFlex x sp) -> forceAllFlex ms x sp xsp
   VUnfold _ sp v   -> forceAll' ms v
-  t                -> U.pure t
+  t                -> pure t
 
-forceAllFlex :: MetaCxt -> MetaVar -> Spine -> Val -> U.IO Val
+forceAllFlex :: MetaCxt -> MetaVar -> Spine -> Val -> IO Val
 forceAllFlex ms x sp ~xsp =
-  MC.read ms x U.>>= \case
-    Unsolved _     -> U.pure xsp
+  MC.read ms x >>= \case
+    Unsolved _     -> pure xsp
     Solved _ _ _ v -> forceAll' ms $! appSp ms v sp
 {-# noinline forceAllFlex #-}
 
--- | Force + eliminate all top def unfolding from the head.
-forceMetas :: MetaCxt -> Val -> U.IO Val
+-- | Eliminate all meta unfoldings from the head.
+forceMetas :: MetaCxt -> Val -> IO Val
 forceMetas ms = \case
   xsp@(VFlex x sp)        -> forceMetasFlex ms x sp xsp
   VUnfold UHSolved{} sp v -> forceMetas' ms v
-  t                       -> U.pure t
+  t                       -> pure t
 {-# inline forceMetas #-}
 
-forceMetas' :: MetaCxt -> Val -> U.IO Val
+forceMetas' :: MetaCxt -> Val -> IO Val
 forceMetas' ms = \case
   xsp@(VFlex x sp)       -> forceMetasFlex ms x sp xsp
   VUnfold UHSolved{} _ v -> forceMetas' ms v
-  t                      -> U.pure t
+  t                      -> pure t
 
-forceMetasFlex :: MetaCxt -> MetaVar -> Spine -> Val -> U.IO Val
+forceMetasFlex :: MetaCxt -> MetaVar -> Spine -> Val -> IO Val
 forceMetasFlex ms x sp ~xsp =
-  MC.read ms x U.>>= \case
-    Unsolved _     -> U.pure xsp
+  MC.read ms x >>= \case
+    Unsolved _     -> pure xsp
     Solved _ _ _ v -> forceMetas' ms $! appSp ms v sp
 {-# noinline forceMetasFlex #-}
 
@@ -178,9 +176,9 @@ quote ms l opt t = let
     VIrrelevant                 -> Irrelevant
 
   in case opt of
-    UnfoldAll   -> cont (U.run (forceAll   ms t))
-    UnfoldMetas -> cont (U.run (forceMetas ms t))
-    UnfoldNone  -> cont (U.run (force      ms t))
+    UnfoldAll   -> cont (runIO (forceAll   ms t))
+    UnfoldMetas -> cont (runIO (forceMetas ms t))
+    UnfoldNone  -> cont (runIO (force      ms t))
 
 --------------------------------------------------------------------------------
 
@@ -223,11 +221,11 @@ zonk ms env l t = let
                         (# t | #) -> App t (go u) i
                         (# | t #) -> quote $ inlApp ms t (eval ms env u) i
     Lam xi t       -> Lam xi (goBind t)
-    InsertedMeta x -> U.run $ MC.read ms x U.>>= \case
+    InsertedMeta x -> runIO $ MC.read ms x >>= \case
                         Unsolved _     ->
-                          U.pure (InsertedMeta x)
+                          pure (InsertedMeta x)
                         Solved _ mask _ v ->
-                          U.pure $ quote $ appSp ms v (maskEnv env mask)
+                          pure $ quote $ appSp ms v (maskEnv env mask)
     Meta x         -> quote $ meta ms x
     Pi xi a b      -> Pi xi (go a) (goBind b)
     Irrelevant     -> Irrelevant

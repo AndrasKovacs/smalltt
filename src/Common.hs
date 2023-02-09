@@ -1,4 +1,3 @@
-{-# language UnboxedTuples, UnboxedSums #-}
 
 {-|
 Definitions of basic types and operations which don't depend on the types for
@@ -18,31 +17,32 @@ module Common (
   , TYPE
   , RuntimeRep(..)
   , Proxy(..)
-  , unpackUTF8
-  , packUTF8
-  , HasCallStack) where
+  , utf8ToStr
+  , strToUtf8
+  , HasCallStack
+  , runIO
+  , when
+  ) where
 
-import Prelude hiding (Monad(..), Applicative(..), IO)
+import Prelude
 import qualified Prelude as P
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Internal as B
 
+import IO
+
+import Control.Monad (when)
 import Data.Bits
 import Data.Flat
 import Data.Kind
 import Data.List
 import Data.Proxy
 import Data.Time.Clock
-import FlatParse.Stateful (Span(..), Pos(..), Result(..), unsafeSlice, unpackUTF8, packUTF8)
+import FlatParse.Stateful (Span(..), Pos(..), Result(..), unsafeSlice, strToUtf8, utf8ToStr)
 import GHC.Exts
 import GHC.ForeignPtr
 import GHC.Stack
-
-import qualified UIO as U
-import qualified UIO
-
-#include "deriveCanIO.h"
 
 -- Constants
 --------------------------------------------------------------------------------
@@ -60,28 +60,28 @@ maxLocals = 64; {-# inline maxLocals #-}
 #ifdef DEBUG
 type Dbg = HasCallStack
 
-debug :: [String] -> UIO.IO ()
-debug strs = U.io $ putStrLn (intercalate " | " strs ++ " END")
+debug :: [String] -> IO ()
+debug strs = putStrLn (intercalate " | " strs ++ " END")
 
-debugging :: UIO.IO () -> UIO.IO ()
+debugging :: IO () -> IO ()
 debugging act = act
 {-# inline debugging #-}
 #else
 type Dbg = () :: Constraint
 
-debug :: [String] -> UIO.IO ()
-debug strs = U.pure ()
+debug :: [String] -> IO ()
+debug strs = pure ()
 {-# inline debug #-}
 
-debugging :: UIO.IO () -> UIO.IO ()
-debugging _ = U.pure ()
+debugging :: IO () -> IO ()
+debugging _ = pure ()
 {-# inline debugging #-}
 #endif
 
-debug' :: [String] -> UIO.IO ()
-debug' strs = U.io $ putStrLn (intercalate " | " strs ++ " END")
+debug' :: [String] -> IO ()
+debug' strs = putStrLn (intercalate " | " strs ++ " END")
 
-debugging' :: UIO.IO () -> UIO.IO ()
+debugging' :: IO () -> IO ()
 debugging' act = act
 {-# inline debugging' #-}
 
@@ -138,8 +138,6 @@ infixr 2 ||#
 (||#) (UBool# x) (UBool# y) = UBool# (x .|. y)
 {-# inline (||#) #-}
 
-CAN_IO(UBool, IntRep, Int#, UBool# (I# x), CoeUBool)
-
 instance Show UBool where
   show UTrue = "UTrue"
   show _     = "UFalse"
@@ -157,7 +155,6 @@ pattern UJust a <- UMaybe# (# a | #) where
 
 type UMaybeRepRep = SumRep [ LiftedRep, TupleRep '[]]
 type UMaybeRep a  = (# a | (# #) #)
-CAN_IO(UMaybe a, UMaybeRepRep, UMaybeRep a, UMaybe# x, CoeUMaybe)
 
 uMaybe :: b -> (a -> b) -> UMaybe a -> b
 uMaybe n j UNothing  = n
@@ -234,8 +231,6 @@ pattern Expl :: Icit
 pattern Expl = Icit# (-2)
 {-# complete Impl, Expl #-}
 
-CAN_IO(Icit, IntRep, Int#, Icit# (I# x), CoeIcit)
-
 instance Show Icit where
   show Impl = "Impl"
   show Expl = "Expl"
@@ -255,15 +250,11 @@ newtype Ix = Ix {unIx :: Int}
 newtype Lvl = Lvl {unLvl :: Int}
   deriving (Eq, Ord, Show, Num, Enum, Bits, Flat) via Int
 
-CAN_IO(Lvl, IntRep, Int#, Lvl (I# x), CoeLvl)
-
 newtype MetaVar = MkMetaVar Int
   deriving (Eq, Ord, Num, Flat) via Int
 
 instance Show MetaVar where
   show (MkMetaVar x) = '?':show x
-
-CAN_IO(MetaVar, IntRep, Int#, MkMetaVar (I# x), CoeMetaVar)
 
 lvlToIx :: Lvl -> Lvl -> Ix
 lvlToIx (Lvl envl) (Lvl x) = Ix (envl - x - 1)
@@ -306,7 +297,7 @@ instance Show Name where
   showsPrec d (NSpan x) = showsPrec d x
 
 showSpan :: Src -> Span -> String
-showSpan src s = unpackUTF8 $ unsafeSlice src s
+showSpan src s = utf8ToStr $ unsafeSlice src s
 
 showName :: Src -> Name -> String
 showName src = \case
@@ -425,7 +416,7 @@ eqSpan (B.BS (ForeignPtr base _) (I# len)) s s' =
 --------------------------------------------------------------------------------
 
 -- | Time an IO computation. Result is forced to whnf.
-timed :: P.IO a -> P.IO (a, NominalDiffTime)
+timed :: IO a -> IO (a, NominalDiffTime)
 timed a = do
   t1  <- getCurrentTime
   res <- a
@@ -435,7 +426,7 @@ timed a = do
 {-# inline timed #-}
 
 -- | Time a lazy pure value. Result is forced to whnf.
-timedPure :: a -> P.IO (a, NominalDiffTime)
+timedPure :: a -> IO (a, NominalDiffTime)
 timedPure ~a = do
   t1  <- getCurrentTime
   let res = a
@@ -445,7 +436,7 @@ timedPure ~a = do
 {-# noinline timedPure #-}
 
 -- | Time a lazy pure value. Result is forced to whnf.
-timedPure_ :: a -> P.IO NominalDiffTime
+timedPure_ :: a -> IO NominalDiffTime
 timedPure_ ~a = do
   t1  <- getCurrentTime
   let res = a
@@ -453,3 +444,21 @@ timedPure_ ~a = do
   let diff = diffUTCTime t2 t1
   P.pure diff
 {-# noinline timedPure_ #-}
+
+--------------------------------------------------------------------------------
+
+bind1 :: ((a -> IO b) -> IO b) -> (a -> IO b) -> IO b
+bind1 f g = IO \s -> let cont = oneShot g in unIO (f cont) s
+{-# inline bind1 #-}
+
+bind2 :: ((a -> b -> IO c) -> IO c) -> (a -> b -> IO c) -> IO c
+bind2 f g = IO \s -> let cont = oneShot g in unIO (f cont) s
+{-# inline bind2 #-}
+
+bind3 :: ((a -> b -> c -> IO d) -> IO d) -> (a -> b -> c -> IO d) -> IO d
+bind3 f g = IO \s -> let cont = oneShot g in unIO (f cont) s
+{-# inline bind3 #-}
+
+bind4 :: ((a -> b -> c -> d -> IO e) -> IO e) -> (a -> b -> c -> d -> IO e) -> IO e
+bind4 f g = IO \s -> let cont = oneShot g in unIO (f cont) s
+{-# inline bind4 #-}

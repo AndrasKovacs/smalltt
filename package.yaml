@@ -1,6 +1,6 @@
 
 name:        smalltt
-version:     0.2.0.1
+version:     0.2.0.2
 license:     MIT
 category:    Language
 description: "Demo for high-performance elaboration with dependent types"
@@ -39,6 +39,7 @@ default-extensions:
   - FunctionalDependencies
   - GADTs
   - InstanceSigs
+  - ImplicitParams
   - KindSignatures
   - LambdaCase
   - MagicHash
@@ -57,6 +58,8 @@ default-extensions:
   - TypeFamilies
   - TypeFamilyDependencies
   - UndecidableInstances
+  - UnboxedTuples
+  - UnboxedSums
   - ViewPatterns
 
 ghc-options:
@@ -68,7 +71,10 @@ ghc-options:
   - -Wno-unused-do-bind
   - -Wno-unticked-promoted-constructors
   - -fmax-worker-args=20
+  - -fworker-wrapper-cbv
+  - -fexpose-all-unfoldings
   - -O2
+  - -fplugin StrictImplParams
 
 when:
   - condition: flag(dump)
@@ -98,6 +104,7 @@ library:
     - containers
     - time
     - ghc-prim
+    - strict-impl-params
 
 executables:
   smalltt:
@@ -114,6 +121,7 @@ executables:
       - dynamic-array
       - flatparse
       - primdata
+      - strict-impl-params
       - smalltt
     when:
     - condition: false
