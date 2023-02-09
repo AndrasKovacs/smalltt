@@ -602,27 +602,6 @@ benchmarks](https://github.com/AndrasKovacs/normalization-bench) at some point;
 even there GHC performs well, but my newer unstructured benchmarking with newer
 GHC versions indicates yet more GHC advantage.
 
-### IO unboxing
-
-This fancy optimization turned out to not have a huge impact on performance, but
-I still had to at least implement it and benchmark it, to be able to come to
-this conclusion.
-
-In a nutshell, `IO a` blocks the unboxing of `a`. This has been a long-standing
-limitation, but fortunately GHC 9.4 will include a fix. I implemented a
-workaround of my own which works in GHC 9.0 and 9.2.
-
-[UIO.hs](src/UIO.hs) contains the basic machinery. There's a new `IO` definition
-whose operations all require a `CanIO a` constraint on the return value. The
-`CanIO` methods use levity-polymorphic magic to make this work. I haven't yet
-written nicer TH code to derive `CanIO`. There are only some CPP macros in
-[src/deriveCanIO.h](src/deriveCanIO.h).
-
-Unboxed `IO` is not a monad but a constrained monad, so I use
-[`QualifiedDo`](https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/qualified_do.html)
-to write `do`-blocks for it. I like this solution much better than globally
-rebinding my `do` notation to constrained monads.
-
 ### Custom exceptions
 
 This is the dirtiest trick here. I use custom catching and throwing functions,
@@ -638,41 +617,6 @@ my `Exception#` type. It works because the memory representation is the same.
 I had an old benchmark where custom exceptions had roughly 1/5 the overhead of
 standard exceptions. I haven't yet benchmarked both versions in smalltt, I
 really should.
-
-### Join-point friendly IO combinators
-
-Sometimes GHC gets confused when we work in standard `IO` or my unboxed `IO`.
-Consider code like the following.
-```{.haskell}
-do foo <- case b of
-            True  -> ...
-            False -> ...
-   bar
-```
-Let's have the abbreviation `type RW = State# RealWorld#`. `IO` is defined as
-```{.haskell}
-newtype IO a = IO {unIO :: RW -> (# RW, a #)
-```
-The mistake that GHC often makes here, is that it pushes the `RW ->` abstraction
-under the `case` split, so we get `True -> \s -> ...` in the Core output. As a
-result, when this `case` gets turned into a join point, the join point has type
-```{.haskell}
-(RW -> (# RW, a #)) -> RW -> (# RW, b #)
-```
-while we would rather have `\s -> case b of True -> ...; False -> ...`, and
-the following type for the continuation:
-```{.haskell}
-a -> RW -> (# RW, b #)
-```
-This alone is probably not catastrophic, because `RW ->` is erased during
-further compilation. But `RW ->` does appear to block a bunch of inlining and
-unboxing at the Core level. And with my custom unboxed `IO`, this leads to
-failure to inline the monadic binding, which really is catastrophic for
-performance.
-
-So I defined the `bind1`-`bind4` combinators in
-[`src/UIO.hs`](src/UIO.hs). These seem to reliably fix this issue. You can find
-several examples for their usage in [`src/Elaboration.hs`](src/Elaboration.hs).
 
 ### Data structures and libraries
 
