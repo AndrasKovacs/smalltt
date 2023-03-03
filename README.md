@@ -26,9 +26,8 @@ mostly in 2018-2019.
   * [Meta solution checking and quotation](#meta-solution-checking-and-quotation)
   * [Meta freezing and approximate occurs checking](#meta-freezing-and-approximate-occurs-checking)
 * [GHC-specific optimizations](#ghc-specific-optimizations)
-  * [IO unboxing](#io-unboxing)
+  * [Runtime system options](#runtime-system-options)
   * [Custom exceptions](#custom-exceptions)
-  * [Join-point friendly IO combinators](#join-point-friendly-io-combinators)
   * [Data structures and libraries](#data-structures-and-libraries)
 * [Benchmarks](#benchmarks)
   * [Elaboration speed](#elaboration-speed)
@@ -581,7 +580,6 @@ certainly make the code less readable. I included them because
 - I wanted to at least try some GHC-specific optimizations, to get an idea about
   their impact in the first place. Some of these optimizations turned out to
   have modest impact, but all of them help to some degree.
-
 
 ### Runtime system options
 
