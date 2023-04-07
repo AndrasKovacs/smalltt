@@ -5,7 +5,6 @@ import FlatParse.Stateful hiding (Parser, runParser, string, char, cut, err)
 
 import qualified Data.Set as S
 import qualified FlatParse.Stateful as FP
-import qualified FlatParse.Common.Assorted as FP
 import Data.Char
 import Data.String
 import GHC.Exts

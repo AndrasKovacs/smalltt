@@ -6,7 +6,6 @@
 TAGS
 .stack-work/
 dist-newstyle/
-*.cabal
 *.agdai
 *.vo
 *.aux
