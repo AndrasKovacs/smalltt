@@ -28,7 +28,7 @@ import Parser
 main :: IO ()
 main = standardize do
   hSetBuffering stdout NoBuffering
-  putStrLn "smalltt 2.0.0"
+  putStrLn "smalltt 0.2.0.2"
   putStrLn "enter :? for help"
   loop Nothing
 

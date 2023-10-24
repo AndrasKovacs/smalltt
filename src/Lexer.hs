@@ -33,7 +33,7 @@ data Error = Error !Pos !Error' | DontUnboxError
   deriving Show
 
 merge :: Error -> Error -> Error
-merge ~err@(Error p e) ~err'@(Error p' e')
+merge err@(Error p e) err'@(Error p' e')
   | p < p'    = err'
   | p' < p    = err
   | otherwise = case (e, e') of
@@ -44,6 +44,7 @@ merge ~err@(Error p e) ~err'@(Error p' e')
      (Precise _     , _             ) -> err
      (_             , Precise _     ) -> err'
      (Imprecise ss  , Imprecise ss' ) -> Error p (Imprecise (ss ++ ss'))
+merge _ _ = impossible
 {-# noinline merge #-}
 
 type Parser = FP.Parser Int Error
