@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- name: "András Kovács"
+title: "smalltt"
+version: 0.2.0.2
+license-url: "https://github.com/AndrasKovacs/smalltt/blob/master/LICENSE.txt"
+url: "https://github.com/AndrasKovacs/smalltt"
